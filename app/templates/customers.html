@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Clientes & CRM - BlingBI{% endblock %}
+{% block page_title %}Análise de Clientes & CRM{% endblock %}
+
+{% block content %}
+{% if analytics.total_customers == 0 %}
+<div class="card" style="border-left: 4px solid #f59e0b; background: #fffbeb; margin-bottom: 20px;">
+    <div class="card-body" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+        <div>
+            <h3 style="font-size: 15px; font-weight: 700; color: #92400e; margin-bottom: 4px;">Nenhum cliente cadastrado</h3>
+            <p style="color: #b45309; font-size: 13px;">Para analisar recorrência, LTV e clientes mais fiéis, conecte e sincronize a base de contatos do Bling.</p>
+        </div>
+        <div style="display: flex; gap: 8px;">
+            <a href="{{ url_for('integrations.index') }}" class="btn btn-primary btn-sm">Configurar API Bling</a>
+            <button id="btnSeedDemo" class="btn btn-outline btn-sm">Carregar Dados Demo</button>
+        </div>
+    </div>
+</div>
+{% endif %}
+<div class="kpi-grid">
+    <div class="kpi-card">
+        <span class="kpi-title">Base de Clientes</span>
+        <div class="kpi-value">{{ analytics.total_customers | number }}</div>
+        <div class="kpi-subtext">Total cadastrado no Bling</div>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-title">Clientes Ativos</span>
+        <div class="kpi-value" style="color: var(--bling-primary);">{{ analytics.active_customers_count | number }}</div>
+        <div class="kpi-subtext">Compraram no período</div>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-title">Recompra (Fidelidade)</span>
+        <div class="kpi-value" style="color: #2563eb;">{{ "%.1f"|format(analytics.recurrence_rate) }}%</div>
+        <div class="kpi-subtext">{{ analytics.recurring_customers }} clientes com >1 pedido</div>
+    </div>
+</div>
+
+<div class="charts-grid" style="grid-template-columns: 2fr 1fr;">
+    <!-- Top Clientes -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">Top Clientes por Faturamento</span>
+        </div>
+        <div class="table-responsive">
+            <table class="bling-table">
+                <thead>
+                    <tr>
+                        <th>Cliente</th>
+                        <th>CPF / CNPJ</th>
+                        <th>Cidade / UF</th>
+                        <th style="text-align: center;">Pedidos</th>
+                        <th style="text-align: right;">Total Gasto</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in analytics.top_customers %}
+                    <tr>
+                        <td style="font-weight: 600;">{{ c.name }}</td>
+                        <td style="font-family: monospace; font-size: 12px; color: var(--text-muted);">{{ c.doc }}</td>
+                        <td>{{ c.city }} / {{ c.state }}</td>
+                        <td style="text-align: center;">{{ c.orders }}</td>
+                        <td style="text-align: right; font-weight: 700; color: var(--bling-primary);">{{ c.total_spent | currency }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" style="text-align: center; padding: 24px; color: var(--text-muted);">Nenhum comprador no período selecionado.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Distribuição por Estado -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">Concentração por UF</span>
+        </div>
+        <div class="table-responsive">
+            <table class="bling-table">
+                <thead>
+                    <tr>
+                        <th>Estado</th>
+                        <th style="text-align: right;">Clientes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in analytics.states_distribution %}
+                    <tr>
+                        <td style="font-weight: 600;">{{ s.state }}</td>
+                        <td style="text-align: right; font-weight: 700;">{{ s.count | number }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="2" style="text-align: center; padding: 20px; color: var(--text-muted);">Sem registros.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

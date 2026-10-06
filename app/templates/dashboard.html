@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard 360° - BlingBI{% endblock %}
+{% block page_title %}Visão Geral do Negócio{% endblock %}
+
+{% block content %}
+<!-- Banner se base estiver vazia -->
+{% if metrics.orders_count == 0 %}
+<div class="card" style="border-left: 4px solid var(--bling-primary); background: #f0fdf4;">
+    <div class="card-body" style="display: flex; align-items: center; justify-content: space-between;">
+        <div>
+            <h3 style="font-size: 16px; font-weight: 700; color: #166534; margin-bottom: 4px;">Comece agora com dados demonstrativos!</h3>
+            <p style="color: #15803d; font-size: 13px;">Sua base local ainda não possui registros. Você pode carregar dados de demonstração com 1 clique para explorar todos os gráficos e relatórios.</p>
+        </div>
+        <button id="btnSeedDemo" class="btn btn-primary">Carregar Dados Demo</button>
+    </div>
+</div>
+{% endif %}
+
+<!-- Grid de KPIs -->
+<div class="kpi-grid">
+    <div class="kpi-card">
+        <div class="kpi-header">
+            <span class="kpi-title">Faturamento Total</span>
+            <div class="kpi-icon green">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+            </div>
+        </div>
+        <div class="kpi-value">{{ metrics.total_revenue | currency }}</div>
+        <div class="kpi-subtext">Pedidos atendidos no período</div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-header">
+            <span class="kpi-title">Pedidos Atendidos</span>
+            <div class="kpi-icon blue">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
+            </div>
+        </div>
+        <div class="kpi-value">{{ metrics.orders_count | number }}</div>
+        <div class="kpi-subtext">Volume de vendas concluídas</div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-header">
+            <span class="kpi-title">Ticket Médio</span>
+            <div class="kpi-icon purple">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
+            </div>
+        </div>
+        <div class="kpi-value">{{ metrics.ticket_medio | currency }}</div>
+        <div class="kpi-subtext">Média por pedido aprovado</div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-header">
+            <span class="kpi-title">A Receber (Previsão)</span>
+            <div class="kpi-icon amber">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
+            </div>
+        </div>
+        <div class="kpi-value">{{ metrics.receivables_pending | currency }}</div>
+        <div class="kpi-subtext">Títulos a vencer / pendentes</div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-header">
+            <span class="kpi-title">A Pagar (Previsão)</span>
+            <div class="kpi-icon red">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"></polyline><polyline points="17 18 23 18 23 12"></polyline></svg>
+            </div>
+        </div>
+        <div class="kpi-value">{{ metrics.payables_pending | currency }}</div>
+        <div class="kpi-subtext">Contas e fornecedores a quitar</div>
+    </div>
+</div>
+
+<!-- Gráficos -->
+<div class="charts-grid">
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">Evolução de Vendas no Período</span>
+            <span style="font-size: 12px; color: var(--text-muted);">Diário</span>
+        </div>
+        <div class="card-body" style="height: 320px;">
+            <canvas id="salesTimelineChart"></canvas>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">Vendas por Canal</span>
+        </div>
+        <div class="card-body" style="height: 320px;">
+            <canvas id="channelsPieChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Seção Inferior: Top Produtos & Pedidos Recentes -->
+<div class="charts-grid" style="grid-template-columns: 1fr 1fr;">
+    <!-- Top 5 Produtos -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">Top 5 Produtos Mais Faturados</span>
+            <a href="{{ url_for('products.index') }}" class="btn btn-outline btn-sm">Ver Curva ABC</a>
+        </div>
+        <div class="table-responsive">
+            <table class="bling-table">
+                <thead>
+                    <tr>
+                        <th>Produto</th>
+                        <th style="text-align: center;">Qtd</th>
+                        <th style="text-align: right;">Total Vendido</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in metrics.top_products %}
+                    <tr>
+                        <td style="font-weight: 500;">{{ p.name }}</td>
+                        <td style="text-align: center;">{{ p.qty }} un</td>
+                        <td style="text-align: right; font-weight: 600; color: var(--bling-primary);">{{ p.revenue | currency }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="3" style="text-align: center; color: var(--text-muted); padding: 24px;">Nenhum produto vendido no período.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Pedidos Recentes -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">Últimos Pedidos Registrados</span>
+            <a href="{{ url_for('sales.index') }}" class="btn btn-outline btn-sm">Ver Todos</a>
+        </div>
+        <div class="table-responsive">
+            <table class="bling-table">
+                <thead>
+                    <tr>
+                        <th>Nº</th>
+                        <th>Data</th>
+                        <th>Cliente</th>
+                        <th style="text-align: right;">Valor</th>
+                        <th style="text-align: center;">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for o in metrics.recent_orders %}
+                    <tr>
+                        <td style="font-weight: 600;">#{{ o.number }}</td>
+                        <td>{{ o.order_date }}</td>
+                        <td>{{ o.customer_name }}</td>
+                        <td style="text-align: right; font-weight: 600;">{{ o.total | currency }}</td>
+                        <td style="text-align: center;">
+                            <span class="badge {% if o.status == 'Atendido' %}badge-success{% elif o.status == 'Em aberto' %}badge-warning{% else %}badge-danger{% endif %}">
+                                {{ o.status }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 24px;">Nenhum pedido encontrado.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const labels = {{ metrics.chart_labels | tojson }};
+        const revenue = {{ metrics.chart_revenue | tojson }};
+        const orders = {{ metrics.chart_orders | tojson }};
+
+        renderSalesChart('salesTimelineChart', labels, revenue, orders);
+
+        const channelLabels = {{ metrics.channels_labels | tojson }};
+        const channelValues = {{ metrics.channels_values | tojson }};
+        renderDoughnutChart('channelsPieChart', channelLabels, channelValues);
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block title %}Produtos & Curva ABC - BlingBI{% endblock %}
+{% block page_title %}Curva ABC & Estoque de Produtos{% endblock %}
+
+{% block content %}
+{% if analytics.total_products == 0 %}
+<div class="card" style="border-left: 4px solid #f59e0b; background: #fffbeb; margin-bottom: 20px;">
+    <div class="card-body" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+        <div>
+            <h3 style="font-size: 15px; font-weight: 700; color: #92400e; margin-bottom: 4px;">Nenhum produto cadastrado ou vendido</h3>
+            <p style="color: #b45309; font-size: 13px;">Para calcular a Curva ABC e monitorar o estoque, sincronize o catálogo de produtos e vendas do seu Bling.</p>
+        </div>
+        <div style="display: flex; gap: 8px;">
+            <a href="{{ url_for('integrations.index') }}" class="btn btn-primary btn-sm">Configurar API Bling</a>
+            <button id="btnSeedDemo" class="btn btn-outline btn-sm">Carregar Dados Demo</button>
+        </div>
+    </div>
+</div>
+{% endif %}
+<!-- Barra de Ações -->
+<div class="card" style="margin-bottom: 20px;">
+    <div class="card-body" style="padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+        <div>
+            <span style="font-weight: 600; font-size: 14px;">Análise de Pareto (Regra 80/20)</span>
+            <span style="color: var(--text-muted); font-size: 13px; margin-left: 8px;">Classe A (80% da receita), B (15%), C (5%)</span>
+        </div>
+        <a href="{{ url_for('reports.export_products_excel', period=period, start_date=start_date, end_date=end_date) }}" class="btn btn-outline btn-sm">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="8" y1="13" x2="16" y2="13"></line><line x1="8" y1="17" x2="16" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+            Exportar Curva ABC (.xlsx)
+        </a>
+    </div>
+</div>
+
+<!-- KPIs da Curva ABC -->
+<div class="kpi-grid">
+    <div class="kpi-card">
+        <span class="kpi-title">Total de Produtos Ativos</span>
+        <div class="kpi-value">{{ analytics.total_products | number }}</div>
+        <div class="kpi-subtext">Cadastrados no Bling</div>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-title">Produtos Classe A</span>
+        <div class="kpi-value" style="color: #15803d;">{{ analytics.count_a }} itens</div>
+        <div class="kpi-subtext">Representam ~80% do faturamento</div>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-title">Produtos Classe B</span>
+        <div class="kpi-value" style="color: #a16207;">{{ analytics.count_b }} itens</div>
+        <div class="kpi-subtext">Representam ~15% do faturamento</div>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-title">Produtos Classe C</span>
+        <div class="kpi-value" style="color: #b91c1c;">{{ analytics.count_c }} itens</div>
+        <div class="kpi-subtext">Cauda longa (5% da receita)</div>
+    </div>
+</div>
+
+<!-- Tabela da Curva ABC -->
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">Classificação ABC de Produtos</span>
+    </div>
+    <div class="table-responsive">
+        <table class="bling-table">
+            <thead>
+                <tr>
+                    <th style="text-align: center;">Classe</th>
+                    <th>SKU</th>
+                    <th>Descrição do Produto</th>
+                    <th style="text-align: center;">Qtd Vendida</th>
+                    <th style="text-align: right;">Receita (R$)</th>
+                    <th style="text-align: right;">Margem Líquida</th>
+                    <th style="text-align: center;">% Margem</th>
+                    <th style="text-align: center;">% Acumulado</th>
+                    <th style="text-align: center;">Estoque Atual</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in analytics.abc_products %}
+                <tr>
+                    <td style="text-align: center;">
+                        <span class="badge {% if p.class == 'A' %}badge-a{% elif p.class == 'B' %}badge-b{% else %}badge-c{% endif %}">
+                            Classe {{ p.class }}
+                        </span>
+                    </td>
+                    <td style="font-family: monospace; font-size: 12px;">{{ p.sku }}</td>
+                    <td style="font-weight: 500;">{{ p.name }}</td>
+                    <td style="text-align: center;">{{ p.qty_sold | number }} un</td>
+                    <td style="text-align: right; font-weight: 700;">{{ p.revenue | currency }}</td>
+                    <td style="text-align: right; color: var(--bling-primary);">{{ p.margin | currency }}</td>
+                    <td style="text-align: center; font-weight: 600;">{{ "%.1f"|format(p.margin_pct) }}%</td>
+                    <td style="text-align: center; color: var(--text-muted);">{{ "%.1f"|format(p.accumulated_pct) }}%</td>
+                    <td style="text-align: center;">
+                        <span style="font-weight: 700; color: {% if p.stock <= 5 %}#dc2626{% else %}#1e293b{% endif %};">
+                            {{ p.stock | number }} un
+                        </span>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="9" style="text-align: center; padding: 24px; color: var(--text-muted);">Nenhuma venda registrada no período para calcular a Curva ABC.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

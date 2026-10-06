@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}BlingBI - Painel de Tomada de Decisão{% endblock %}</title>
+    <!-- Google Fonts Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <!-- CSS Bling ERP Theme -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bling_theme.css') }}">
+    <style>
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Bling -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="brand-badge">B</div>
+                <div class="brand-text">Bling<span>BI</span></div>
+            </div>
+            <ul class="sidebar-menu">
+                <li class="menu-category">Estratégico</li>
+                <li class="menu-item {% if request.endpoint == 'dashboard.index' %}active{% endif %}">
+                    <a href="{{ url_for('dashboard.index') }}">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                        Dashboard 360°
+                    </a>
+                </li>
+
+                <li class="menu-category">Operação & BI</li>
+                <li class="menu-item {% if request.endpoint == 'sales.index' %}active{% endif %}">
+                    <a href="{{ url_for('sales.index') }}">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
+                        Vendas & Pedidos
+                    </a>
+                </li>
+                <li class="menu-item {% if request.endpoint == 'products.index' %}active{% endif %}">
+                    <a href="{{ url_for('products.index') }}">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                        Produtos & Curva ABC
+                    </a>
+                </li>
+                <li class="menu-item {% if request.endpoint == 'customers.index' %}active{% endif %}">
+                    <a href="{{ url_for('customers.index') }}">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                        Clientes & CRM
+                    </a>
+                </li>
+                <li class="menu-item {% if request.endpoint == 'finance.index' %}active{% endif %}">
+                    <a href="{{ url_for('finance.index') }}">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                        Financeiro & DRE
+                    </a>
+                </li>
+
+                <li class="menu-category">Sistema</li>
+                <li class="menu-item {% if request.endpoint == 'integrations.index' %}active{% endif %}">
+                    <a href="{{ url_for('integrations.index') }}">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                        Configurar API & Bling
+                    </a>
+                </li>
+            </ul>
+            <div class="sidebar-footer">
+                <span>Versão 1.0 Local</span>
+                <span style="color: #10b981;">● Online</span>
+            </div>
+        </aside>
+
+        <!-- Wrapper de Conteúdo -->
+        <div class="main-wrapper">
+            <!-- Barra Superior Topbar -->
+            <header class="topbar">
+                <div class="topbar-title">
+                    <h1 class="page-title">{% block page_title %}Dashboard{% endblock %}</h1>
+                </div>
+                <div class="topbar-actions">
+                    <!-- Filtro Global de Período -->
+                    <form method="GET" class="date-filter-form" id="dateFilterForm">
+                        <select name="period" id="periodSelect">
+                            <option value="today" {% if period == 'today' %}selected{% endif %}>Hoje</option>
+                            <option value="yesterday" {% if period == 'yesterday' %}selected{% endif %}>Ontem</option>
+                            <option value="last_7_days" {% if period == 'last_7_days' %}selected{% endif %}>Últimos 7 dias</option>
+                            <option value="last_30_days" {% if period == 'last_30_days' or not period %}selected{% endif %}>Últimos 30 dias</option>
+                            <option value="this_month" {% if period == 'this_month' %}selected{% endif %}>Este Mês</option>
+                            <option value="last_month" {% if period == 'last_month' %}selected{% endif %}>Mês Anterior</option>
+                            <option value="custom" {% if period == 'custom' %}selected{% endif %}>Personalizado</option>
+                        </select>
+                        <div id="customDateRange" style="display: {% if period == 'custom' %}flex{% else %}none{% endif %}; gap: 4px; align-items: center;">
+                            <input type="date" name="start_date" value="{{ start_date }}" class="form-control" style="padding: 2px 6px; font-size: 12px; height: 28px;">
+                            <span>até</span>
+                            <input type="date" name="end_date" value="{{ end_date }}" class="form-control" style="padding: 2px 6px; font-size: 12px; height: 28px;">
+                            <button type="submit" class="btn btn-sm btn-primary">Filtrar</button>
+                        </div>
+                    </form>
+
+                    <!-- Botão Sincronizar Agora -->
+                    <button class="btn btn-outline btn-sm btn-trigger-sync" title="Sincronizar com Bling">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+                        Sincronizar
+                    </button>
+                </div>
+            </header>
+
+            <!-- Mensagens Flash -->
+            <div class="content-body">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        <div class="flash-messages">
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ category }}">
+                                    <span>{{ message }}</span>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                {% endwith %}
+
+                <!-- Bloco de Conteúdo -->
+                {% block content %}{% endblock %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Sincronização Bling em Tempo Real -->
+    <div id="syncProgressModal" class="modal-backdrop">
+        <div class="sync-modal-card">
+            <div id="syncModalSpinner" class="sync-spinner"></div>
+            <h3 id="syncModalTitle" style="font-size: 18px; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">
+                Sincronizando com o Bling ERP
+            </h3>
+            <p id="syncModalSubtitle" style="font-size: 13px; color: var(--text-muted);">
+                Aguarde enquanto importamos seus dados atualizados...
+            </p>
+
+            <div class="sync-step-list">
+                <div id="step-auth" class="sync-step-item active">
+                    <span>🔄</span> Conectando à API do Bling v3...
+                </div>
+                <div id="step-contacts" class="sync-step-item">
+                    <span>⚪</span> Importando contatos e clientes
+                </div>
+                <div id="step-products" class="sync-step-item">
+                    <span>⚪</span> Importando catálogo de produtos e estoque
+                </div>
+                <div id="step-orders" class="sync-step-item">
+                    <span>⚪</span> Importando pedidos de vendas e itens
+                </div>
+                <div id="step-finance" class="sync-step-item">
+                    <span>⚪</span> Importando contas a pagar e receber
+                </div>
+            </div>
+
+            <div id="syncModalSummary" style="display: none; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; padding: 12px; margin-bottom: 16px; font-size: 13px; color: #065f46; text-align: left;">
+            </div>
+
+            <div id="syncModalActions" style="display: none; justify-content: center; gap: 10px;">
+                <button type="button" class="btn btn-primary" onclick="window.location.reload();">
+                    Ver Dashboards Atualizados
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts Globais -->
+    <script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>
