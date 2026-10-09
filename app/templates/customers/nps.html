@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+
+{% block title %}Satisfação & NPS - Clientes e CRM - BlingBI{% endblock %}
+{% block page_title %}Setor de Clientes e CRM{% endblock %}
+
+{% block content %}
+<!-- Cabeçalho Hierárquico do Setor -->
+{% include "customers/nav_header.html" %}
+
+<div class="report-container" style="display: flex; flex-direction: column; gap: 24px;">
+
+    <!-- Filtros de Período e Vendedora -->
+    <div class="card" style="padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+        <form method="GET" action="{{ url_for('customers.nps') }}" style="display: flex; gap: 14px; align-items: center; flex-wrap: wrap;">
+            <div>
+                <label style="font-size: 11px; font-weight: 600; color: #64748B; display: block; margin-bottom: 2px;">Período:</label>
+                <select name="period" onchange="this.form.submit()" style="padding: 6px 12px; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 13px;">
+                    <option value="last_30_days" {% if period == 'last_30_days' %}selected{% endif %}>Últimos 30 dias</option>
+                    <option value="last_60_days" {% if period == 'last_60_days' %}selected{% endif %}>Últimos 60 dias</option>
+                    <option value="last_90_days" {% if period == 'last_90_days' %}selected{% endif %}>Últimos 90 dias</option>
+                    <option value="this_month" {% if period == 'this_month' %}selected{% endif %}>Este Mês</option>
+                    <option value="this_year" {% if period == 'this_year' %}selected{% endif %}>Este Ano</option>
+                </select>
+            </div>
+
+            <div>
+                <label style="font-size: 11px; font-weight: 600; color: #64748B; display: block; margin-bottom: 2px;">Vendedora / Consultora:</label>
+                <select name="seller" onchange="this.form.submit()" style="padding: 6px 12px; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 13px;">
+                    <option value="all">Todas as Consultoras</option>
+                    {% for s in sellers %}
+                    <option value="{{ s }}" {% if seller == s %}selected{% endif %}>{{ s }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div style="font-size: 12px; color: #64748B; padding-top: 14px;">
+                Métricas de satisfação pós-venda, qualidade do atendimento e fidelização da cliente.
+            </div>
+        </form>
+
+        <a href="{{ url_for('fashion.export_block4_pdf') }}" class="btn btn-secondary">
+            Exportar Relatório PDF
+        </a>
+    </div>
+
+    <!-- Cards de Indicadores de Satisfação -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+        <div class="card" style="padding: 20px; border-left: 4px solid #16A34A;">
+            <div style="font-size: 11px; font-weight: 700; color: #64748B; text-transform: uppercase;">Net Promoter Score (NPS)</div>
+            <div style="font-size: 32px; font-weight: 800; color: #16A34A; margin-top: 4px;">{{ nps_data.nps_score }}</div>
+            <div style="font-size: 12px; color: #64748B; margin-top: 2px;">Zona de Excelência (&gt; 50)</div>
+        </div>
+
+        <div class="card" style="padding: 20px; border-left: 4px solid #2563EB;">
+            <div style="font-size: 11px; font-weight: 700; color: #64748B; text-transform: uppercase;">Média CSAT</div>
+            <div style="font-size: 32px; font-weight: 800; color: #2563EB; margin-top: 4px;">{{ nps_data.csat_score }} <span style="font-size: 16px; color: #94A3B8;">/ 5.0</span></div>
+            <div style="font-size: 12px; color: #64748B; margin-top: 2px;">Satisfação média geral</div>
+        </div>
+
+        <div class="card" style="padding: 20px; border-left: 4px solid #0EA5E9;">
+            <div style="font-size: 11px; font-weight: 700; color: #64748B; text-transform: uppercase;">Respostas Coletadas</div>
+            <div style="font-size: 32px; font-weight: 800; color: #1E293B; margin-top: 4px;">{{ nps_data.total_responses }}</div>
+            <div style="font-size: 12px; color: #64748B; margin-top: 2px;">Pesquisas de pós-venda</div>
+        </div>
+
+        <div class="card" style="padding: 20px; border-left: 4px solid #DC2626;">
+            <div style="font-size: 11px; font-weight: 700; color: #64748B; text-transform: uppercase;">Detratores (Risco)</div>
+            <div style="font-size: 32px; font-weight: 800; color: #DC2626; margin-top: 4px;">{{ nps_data.detractors_count }}</div>
+            <div style="font-size: 12px; color: #64748B; margin-top: 2px;">{{ nps_data.detractors_perc }}% do total</div>
+        </div>
+    </div>
+
+    <!-- Gráfico Donut de Proporção & Resumo dos Segmentos -->
+    <div style="display: grid; grid-template-columns: 360px 1fr; gap: 20px;">
+        <div class="card" style="padding: 20px;">
+            <h3 style="font-size: 15px; font-weight: 700; color: #1E293B; margin-bottom: 14px;">
+                Distribuição NPS
+            </h3>
+            <div style="height: 240px; position: relative;">
+                <canvas id="chartNpsDonut"></canvas>
+            </div>
+        </div>
+
+        <div class="card" style="padding: 20px; display: flex; flex-direction: column; justify-content: center;">
+            <h3 style="font-size: 15px; font-weight: 700; color: #1E293B; margin-bottom: 16px;">
+                Detalhamento dos Segmentos de Clientes
+            </h3>
+            
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                <div style="background: #F0FDF4; border: 1px solid #BBF7D0; padding: 14px 18px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <div style="font-weight: 700; color: #166534; font-size: 14px;">🟢 Promotores (Notas 9 e 10)</div>
+                        <div style="font-size: 12px; color: #15803D;">Clientes fiéis que recomendam a loja a amigos e familiares.</div>
+                    </div>
+                    <div style="text-align: right;">
+                        <span style="font-size: 20px; font-weight: 800; color: #166534;">{{ nps_data.promoters_count }}</span>
+                        <div style="font-size: 12px; font-weight: 600; color: #15803D;">{{ nps_data.promoters_perc }}%</div>
+                    </div>
+                </div>
+
+                <div style="background: #FEFCE8; border: 1px solid #FEF08A; padding: 14px 18px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <div style="font-weight: 700; color: #854D0E; font-size: 14px;">🟡 Neutros / Passivos (Notas 7 e 8)</div>
+                        <div style="font-size: 12px; color: #A16207;">Clientes satisfeitos, porém vulneráveis a ofertas de concorrentes.</div>
+                    </div>
+                    <div style="text-align: right;">
+                        <span style="font-size: 20px; font-weight: 800; color: #854D0E;">{{ nps_data.passives_count }}</span>
+                        <div style="font-size: 12px; font-weight: 600; color: #A16207;">{{ nps_data.passives_perc }}%</div>
+                    </div>
+                </div>
+
+                <div style="background: #FEF2F2; border: 1px solid #FECACA; padding: 14px 18px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <div style="font-weight: 700; color: #991B1B; font-size: 14px;">🔴 Detratores (Notas 0 a 6)</div>
+                        <div style="font-size: 12px; color: #B91C1C;">Clientes insatisfeitos com risco de cancelamento e churn. Requer contato CS urgente.</div>
+                    </div>
+                    <div style="text-align: right;">
+                        <span style="font-size: 20px; font-weight: 800; color: #991B1B;">{{ nps_data.detractors_count }}</span>
+                        <div style="font-size: 12px; font-weight: 600; color: #B91C1C;">{{ nps_data.detractors_perc }}%</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Depoimentos e Feedbacks Recentes -->
+    <div class="card" style="padding: 20px;">
+        <h3 style="font-size: 16px; font-weight: 700; color: #1E293B; margin-bottom: 16px;">
+            Depoimentos & Feedbacks Registrados
+        </h3>
+
+        <div style="overflow-x: auto;">
+            <table class="data-table" style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background: #F8FAFC; border-bottom: 2px solid #E2E8F0; text-align: left;">
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569;">Cliente</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569;">Consultora</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569; text-align: center;">NPS</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569; text-align: center;">CSAT</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569;">Comentário do Cliente</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569;">Data</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sv in nps_data.surveys %}
+                    <tr style="border-bottom: 1px solid #F1F5F9; font-size: 13px;">
+                        <td style="padding: 12px 14px; font-weight: 600; color: #1E293B;">{{ sv.customer_name }}</td>
+                        <td style="padding: 12px 14px; color: #475569;">{{ sv.seller_name }}</td>
+                        <td style="padding: 12px 14px; text-align: center;">
+                            <span class="badge" style="background: {% if sv.nps_score >= 9 %}#DCFCE7; color: #166534;{% elif sv.nps_score >= 7 %}#FEF3C7; color: #92400E;{% else %}#FEE2E2; color: #991B1B;{% endif %}; font-weight: 700; padding: 2px 8px; border-radius: 4px;">
+                                {{ sv.nps_score }}
+                            </span>
+                        </td>
+                        <td style="padding: 12px 14px; text-align: center; font-weight: 600; color: #2563EB;">
+                            {{ sv.csat_score }}/5
+                        </td>
+                        <td style="padding: 12px 14px; color: #334155; font-style: italic;">
+                            "{{ sv.feedback }}"
+                        </td>
+                        <td style="padding: 12px 14px; color: #94A3B8; font-size: 12px; white-space: nowrap;">
+                            {{ sv.survey_date }}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 30px; color: #94A3B8;">
+                            Nenhuma pesquisa de satisfação registrada para o filtro selecionado.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- Chart.js Script -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const ctxNps = document.getElementById('chartNpsDonut');
+    if (ctxNps) {
+        new Chart(ctxNps, {
+            type: 'doughnut',
+            data: {
+                labels: {{ nps_data.chart.labels | tojson }},
+                datasets: [{
+                    data: {{ nps_data.chart.data | tojson }},
+                    backgroundColor: ['#16a34a', '#eab308', '#dc2626'],
+                    borderWidth: 2,
+                    borderColor: '#ffffff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { boxWidth: 12, font: { size: 11 } }
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

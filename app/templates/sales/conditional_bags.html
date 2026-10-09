@@ -1,0 +1,645 @@
+{% extends "base.html" %}
+
+{% block title %}Malas Condicionais (Consignado) - Vendas e Pedidos - BlingBI{% endblock %}
+{% block page_title %}Setor de Vendas e Pedidos{% endblock %}
+
+{% block content %}
+<!-- Cabeçalho Hierárquico do Setor -->
+{% include "sales/nav_header.html" %}
+
+<div class="report-container" style="display: flex; flex-direction: column; gap: 24px;">
+
+    <!-- Filtros de Período, Status e Consultora -->
+    <div class="card" style="padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+        <form method="GET" action="{{ url_for('sales.conditional_bags') }}" style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+            <div>
+                <label style="font-size: 11px; font-weight: 600; color: #64748B; display: block; margin-bottom: 2px;">Período:</label>
+                <select name="period" onchange="this.form.submit()" style="padding: 6px 12px; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 13px;">
+                    <option value="last_30_days" {% if period == 'last_30_days' %}selected{% endif %}>Últimos 30 dias</option>
+                    <option value="last_60_days" {% if period == 'last_60_days' %}selected{% endif %}>Últimos 60 dias</option>
+                    <option value="this_month" {% if period == 'this_month' %}selected{% endif %}>Este Mês</option>
+                    <option value="last_month" {% if period == 'last_month' %}selected{% endif %}>Mês Anterior</option>
+                </select>
+            </div>
+
+            <div>
+                <label style="font-size: 11px; font-weight: 600; color: #64748B; display: block; margin-bottom: 2px;">Situação da Mala:</label>
+                <select name="status" onchange="this.form.submit()" style="padding: 6px 12px; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 13px;">
+                    <option value="all">Todas as Situações</option>
+                    <option value="Convertida" {% if status == 'Convertida' or status == '100% Convertida' %}selected{% endif %}>100% Convertida</option>
+                    <option value="Parcialmente" {% if status == 'Parcialmente' %}selected{% endif %}>Parcialmente Faturada</option>
+                    <option value="Em Aberto" {% if status == 'Em Aberto' %}selected{% endif %}>Em Aberto (Com Cliente)</option>
+                    <option value="Devolvida" {% if status == 'Devolvida' %}selected{% endif %}>Devolvida Integral</option>
+                </select>
+            </div>
+
+            {% if filter_options and filter_options.sellers %}
+            <div>
+                <label style="font-size: 11px; font-weight: 600; color: #64748B; display: block; margin-bottom: 2px;">Consultor(a):</label>
+                <select name="seller" onchange="this.form.submit()" style="padding: 6px 12px; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 13px;">
+                    <option value="all">Todas as Consultoras</option>
+                    {% for s in filter_options.sellers %}
+                    <option value="{{ s }}" {% if seller == s %}selected{% endif %}>{{ s }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+        </form>
+
+        <div style="display: flex; gap: 8px;">
+            <a href="{{ url_for('sales.export_conditional_bags_excel', period=period, seller=seller, status=status) }}" class="btn btn-outline" style="display: inline-flex; align-items: center; gap: 6px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                Exportar Excel
+            </a>
+            <a href="{{ url_for('sales.export_conditional_bags_pdf', period=period, seller=seller, status=status) }}" class="btn btn-secondary" style="display: inline-flex; align-items: center; gap: 6px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                Exportar PDF
+            </a>
+        </div>
+    </div>
+
+    <!-- Cards de KPIs de Malas Condicionais -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
+        <div class="card" style="padding: 16px; border-left: 4px solid #64748B;">
+            <div style="font-size: 12px; color: #64748B; font-weight: 600;">Peças Enviadas em Consignado</div>
+            <div style="font-size: 24px; font-weight: 800; color: #1E293B; margin-top: 4px;">{{ bags_data.total_sent }} peças</div>
+            <div style="font-size: 11px; color: #64748B; margin-top: 2px;">{{ bags_data.total_bags }} malas consignadas</div>
+        </div>
+        <div class="card" style="padding: 16px; border-left: 4px solid #008B54;">
+            <div style="font-size: 12px; color: #64748B; font-weight: 600;">Peças Compradas (Faturadas)</div>
+            <div style="font-size: 24px; font-weight: 800; color: #008B54; margin-top: 4px;">{{ bags_data.total_invoiced }} peças</div>
+            <div style="font-size: 11px; color: #008B54; margin-top: 2px; font-weight: 600;">{{ bags_data.total_returned }} peças devolvidas</div>
+        </div>
+        <div class="card" style="padding: 16px; border-left: 4px solid #3B82F6;">
+            <div style="font-size: 12px; color: #64748B; font-weight: 600;">Taxa de Conversão da Bag</div>
+            <div style="font-size: 24px; font-weight: 800; color: #3B82F6; margin-top: 4px;">{{ bags_data.overall_conversion_rate }}%</div>
+            <div style="font-size: 11px; color: #64748B; margin-top: 2px;">Aproveitamento de prova</div>
+        </div>
+        <div class="card" style="padding: 16px; border-left: 4px solid #10B981;">
+            <div style="font-size: 12px; color: #64748B; font-weight: 600;">Faturamento em Condicionais</div>
+            <div style="font-size: 24px; font-weight: 800; color: #1E293B; margin-top: 4px;">{{ bags_data.total_invoiced_value|currency }}</div>
+            <div style="font-size: 11px; color: #64748B; margin-top: 2px;">De {{ bags_data.total_sent_value|currency }} enviados</div>
+        </div>
+    </div>
+
+    <!-- Gráfico de Conversão de Malas por Consultora -->
+    <div class="card" style="padding: 20px;">
+        <h3 style="font-size: 15px; font-weight: 700; color: #1E293B; margin-bottom: 14px;">Peças Enviadas vs Faturadas por Consultora de Moda</h3>
+        <div style="height: 260px; position: relative;">
+            <canvas id="bagsChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Tabela Detalhada das Malas Condicionais -->
+    <div class="card" style="padding: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px;">
+            <div>
+                <h3 style="font-size: 16px; font-weight: 700; color: #1E293B;">Listagem de Pedidos Consignados & Faturamentos Cruzados</h3>
+                <p style="font-size: 12px; color: #64748B; margin-top: 2px;">Cruzamento automático entre o pedido de envio em consignado e os pedidos de compra subsequentes do mesmo cliente.</p>
+            </div>
+            <span style="font-size: 12px; color: #64748B; background: #F1F5F9; padding: 4px 10px; border-radius: 12px;">Total de malas: {{ bags_data.bags|length }}</span>
+        </div>
+
+        <div style="overflow-x: auto;">
+            <table class="data-table" style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background: #F8FAFC; border-bottom: 2px solid #E2E8F0; text-align: left;">
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569;">Cód. Pedido Consignado</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569;">Data Envio</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569;">Cliente</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569;">Consultor(a)</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569; text-align: center;">Peças Enviadas</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569;">Pedidos Faturados da Cliente</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569; text-align: center;">Compradas</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569; text-align: center;">Devolvidas</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569; text-align: right;">Total Faturado</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569; text-align: center;">Conversão</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569; text-align: center;">Situação</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569; text-align: center;">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for b in bags_data.bags %}
+                    <tr style="border-bottom: 1px solid #EDF2F7;">
+                        <td style="padding: 12px 14px;">
+                            {% if b.order_id %}
+                            <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 2px;">
+                                <button type="button" class="order-number-btn" onclick="openOrderDetailsModal({{ b.order_id }})" title="Ver pedido consignado e imprimir comprovante 78mm">
+                                    #{{ b.order_number }}
+                                </button>
+                                {% if b.order_bling_id %}
+                                <span style="font-size: 10px; color: #94A3B8; font-family: monospace;">Bling: {{ b.order_bling_id }}</span>
+                                {% endif %}
+                            </div>
+                            {% else %}
+                            <div style="font-family: monospace; font-weight: 700; color: #1E293B;">
+                                Pedido #{{ b.order_number }}
+                            </div>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 12px 14px; font-size: 12px; color: #64748B;">{{ b.sent_date }}</td>
+                        <td style="padding: 12px 14px; font-weight: 600; color: #1E293B;">{{ b.customer_name }}</td>
+                        <td style="padding: 12px 14px; color: #475569; font-size: 12px;">{{ b.seller_name }}</td>
+                        <td style="padding: 12px 14px; text-align: center; font-weight: 700; color: #475569;">{{ b.items_sent }}</td>
+                        <td style="padding: 12px 14px;">
+                            {% if b.invoiced_orders and b.invoiced_orders|length > 0 %}
+                                <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                                    {% for inv in b.invoiced_orders %}
+                                    <span class="badge" style="background: #E0F2FE; color: #0369A1; font-weight: 700; font-size: 11px; padding: 2px 6px;">{{ inv }}</span>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <span style="font-size: 11px; color: #94A3B8; font-style: italic;">Aguardando retorno</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 12px 14px; text-align: center; font-weight: 700; color: #008B54;">{{ b.items_invoiced }}</td>
+                        <td style="padding: 12px 14px; text-align: center; color: #64748B;">{{ b.items_returned }}</td>
+                        <td style="padding: 12px 14px; text-align: right; font-weight: 700; color: #1E293B; font-family: monospace;">{{ b.total_invoiced_value|currency }}</td>
+                        <td style="padding: 12px 14px; text-align: center;">
+                            <span class="badge" style="background: {% if b.conversion_rate >= 60 %}#D1FAE5; color: #065F46;{% elif b.conversion_rate >= 40 %}#FEF3C7; color: #92400E;{% else %}#FEE2E2; color: #991B1B;{% endif %} padding: 3px 8px; border-radius: 4px; font-weight: 700;">
+                                {{ b.conversion_rate }}%
+                            </span>
+                        </td>
+                        <td style="padding: 12px 14px; text-align: center;">
+                            {% if '100%' in b.status %}
+                            <span class="badge badge-success" style="font-size: 11px;">{{ b.status }}</span>
+                            {% elif 'Parcial' in b.status %}
+                            <span class="badge" style="background: #DBEAFE; color: #1E40AF; font-size: 11px;">{{ b.status }}</span>
+                            {% elif 'Aberto' in b.status %}
+                            <span class="badge badge-warning" style="font-size: 11px;">{{ b.status }}</span>
+                            {% else %}
+                            <span class="badge badge-danger" style="font-size: 11px;">{{ b.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 12px 14px; text-align: center;">
+                            {% if b.items_detail and b.items_detail|length > 0 %}
+                            <button type="button" class="btn btn-sm btn-outline" style="font-size: 11px; padding: 3px 8px;" onclick='openBagItemsModal({{ loop.index0 }})'>
+                                Ver Peças
+                            </button>
+                            {% else %}
+                            <span style="color: #CBD5E1;">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="12" style="padding: 24px; text-align: center; color: #94A3B8;">Nenhuma mala condicional encontrada no período selecionado.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- Modal Detalhada de Peças da Mala Condicional -->
+<div id="bagItemsModalBackdrop" class="order-modal-backdrop" onclick="handleBagModalBackdropClick(event)">
+    <div class="order-modal-card" style="max-width: 750px;">
+        <div class="order-modal-header" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);">
+            <div>
+                <h2 style="font-size: 18px; font-weight: 800; color: #ffffff; display: flex; align-items: center; gap: 8px;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+                    Peças da Mala Condicional: <span id="bagModalTitle" style="color: #38bdf8;"></span>
+                </h2>
+                <div style="font-size: 12px; color: #94a3b8; margin-top: 4px;" id="bagModalSubtitle"></div>
+            </div>
+            <button type="button" class="btn-close-modal" onclick="closeBagItemsModal()">&times;</button>
+        </div>
+
+        <div style="padding: 20px; max-height: calc(85vh - 120px); overflow-y: auto;">
+            <table class="data-table" style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background: #F8FAFC; border-bottom: 2px solid #E2E8F0; text-align: left;">
+                        <th style="padding: 8px 10px; font-size: 11px; color: #475569;">SKU</th>
+                        <th style="padding: 8px 10px; font-size: 11px; color: #475569;">Produto</th>
+                        <th style="padding: 8px 10px; font-size: 11px; color: #475569; text-align: center;">Tam</th>
+                        <th style="padding: 8px 10px; font-size: 11px; color: #475569; text-align: center;">Enviado</th>
+                        <th style="padding: 8px 10px; font-size: 11px; color: #475569; text-align: right;">Preço Un.</th>
+                        <th style="padding: 8px 10px; font-size: 11px; color: #475569; text-align: center;">Resultado</th>
+                    </tr>
+                </thead>
+                <tbody id="bagItemsTbody">
+                </tbody>
+            </table>
+        </div>
+
+        <div class="order-modal-footer">
+            <button type="button" class="btn-modal-close-action" onclick="closeBagItemsModal()">Fechar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Padrão de Detalhes do Pedido com Cupom 78mm -->
+<div id="orderModalBackdrop" class="order-modal-backdrop" onclick="handleModalBackdropClick(event)">
+    <div class="order-modal-card">
+        <div class="order-modal-header">
+            <div>
+                <h2 style="font-size: 18px; font-weight: 800; color: #ffffff; display: flex; align-items: center; gap: 8px;">
+                    Detalhes do Pedido #<span id="mOrderNumber">---</span>
+                </h2>
+                <div style="font-size: 12px; color: #94a3b8; margin-top: 4px;">
+                    ID Bling: <span id="mOrderBlingId">---</span> • Data: <span id="mOrderDate">---</span>
+                </div>
+            </div>
+            <button type="button" class="btn-close-modal" onclick="closeOrderModal()">&times;</button>
+        </div>
+
+        <div id="modalLoadingSpinner" style="padding: 40px; text-align: center;">
+            <div style="display: inline-block; width: 36px; height: 36px; border: 3px solid #e2e8f0; border-top-color: #008b54; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
+            <div style="margin-top: 12px; font-size: 13px; color: #64748b;">Carregando detalhes do pedido...</div>
+        </div>
+
+        <div id="modalContentWrapper" style="display: none; padding: 20px; max-height: calc(85vh - 140px); overflow-y: auto;">
+            <div style="display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 160px; background: #f8fafc; padding: 10px 14px; border-radius: 6px;">
+                    <span style="font-size: 11px; color: #64748b; display: block;">Status</span>
+                    <div id="mStatusBadge" style="margin-top: 2px;"></div>
+                </div>
+                <div style="flex: 1; min-width: 160px; background: #f8fafc; padding: 10px 14px; border-radius: 6px;">
+                    <span style="font-size: 11px; color: #64748b; display: block;">Canal</span>
+                    <strong id="mChannel" style="font-size: 13px; color: #1e293b;">---</strong>
+                </div>
+                <div style="flex: 1; min-width: 160px; background: #f8fafc; padding: 10px 14px; border-radius: 6px;">
+                    <span style="font-size: 11px; color: #64748b; display: block;">Atendente</span>
+                    <strong id="mSeller" style="font-size: 13px; color: #1e293b;">---</strong>
+                </div>
+            </div>
+
+            <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px 16px; margin-bottom: 16px;">
+                <div style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase;">Dados do Cliente</div>
+                <div style="margin-top: 6px; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; font-size: 12px;">
+                    <div><span style="color: #64748b;">Nome:</span> <strong id="mCustomerName">---</strong></div>
+                    <div><span style="color: #64748b;">Documento:</span> <span id="mCustomerDoc">---</span></div>
+                    <div><span style="color: #64748b;">Telefone:</span> <span id="mCustomerPhone">---</span></div>
+                    <div><span style="color: #64748b;">Cidade/UF:</span> <span id="mCustomerCity">---</span></div>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 16px;">
+                <h4 style="font-size: 13px; font-weight: 700; color: #1e293b; margin-bottom: 8px;">Itens do Pedido (<span id="mItemsCount">0</span>)</h4>
+                <div style="overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 6px;">
+                    <table class="data-table" style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                        <thead>
+                            <tr style="background: #f8fafc;">
+                                <th style="padding: 8px 10px;">SKU</th>
+                                <th style="padding: 8px 10px;">Produto</th>
+                                <th style="padding: 8px 10px; text-align: center;">Tam/Cor</th>
+                                <th style="padding: 8px 10px; text-align: center;">Qtd</th>
+                                <th style="padding: 8px 10px; text-align: right;">Preço Un.</th>
+                                <th style="padding: 8px 10px; text-align: right;">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="mItemsTbody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div style="background: #f8fafc; border-radius: 6px; padding: 12px 16px; margin-left: auto; max-width: 320px; font-size: 13px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                    <span style="color: #64748b;">Subtotal:</span>
+                    <span id="mSubtotal">R$ 0,00</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px; color: #dc2626;">
+                    <span>Desconto:</span>
+                    <span id="mDiscount">- R$ 0,00</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                    <span style="color: #64748b;">Frete:</span>
+                    <span id="mShipping">+ R$ 0,00</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 16px; font-weight: 800; border-top: 1px solid #e2e8f0; padding-top: 6px; color: #008b54;">
+                    <span>Valor Total:</span>
+                    <span id="mTotal">R$ 0,00</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="order-modal-footer">
+            <button type="button" class="btn-modal-close-action" onclick="closeOrderModal()">Fechar</button>
+            <button type="button" class="btn-print-thermal" onclick="printThermalReceipt()">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                Imprimir Cupom Térmico (78mm)
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Elemento Oculto para Impressão Térmica 78mm -->
+<div id="thermalReceiptPrintArea" style="display: none;">
+    <div class="thermal-header">
+        <div class="thermal-title">BLING BI - VENDAS</div>
+        <div class="thermal-subtitle">COMPROVANTE DE PEDIDO / NÃO FISCAL</div>
+        <div style="font-size: 10px; margin-top: 1mm;">*** CUPOM TÉRMICO 78mm ***</div>
+    </div>
+    <hr class="thermal-divider-double">
+    <div class="thermal-row">
+        <span>PEDIDO: <strong id="tOrderNumber">---</strong></span>
+        <span>STATUS: <strong id="tOrderStatus">---</strong></span>
+    </div>
+    <div class="thermal-row">
+        <span>BLING ID: <span id="tOrderBlingId">---</span></span>
+        <span>DATA: <span id="tOrderDate">---</span></span>
+    </div>
+    <div class="thermal-row">
+        <span>CANAL: <span id="tOrderChannel">---</span></span>
+    </div>
+    <div class="thermal-row">
+        <span>ATENDENTE: <span id="tOrderSeller">---</span></span>
+    </div>
+    <hr class="thermal-divider">
+    <div style="font-size: 10px; font-weight: bold; margin-bottom: 1mm;">DADOS DO CLIENTE:</div>
+    <div class="thermal-row"><span>NOME: <span id="tCustomerName">---</span></span></div>
+    <div class="thermal-row"><span>DOC: <span id="tCustomerDoc">---</span></span><span>TEL: <span id="tCustomerPhone">---</span></span></div>
+    <hr class="thermal-divider">
+    <div style="font-size: 10px; font-weight: bold; margin-bottom: 1mm;">ITENS DO PEDIDO:</div>
+    <table class="thermal-items-table">
+        <thead>
+            <tr>
+                <th style="width: 50%;">DESCRIÇÃO</th>
+                <th style="text-align: center; width: 15%;">QTD</th>
+                <th style="text-align: right; width: 17%;">UN(R$)</th>
+                <th style="text-align: right; width: 18%;">TOT(R$)</th>
+            </tr>
+        </thead>
+        <tbody id="tItemsTbody"></tbody>
+    </table>
+    <hr class="thermal-divider">
+    <div class="thermal-total-row"><span>SUBTOTAL:</span><strong id="tSubtotal">R$ 0,00</strong></div>
+    <div class="thermal-total-row"><span>DESCONTOS:</span><strong id="tDiscount">- R$ 0,00</strong></div>
+    <div class="thermal-total-row"><span>FRETE:</span><strong id="tShipping">+ R$ 0,00</strong></div>
+    <div class="thermal-total-row thermal-grand-total"><span>TOTAL:</span><span id="tTotal">R$ 0,00</span></div>
+    <hr class="thermal-divider-double">
+    <div class="thermal-footer">
+        <div>OBRIGADO PELA PREFERÊNCIA!</div>
+        <div style="margin-top: 1.5mm; font-size: 8px;">EMITIDO VIA BLING BI • IMPRESSÃO 78mm</div>
+        <div style="font-size: 8px;" id="tPrintTimestamp">---</div>
+    </div>
+</div>
+
+<!-- Scripts de Gráficos e Modais -->
+<script>
+const allBagsData = {{ bags_data.bags|tojson }};
+let currentLoadedOrder = null;
+
+function formatCurrencyBRL(val) {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
+}
+
+// Modal de Peças da Mala
+function openBagItemsModal(idx) {
+    const bag = allBagsData[idx];
+    if (!bag) return;
+
+    document.getElementById('bagModalTitle').innerText = bag.bag_code;
+    document.getElementById('bagModalSubtitle').innerText = `Cliente: ${bag.customer_name} • Consultor(a): ${bag.seller_name} • Enviada em: ${bag.sent_date}`;
+
+    const tbody = document.getElementById('bagItemsTbody');
+    if (bag.items_detail && bag.items_detail.length > 0) {
+        tbody.innerHTML = bag.items_detail.map(it => {
+            const isBought = (it.invoiced_qty || 0) > 0;
+            const badgeBg = isBought ? '#D1FAE5' : '#F1F5F9';
+            const badgeColor = isBought ? '#065F46' : '#64748B';
+            return `
+                <tr style="border-bottom: 1px solid #EDF2F7;">
+                    <td style="padding: 8px 10px; font-family: monospace; font-size: 11px; color: #64748B;">${it.sku || '-'}</td>
+                    <td style="padding: 8px 10px; font-weight: 600; color: #1E293B;">${it.name}</td>
+                    <td style="padding: 8px 10px; text-align: center;"><span class="badge" style="background:#e0f2fe; color:#0369a1; padding:2px 6px; font-size:10px;">${it.size || '-'}</span></td>
+                    <td style="padding: 8px 10px; text-align: center; font-weight: 700;">${it.quantity}</td>
+                    <td style="padding: 8px 10px; text-align: right; font-family: monospace;">${formatCurrencyBRL(it.unit_price)}</td>
+                    <td style="padding: 8px 10px; text-align: center;">
+                        <span class="badge" style="background: ${badgeBg}; color: ${badgeColor}; font-weight: 700; font-size: 10px; padding: 3px 8px;">
+                            ${isBought ? '✅ Comprado' : '↩️ Devolvido'}
+                        </span>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    } else {
+        tbody.innerHTML = '<tr><td colspan="6" style="padding: 16px; text-align: center; color: #94A3B8;">Sem detalhamento de itens disponível.</td></tr>';
+    }
+
+    const backdrop = document.getElementById('bagItemsModalBackdrop');
+    if (backdrop) backdrop.classList.add('show');
+}
+
+function closeBagItemsModal() {
+    const backdrop = document.getElementById('bagItemsModalBackdrop');
+    if (backdrop) backdrop.classList.remove('show');
+}
+
+function handleBagModalBackdropClick(event) {
+    if (event.target.id === 'bagItemsModalBackdrop') {
+        closeBagItemsModal();
+    }
+}
+
+// Modal e Impressão de Cupom Térmico 78mm
+function openOrderDetailsModal(orderId) {
+    const backdrop = document.getElementById('orderModalBackdrop');
+    const spinner = document.getElementById('modalLoadingSpinner');
+    const content = document.getElementById('modalContentWrapper');
+    if (!backdrop) return;
+    
+    backdrop.classList.add('show');
+    spinner.style.display = 'block';
+    content.style.display = 'none';
+
+    fetch('/sales/orders/' + orderId)
+        .then(response => {
+            if (!response.ok) throw new Error('Não foi possível obter dados do pedido');
+            return response.json();
+        })
+        .then(order => {
+            currentLoadedOrder = order;
+            populateOrderModal(order);
+            populateThermalReceipt(order);
+            spinner.style.display = 'none';
+            content.style.display = 'block';
+        })
+        .catch(err => {
+            spinner.innerHTML = '<div style="color: #dc2626; font-weight: 700;">Erro ao carregar detalhes: ' + err.message + '</div>';
+        });
+}
+
+function closeOrderModal() {
+    const backdrop = document.getElementById('orderModalBackdrop');
+    if (backdrop) backdrop.classList.remove('show');
+}
+
+function handleModalBackdropClick(event) {
+    if (event.target.id === 'orderModalBackdrop') {
+        closeOrderModal();
+    }
+}
+
+function populateOrderModal(o) {
+    document.getElementById('mOrderNumber').innerText = o.number;
+    document.getElementById('mOrderBlingId').innerText = o.bling_id;
+    document.getElementById('mOrderDate').innerText = o.order_date;
+    document.getElementById('mChannel').innerText = o.channel;
+    document.getElementById('mSeller').innerText = o.seller_name;
+    document.getElementById('mCustomerName').innerText = o.customer.name;
+    document.getElementById('mCustomerDoc').innerText = o.customer.document || 'Não informado';
+    document.getElementById('mCustomerPhone').innerText = o.customer.phone || 'Não informado';
+    document.getElementById('mCustomerCity').innerText = (o.customer.city && o.customer.state) ? `${o.customer.city}/${o.customer.state}` : (o.customer.city || 'Não informado');
+
+    const statusEl = document.getElementById('mStatusBadge');
+    let badgeClass = 'badge-warning';
+    if (o.status === 'Atendido') badgeClass = 'badge-success';
+    else if (o.status === 'Cancelado') badgeClass = 'badge-danger';
+    statusEl.innerHTML = `<span class="badge ${badgeClass}">${o.status}</span>`;
+
+    document.getElementById('mItemsCount').innerText = o.items.length;
+    const tbody = document.getElementById('mItemsTbody');
+    if (o.items && o.items.length > 0) {
+        tbody.innerHTML = o.items.map(item => `
+            <tr>
+                <td style="font-family: monospace; font-size: 11px; color: #64748b;">${item.sku || '-'}</td>
+                <td style="font-weight: 600; color: #1e293b;">${item.product_name}</td>
+                <td style="text-align: center;">${item.size ? `<span class="badge" style="background:#e0f2fe; color:#0369a1; padding: 2px 6px; font-size:10px;">${item.size}</span>` : '-'}</td>
+                <td style="text-align: center; font-weight: 700;">${item.quantity}</td>
+                <td style="text-align: right; font-family: monospace;">${formatCurrencyBRL(item.unit_price)}</td>
+                <td style="text-align: right; font-weight: 700; color: #008b54; font-family: monospace;">${formatCurrencyBRL(item.total_price)}</td>
+            </tr>
+        `).join('');
+    } else {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 12px; color: #94a3b8;">Nenhum item</td></tr>';
+    }
+
+    document.getElementById('mSubtotal').innerText = formatCurrencyBRL(o.financial.subtotal);
+    document.getElementById('mDiscount').innerText = `- ${formatCurrencyBRL(o.financial.discount)}`;
+    document.getElementById('mShipping').innerText = `+ ${formatCurrencyBRL(o.financial.shipping)}`;
+    document.getElementById('mTotal').innerText = formatCurrencyBRL(o.financial.total);
+}
+
+function populateThermalReceipt(o) {
+    document.getElementById('tOrderNumber').innerText = '#' + o.number;
+    document.getElementById('tOrderStatus').innerText = o.status;
+    document.getElementById('tOrderBlingId').innerText = o.bling_id;
+    document.getElementById('tOrderDate').innerText = o.order_date;
+    document.getElementById('tOrderChannel').innerText = o.channel;
+    document.getElementById('tOrderSeller').innerText = o.seller_name;
+    document.getElementById('tCustomerName').innerText = o.customer.name;
+    document.getElementById('tCustomerDoc').innerText = o.customer.document || '-';
+    document.getElementById('tCustomerPhone').innerText = o.customer.phone || '-';
+
+    const tbody = document.getElementById('tItemsTbody');
+    if (o.items && o.items.length > 0) {
+        tbody.innerHTML = o.items.map(item => `
+            <tr>
+                <td>
+                    <div style="font-weight: bold;">${item.product_name}</div>
+                    <div style="font-size: 9px; color: #333;">SKU: ${item.sku} ${item.size ? '• Tam:' + item.size : ''}</div>
+                </td>
+                <td style="text-align: center; font-weight: bold;">${item.quantity}</td>
+                <td style="text-align: right;">${formatCurrencyBRL(item.unit_price)}</td>
+                <td style="text-align: right; font-weight: bold;">${formatCurrencyBRL(item.total_price)}</td>
+            </tr>
+        `).join('');
+    } else {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 2mm;">Sem itens</td></tr>';
+    }
+
+    document.getElementById('tSubtotal').innerText = formatCurrencyBRL(o.financial.subtotal);
+    document.getElementById('tDiscount').innerText = `- ${formatCurrencyBRL(o.financial.discount)}`;
+    document.getElementById('tShipping').innerText = `+ ${formatCurrencyBRL(o.financial.shipping)}`;
+    document.getElementById('tTotal').innerText = formatCurrencyBRL(o.financial.total);
+    document.getElementById('tPrintTimestamp').innerText = new Date().toLocaleString('pt-BR');
+}
+
+function printThermalReceipt() {
+    const printArea = document.getElementById('thermalReceiptPrintArea');
+    if (!printArea) return;
+
+    let printFrame = document.getElementById('thermalPrintIframe');
+    if (!printFrame) {
+        printFrame = document.createElement('iframe');
+        printFrame.id = 'thermalPrintIframe';
+        printFrame.style.position = 'fixed';
+        printFrame.style.right = '0';
+        printFrame.style.bottom = '0';
+        printFrame.style.width = '0';
+        printFrame.style.height = '0';
+        printFrame.style.border = '0';
+        printFrame.style.zIndex = '-9999';
+        document.body.appendChild(printFrame);
+    }
+
+    const orderNum = currentLoadedOrder ? currentLoadedOrder.number : 'Pedido';
+    const content = printArea.innerHTML;
+    const frameDoc = printFrame.contentWindow.document;
+
+    frameDoc.open();
+    frameDoc.write(`<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Cupom #${orderNum}</title>
+    <style>
+        @page { size: 78mm auto; margin: 0mm; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body {
+            width: 78mm; max-width: 78mm; background: #ffffff; color: #000000;
+            font-family: 'Courier New', Courier, monospace; font-size: 11px;
+            line-height: 1.25; padding: 2.5mm 3.5mm;
+            -webkit-print-color-adjust: exact; print-color-adjust: exact;
+        }
+        .thermal-header { text-align: center; margin-bottom: 2.5mm; }
+        .thermal-title { font-size: 13.5px; font-weight: 900; text-transform: uppercase; }
+        .thermal-subtitle { font-size: 9px; margin-top: 1mm; }
+        .thermal-divider { border: none; border-top: 1px dashed #000; margin: 2mm 0; }
+        .thermal-divider-double { border: none; border-top: 2px solid #000; margin: 2.5mm 0; }
+        .thermal-row { display: flex; justify-content: space-between; font-size: 10.5px; margin-bottom: 1mm; }
+        .thermal-items-table { width: 100%; border-collapse: collapse; margin: 2mm 0; font-size: 10.5px; }
+        .thermal-items-table th { text-align: left; border-bottom: 1px dashed #000; padding-bottom: 1mm; font-size: 9.5px; }
+        .thermal-items-table td { padding: 1.5mm 0; vertical-align: top; }
+        .thermal-total-row { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 1mm; }
+        .thermal-grand-total { font-size: 13.5px; font-weight: 900; border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 2mm 0; margin: 2mm 0; }
+        .thermal-footer { text-align: center; font-size: 9px; margin-top: 3mm; margin-bottom: 4mm; }
+    </style>
+</head>
+<body>${content}</body>
+</html>`);
+    frameDoc.close();
+
+    setTimeout(() => {
+        printFrame.contentWindow.focus();
+        printFrame.contentWindow.print();
+    }, 200);
+}
+
+// Chart.js
+document.addEventListener('DOMContentLoaded', function() {
+    const bLabels = {{ bags_data.chart.labels|tojson }};
+    const bSent = {{ bags_data.chart.sent|tojson }};
+    const bInvoiced = {{ bags_data.chart.invoiced|tojson }};
+
+    if (document.getElementById('bagsChart')) {
+        new Chart(document.getElementById('bagsChart').getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: bLabels,
+                datasets: [
+                    { label: 'Peças Enviadas (Consignação)', data: bSent, backgroundColor: '#CBD5E1', borderRadius: 4 },
+                    { label: 'Peças Faturadas (Compradas)', data: bInvoiced, backgroundColor: '#008B54', borderRadius: 4 }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+    }
+
+    const pArea = document.getElementById('thermalReceiptPrintArea');
+    if (pArea && pArea.parentElement !== document.body) {
+        document.body.appendChild(pArea);
+    }
+});
+</script>
+<style>
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+{% endblock %}

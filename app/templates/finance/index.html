@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+
+{% block title %}Visão Geral - Financeiro e DRE - BlingBI{% endblock %}
+{% block page_title %}Setor Financeiro & DRE{% endblock %}
+
+{% block content %}
+<!-- Cabeçalho Hierárquico do Setor -->
+{% include "finance/nav_header.html" %}
+
+<div class="report-container" style="display: flex; flex-direction: column; gap: 24px;">
+
+    <!-- Filtro de Período -->
+    <div class="card" style="padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+        <form method="GET" action="{{ url_for('finance.index') }}" style="display: flex; gap: 14px; align-items: center; flex-wrap: wrap;">
+            <div>
+                <label style="font-size: 11px; font-weight: 600; color: #64748B; display: block; margin-bottom: 2px;">Período:</label>
+                <select name="period" onchange="this.form.submit()" style="padding: 6px 12px; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 13px;">
+                    <option value="last_30_days" {% if period == 'last_30_days' %}selected{% endif %}>Últimos 30 dias</option>
+                    <option value="last_60_days" {% if period == 'last_60_days' %}selected{% endif %}>Últimos 60 dias</option>
+                    <option value="this_month" {% if period == 'this_month' %}selected{% endif %}>Este Mês</option>
+                    <option value="this_year" {% if period == 'this_year' %}selected{% endif %}>Este Ano</option>
+                </select>
+            </div>
+            <div style="font-size: 12px; color: #64748B; padding-top: 14px;">
+                Período: {{ start_date }} até {{ end_date }}
+            </div>
+        </form>
+
+        <div style="display: flex; gap: 8px;">
+            <a href="{{ url_for('finance.dre') }}" class="btn btn-secondary">Ver DRE Gerencial</a>
+            <a href="{{ url_for('finance.cash_flow') }}" class="btn btn-secondary">Ver Projeção Diária</a>
+        </div>
+    </div>
+
+    <!-- KPIs Financeiros Principais -->
+    <div class="kpi-grid">
+        <div class="kpi-card" style="border-left: 4px solid #059669;">
+            <span class="kpi-title">Total a Receber</span>
+            <div class="kpi-value" style="color: #059669;">{{ analytics.total_receivable | currency }}</div>
+            <div class="kpi-subtext">Realizado: {{ analytics.rec_paid | currency }}</div>
+        </div>
+        <div class="kpi-card" style="border-left: 4px solid #DC2626;">
+            <span class="kpi-title">Total a Pagar</span>
+            <div class="kpi-value" style="color: #DC2626;">{{ analytics.total_payable | currency }}</div>
+            <div class="kpi-subtext">Quitado: {{ analytics.pay_paid | currency }}</div>
+        </div>
+        <div class="kpi-card" style="border-left: 4px solid #2563EB;">
+            <span class="kpi-title">Resultado Líquido</span>
+            <div class="kpi-value" style="color: {% if analytics.net_realized >= 0 %}#059669{% else %}#DC2626{% endif %};">
+                {{ analytics.net_realized | currency }}
+            </div>
+            <div class="kpi-subtext">Fluxo de Caixa Realizado</div>
+        </div>
+        <div class="kpi-card" style="border-left: 4px solid #F59E0B;">
+            <span class="kpi-title">Inadimplência</span>
+            <div class="kpi-value" style="color: {% if analytics.default_rate > 5 %}#DC2626{% else %}#059669{% endif %};">
+                {{ "%.1f"|format(analytics.default_rate) }}%
+            </div>
+            <div class="kpi-subtext">Títulos vencidos a receber</div>
+        </div>
+    </div>
+
+    <!-- DRE Sintético Resumido com Atalho -->
+    <div class="card" style="padding: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h3 style="font-size: 16px; font-weight: 700; color: #1E293B;">Demonstrativo Sintético do Resultado (DRE)</h3>
+            <a href="{{ url_for('finance.dre') }}" style="font-size: 13px; font-weight: 600; color: #008B54; text-decoration: none;">Ver Detalhamento Completo em Cascata &rarr;</a>
+        </div>
+        <div style="overflow-x: auto;">
+            <table class="data-table" style="width: 100%; border-collapse: collapse;">
+                <tbody>
+                    <tr style="background: #F8FAFC; font-weight: 700; border-bottom: 1px solid #E2E8F0;">
+                        <td style="padding: 10px 14px;">(+) RECEITA BRUTA DE VENDAS</td>
+                        <td style="text-align: right; padding: 10px 14px;">{{ analytics.dre.gross_revenue | currency }}</td>
+                        <td style="text-align: right; padding: 10px 14px; width: 100px;">100,0%</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #F1F5F9;">
+                        <td style="padding: 10px 14px; padding-left: 30px; color: #64748B;">(-) Deduções & Cancelamentos</td>
+                        <td style="text-align: right; padding: 10px 14px; color: #DC2626;">{{ analytics.dre.deductions | currency }}</td>
+                        <td style="text-align: right; padding: 10px 14px; color: #94A3B8;">-</td>
+                    </tr>
+                    <tr style="background: #F8FAFC; font-weight: 700; border-bottom: 1px solid #E2E8F0;">
+                        <td style="padding: 10px 14px;">(=) RECEITA OPERACIONAL LÍQUIDA</td>
+                        <td style="text-align: right; padding: 10px 14px;">{{ analytics.dre.net_revenue | currency }}</td>
+                        <td style="text-align: right; padding: 10px 14px;">
+                            {{ "%.1f"|format((analytics.dre.net_revenue / analytics.dre.gross_revenue * 100) if analytics.dre.gross_revenue > 0 else 0) }}%
+                        </td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #F1F5F9;">
+                        <td style="padding: 10px 14px; padding-left: 30px; color: #64748B;">(-) Custo dos Produtos Vendidos (CPV Médio)</td>
+                        <td style="text-align: right; padding: 10px 14px; color: #DC2626;">{{ analytics.dre.cpv | currency }}</td>
+                        <td style="text-align: right; padding: 10px 14px; color: #94A3B8;">-</td>
+                    </tr>
+                    <tr style="background: #F8FAFC; font-weight: 700; border-bottom: 1px solid #E2E8F0;">
+                        <td style="padding: 10px 14px; color: #059669;">(=) LUCRO BRUTO (MARGEM DE CONTRIBUIÇÃO)</td>
+                        <td style="text-align: right; padding: 10px 14px; color: #059669;">{{ analytics.dre.gross_profit | currency }}</td>
+                        <td style="text-align: right; padding: 10px 14px; color: #059669;">
+                            {{ "%.1f"|format((analytics.dre.gross_profit / analytics.dre.net_revenue * 100) if analytics.dre.net_revenue > 0 else 0) }}%
+                        </td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #F1F5F9;">
+                        <td style="padding: 10px 14px; padding-left: 30px; color: #64748B;">(-) Despesas Operacionais, Fixas & Logística</td>
+                        <td style="text-align: right; padding: 10px 14px; color: #DC2626;">{{ analytics.dre.operating_expenses | currency }}</td>
+                        <td style="text-align: right; padding: 10px 14px; color: #94A3B8;">-</td>
+                    </tr>
+                    <tr style="background: #ECFDF5; font-weight: 800; border-bottom: 2px solid #008B54; font-size: 15px;">
+                        <td style="padding: 12px 14px; color: #065F46;">(=) RESULTADO LÍQUIDO DO PERÍODO</td>
+                        <td style="text-align: right; padding: 12px 14px; color: #065F46;">{{ analytics.dre.net_profit | currency }}</td>
+                        <td style="text-align: right; padding: 12px 14px; color: #065F46;">{{ "%.1f"|format(analytics.dre.net_margin) }}%</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Tabela de Lançamentos Financeiros Recentes -->
+    <div class="card" style="padding: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h3 style="font-size: 16px; font-weight: 700; color: #1E293B;">Lançamentos Financeiros do Período</h3>
+            <span style="font-size: 12px; color: #64748B;">Exibindo últimos {{ analytics.entries[:30]|length }} títulos</span>
+        </div>
+
+        <div style="overflow-x: auto;">
+            <table class="data-table" style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background: #F8FAFC; border-bottom: 2px solid #E2E8F0; text-align: left;">
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569;">Tipo</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569;">Descrição</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569;">Pessoa / Fornecedor</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569;">Categoria</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569;">Vencimento</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569; text-align: right;">Valor</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569; text-align: center;">Situação</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for e in analytics.entries[:30] %}
+                    <tr style="border-bottom: 1px solid #F1F5F9; font-size: 13px;">
+                        <td style="padding: 12px 14px;">
+                            <span class="badge" style="background: {% if e.entry_type == 'RECEBER' %}#DCFCE7; color: #166534;{% else %}#FEE2E2; color: #991B1B;{% endif %}; padding: 3px 8px; border-radius: 4px; font-weight: 700; font-size: 11px;">
+                                {{ e.entry_type }}
+                            </span>
+                        </td>
+                        <td style="padding: 12px 14px; font-weight: 500; color: #1E293B;">{{ e.description }}</td>
+                        <td style="padding: 12px 14px; color: #475569;">{{ e.entity_name }}</td>
+                        <td style="padding: 12px 14px; color: #64748B;">{{ e.category }}</td>
+                        <td style="padding: 12px 14px; color: #475569; white-space: nowrap;">{{ e.due_date }}</td>
+                        <td style="padding: 12px 14px; text-align: right; font-weight: 700; color: {% if e.entry_type == 'RECEBER' %}#059669{% else %}#DC2626{% endif %};">
+                            {{ e.amount | currency }}
+                        </td>
+                        <td style="padding: 12px 14px; text-align: center;">
+                            <span class="badge" style="background: {% if e.status == 'Pago' %}#DCFCE7; color: #166534;{% elif e.status == 'Pendente' %}#FEF3C7; color: #92400E;{% else %}#FEE2E2; color: #991B1B;{% endif %}; padding: 3px 8px; border-radius: 4px; font-size: 11px;">
+                                {{ e.status }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 30px; color: #94A3B8;">
+                            Nenhum lançamento financeiro encontrado no período selecionado.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,526 @@
+{% extends "base.html" %}
+
+{% block title %}Fechamento de Caixa & Extrato Financeiro - Financeiro e DRE - BlingBI{% endblock %}
+{% block page_title %}Setor Financeiro e DRE{% endblock %}
+
+{% block content %}
+<!-- Cabeçalho Hierárquico do Setor -->
+{% include "finance/nav_header.html" %}
+
+<!-- KPIs Consolidados do Fechamento de Caixa -->
+<div class="kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));">
+    <div class="kpi-card" style="border-left: 4px solid #64748B;">
+        <span class="kpi-title">Saldo Inicial (Abertura)</span>
+        <div class="kpi-value" style="color: #334155;">{{ statement.summary.opening_balance | currency }}</div>
+        <div class="kpi-subtext">Fundo de troco e saldo anterior</div>
+    </div>
+    <div class="kpi-card" style="border-left: 4px solid #16a34a;">
+        <span class="kpi-title">Total Entradas (+)</span>
+        <div class="kpi-value" style="color: #16a34a;">+ {{ statement.summary.total_inflows | currency }}</div>
+        <div class="kpi-subtext">{{ statement.summary.inflows_count }} recebimentos no período</div>
+    </div>
+    <div class="kpi-card" style="border-left: 4px solid #dc2626;">
+        <span class="kpi-title">Total Saídas (-)</span>
+        <div class="kpi-value" style="color: #dc2626;">- {{ statement.summary.total_outflows | currency }}</div>
+        <div class="kpi-subtext">{{ statement.summary.outflows_count }} despesas e sangrias</div>
+    </div>
+    <div class="kpi-card" style="border-left: 4px solid {% if statement.summary.net_result >= 0 %}#0284c7{% else %}#ea580c{% endif %};">
+        <span class="kpi-title">Resultado do Período</span>
+        <div class="kpi-value" style="color: {% if statement.summary.net_result >= 0 %}#0284c7{% else %}#ea580c{% endif %};">
+            {% if statement.summary.net_result >= 0 %}+{% endif %}{{ statement.summary.net_result | currency }}
+        </div>
+        <div class="kpi-subtext">Entradas líquidas de saídas</div>
+    </div>
+    <div class="kpi-card" style="border-left: 4px solid var(--bling-primary); background: #F8FAFC;">
+        <span class="kpi-title" style="display: flex; justify-content: space-between; align-items: center;">
+            <span>Saldo Final (Fechamento)</span>
+            <span class="badge badge-success" style="font-size: 10px; padding: 2px 6px;">Conciliado</span>
+        </span>
+        <div class="kpi-value" style="color: var(--bling-primary);">{{ statement.summary.closing_balance | currency }}</div>
+        <div class="kpi-subtext">{{ statement.summary.total_operations }} movimentações totais</div>
+    </div>
+</div>
+
+<!-- Conferência de Caixa por Meio de Pagamento -->
+<div class="card" style="margin-bottom: 20px;">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
+            <span class="card-title" style="margin: 0;">Conferência de Caixa por Forma de Pagamento</span>
+        </div>
+        <span style="font-size: 12px; color: var(--text-muted);">Total de {{ statement.summary.total_operations }} transações</span>
+    </div>
+    <div class="card-body" style="padding: 16px 20px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px;">
+            {% for m in statement.summary.methods_summary %}
+            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px 14px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <span style="font-size: 13px; font-weight: 700; color: #1E293B;">{{ m.method }}</span>
+                    <span style="font-size: 11px; font-weight: 600; color: #64748B; background: #E2E8F0; padding: 2px 6px; border-radius: 4px;">{{ m.count }}x ({{ m.pct }}%)</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 3px;">
+                    <span style="color: #166534;">Entradas: +{{ m.total_in | currency }}</span>
+                    {% if m.total_out > 0 %}
+                    <span style="color: #991b1b;">Saídas: -{{ m.total_out | currency }}</span>
+                    {% endif %}
+                </div>
+                <div style="font-size: 14px; font-weight: 800; color: {% if m.net >= 0 %}#1E293B{% else %}#dc2626{% endif %}; border-top: 1px dashed #CBD5E1; padding-top: 4px; margin-top: 4px;">
+                    Líquido: {{ m.net | currency }}
+                </div>
+            </div>
+            {% else %}
+            <div style="color: var(--text-muted); font-size: 13px; grid-column: 1 / -1;">Nenhuma movimentação registrada no período selecionado.</div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Barra de Filtros, Períodos e Ações Rápidas -->
+<div class="card" style="margin-bottom: 20px;">
+    <div class="card-body" style="padding: 16px 20px;">
+        <form method="GET" id="cashFilterForm" style="display: flex; flex-direction: column; gap: 14px;">
+            
+            <!-- Linha 1: Seleção Rápida de Período -->
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                <span style="font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase;">Período:</span>
+                
+                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                    <a href="{{ url_for('finance.cash_statement', period='today', type=m_type, method=p_method, q=search) }}" 
+                       class="btn btn-sm {% if period == 'today' %}btn-primary{% else %}btn-outline{% endif %}" style="border-radius: 6px; font-size: 12px;">
+                        Hoje (Caixa Atual)
+                    </a>
+                    <a href="{{ url_for('finance.cash_statement', period='yesterday', type=m_type, method=p_method, q=search) }}" 
+                       class="btn btn-sm {% if period == 'yesterday' %}btn-primary{% else %}btn-outline{% endif %}" style="border-radius: 6px; font-size: 12px;">
+                        Ontem
+                    </a>
+                    <a href="{{ url_for('finance.cash_statement', period='last_7_days', type=m_type, method=p_method, q=search) }}" 
+                       class="btn btn-sm {% if period == 'last_7_days' %}btn-primary{% else %}btn-outline{% endif %}" style="border-radius: 6px; font-size: 12px;">
+                        Últimos 7 dias
+                    </a>
+                    <a href="{{ url_for('finance.cash_statement', period='month', type=m_type, method=p_method, q=search) }}" 
+                       class="btn btn-sm {% if period in ['month', 'last_30_days'] %}btn-primary{% else %}btn-outline{% endif %}" style="border-radius: 6px; font-size: 12px;">
+                        Mês (30 dias)
+                    </a>
+                    <a href="{{ url_for('finance.cash_statement', period='quarter', type=m_type, method=p_method, q=search) }}" 
+                       class="btn btn-sm {% if period in ['quarter', 'last_90_days'] %}btn-primary{% else %}btn-outline{% endif %}" style="border-radius: 6px; font-size: 12px;">
+                        Trimestre (90 dias)
+                    </a>
+                </div>
+
+                <!-- Custom Date Range -->
+                <div style="display: flex; gap: 6px; align-items: center; margin-left: auto;">
+                    <input type="hidden" name="period" id="periodInput" value="{{ period }}">
+                    <label style="font-size: 12px; color: var(--text-muted); font-weight: 600;">Personalizado:</label>
+                    <input type="date" name="start_date" id="startDateInput" value="{{ start_date }}" class="form-control" style="font-size: 12px; padding: 4px 8px; width: 135px;" onchange="document.getElementById('periodInput').value='custom';">
+                    <span style="color: var(--text-muted); font-size: 12px;">até</span>
+                    <input type="date" name="end_date" id="endDateInput" value="{{ end_date }}" class="form-control" style="font-size: 12px; padding: 4px 8px; width: 135px;" onchange="document.getElementById('periodInput').value='custom';">
+                </div>
+            </div>
+
+            <!-- Linha 2: Filtros de Tipo, Meio de Pagamento, Busca e Botão Nova Movimentação -->
+            <div style="display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;">
+                
+                <!-- Tipo de Movimento -->
+                <div style="width: 170px;">
+                    <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px; display: block;">
+                        Tipo de Operação:
+                    </label>
+                    <select name="type" class="form-control" style="font-size: 13px; height: 38px;">
+                        <option value="all" {% if m_type == 'all' %}selected{% endif %}>Todas as Operações</option>
+                        <option value="inflow" {% if m_type == 'inflow' %}selected{% endif %}>🟢 Apenas Entradas (+)</option>
+                        <option value="outflow" {% if m_type == 'outflow' %}selected{% endif %}>🔴 Apenas Saídas (-)</option>
+                    </select>
+                </div>
+
+                <!-- Forma de Pagamento -->
+                <div style="width: 200px;">
+                    <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px; display: block;">
+                        Forma de Pagamento:
+                    </label>
+                    <select name="method" class="form-control" style="font-size: 13px; height: 38px;">
+                        <option value="all">Todas as Formas</option>
+                        {% for meth in statement.available_methods %}
+                        <option value="{{ meth }}" {% if p_method == meth %}selected{% endif %}>{{ meth }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Busca Textual Instantânea -->
+                <div style="flex: 2; min-width: 220px;">
+                    <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px; display: block;">
+                        Buscar no Extrato:
+                    </label>
+                    <div style="position: relative;">
+                        <input type="text" name="q" id="statementSearchInput" class="form-control" 
+                               value="{{ search }}" 
+                               placeholder="Buscar por descrição, cliente, fornecedor ou documento..." 
+                               style="padding-left: 36px; font-size: 13px; height: 38px;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" 
+                             style="position: absolute; left: 11px; top: 11px; color: var(--text-muted); pointer-events: none;">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Botões de Filtragem -->
+                <div style="display: flex; gap: 8px;">
+                    <button type="submit" class="btn btn-primary" style="height: 38px; padding: 0 16px; font-size: 13px;">
+                        Filtrar
+                    </button>
+                    <a href="{{ url_for('finance.cash_statement') }}" class="btn btn-outline" style="height: 38px; padding: 0 12px; font-size: 13px; display: flex; align-items: center;" title="Limpar filtros">
+                        Limpar
+                    </a>
+                </div>
+
+                <!-- Botão de Ação: Nova Sangria / Movimentação -->
+                <div style="margin-left: auto;">
+                    <button type="button" class="btn btn-secondary" onclick="openEntryModal()" style="height: 38px; font-size: 13px; display: flex; align-items: center; gap: 6px; background: #0F172A; color: #fff; border-color: #0F172A;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                        Nova Movimentação / Sangria
+                    </button>
+                </div>
+
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- SEÇÃO 1: EXTRATO DETALHADO DE MOVIMENTAÇÃO (LIVRO CAIXA)                   -->
+<!-- ========================================================================= -->
+<div class="card" style="margin-bottom: 24px;">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <span class="card-title" style="margin: 0;">Extrato Cronológico de Movimentações</span>
+            <span class="badge badge-primary" id="statementCounterBadge" style="background: #F1F5F9; color: #475569; font-size: 12px; padding: 4px 10px;">
+                {{ statement.movements|length }} lançamentos
+            </span>
+        </div>
+
+        <!-- Exportações do Extrato -->
+        <div style="display: flex; gap: 8px;">
+            <a href="{{ url_for('finance.export_cash_statement_excel', period=period, start_date=start_date, end_date=end_date, type=m_type, method=p_method, q=search) }}" 
+               class="btn btn-outline btn-sm" style="display: flex; align-items: center; gap: 6px; color: #166534; border-color: #bbf7d0;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="8" y1="13" x2="16" y2="13"></line><line x1="8" y1="17" x2="16" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                Exportar Extrato Excel (.xlsx)
+            </a>
+            <a href="{{ url_for('finance.export_cash_statement_pdf', period=period, start_date=start_date, end_date=end_date, type=m_type, method=p_method, q=search) }}" 
+               class="btn btn-outline btn-sm" style="display: flex; align-items: center; gap: 6px; color: #991b1b; border-color: #fecaca;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                Exportar Extrato PDF
+            </a>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="bling-table" id="statementTable">
+            <thead>
+                <tr>
+                    <th style="width: 100px; text-align: center;">Data</th>
+                    <th style="width: 110px; text-align: center;">Tipo</th>
+                    <th style="width: 110px; text-align: center;">Documento</th>
+                    <th style="min-width: 220px;">Descrição da Operação</th>
+                    <th style="min-width: 180px;">Cliente / Fornecedor</th>
+                    <th style="width: 140px; text-align: center;">Forma de Pagto.</th>
+                    <th style="width: 130px; text-align: right;">Valor (R$)</th>
+                    <th style="width: 140px; text-align: right;">Saldo Caixa</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for m in statement.movements %}
+                <tr class="statement-row"
+                    data-desc="{{ m.description | lower }}"
+                    data-entity="{{ m.entity | lower }}"
+                    data-doc="{{ m.doc_number | lower }}"
+                    data-method="{{ m.payment_method | lower }}">
+                    
+                    <!-- 1. Data -->
+                    <td style="text-align: center; font-size: 12px; font-weight: 600; color: #475569;">
+                        {{ m.date_str }}
+                    </td>
+
+                    <!-- 2. Tipo (Entrada/Saída) -->
+                    <td style="text-align: center;">
+                        {% if m.type == 'IN' %}
+                        <span class="badge" style="background: #DCFCE7; color: #166534; font-size: 11px; font-weight: 700; padding: 3px 8px;">
+                            (+) Entrada
+                        </span>
+                        {% else %}
+                        <span class="badge" style="background: #FEE2E2; color: #991B1B; font-size: 11px; font-weight: 700; padding: 3px 8px;">
+                            (-) Saída
+                        </span>
+                        {% endif %}
+                    </td>
+
+                    <!-- 3. Documento -->
+                    <td style="text-align: center; font-family: monospace; font-size: 12px; font-weight: 700; color: #1E293B;">
+                        {{ m.doc_number }}
+                    </td>
+
+                    <!-- 4. Descrição -->
+                    <td>
+                        <div style="font-weight: 600; color: #1E293B; font-size: 13px;">{{ m.description }}</div>
+                        <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
+                            Categoria: <strong>{{ m.category }}</strong> • Origem: {{ m.source }}
+                        </div>
+                    </td>
+
+                    <!-- 5. Cliente / Fornecedor -->
+                    <td>
+                        <div style="font-weight: 600; color: #334155; font-size: 13px;">{{ m.entity }}</div>
+                    </td>
+
+                    <!-- 6. Forma de Pagamento -->
+                    <td style="text-align: center;">
+                        <span style="font-size: 12px; font-weight: 600; color: #475569; background: #F1F5F9; padding: 3px 8px; border-radius: 4px;">
+                            {{ m.payment_method }}
+                        </span>
+                    </td>
+
+                    <!-- 7. Valor da Operação -->
+                    <td style="text-align: right;">
+                        <span style="font-weight: 700; font-size: 13px; color: {% if m.type == 'IN' %}#16a34a{% else %}#dc2626{% endif %};">
+                            {% if m.type == 'IN' %}+{% else %}-{% endif %} {{ m.amount | currency }}
+                        </span>
+                    </td>
+
+                    <!-- 8. Saldo Acumulado -->
+                    <td style="text-align: right;">
+                        <span style="font-weight: 800; font-size: 13px; color: #1E293B; font-family: monospace;">
+                            {{ m.running_balance | currency }}
+                        </span>
+                    </td>
+                </tr>
+                {% else %}
+                <tr id="emptyStatementRow">
+                    <td colspan="8" style="text-align: center; padding: 32px; color: var(--text-muted);">
+                        Nenhuma movimentação financeira encontrada para os filtros selecionados.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- SEÇÃO 2: HISTÓRICO DE FECHAMENTOS DE CAIXA DIÁRIOS                         -->
+<!-- ========================================================================= -->
+<div class="card">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+            <span class="card-title" style="margin: 0;">Histórico Consolidado de Fechamentos Diários</span>
+        </div>
+        <span style="font-size: 12px; color: var(--text-muted);">{{ statement.daily_closings|length }} dias com fechamento no período</span>
+    </div>
+
+    <div class="table-responsive">
+        <table class="bling-table">
+            <thead>
+                <tr>
+                    <th style="width: 140px; text-align: center;">Data do Caixa</th>
+                    <th style="text-align: right;">Saldo Abertura</th>
+                    <th style="text-align: right; color: #166534;">Entradas do Dia (+)</th>
+                    <th style="text-align: right; color: #991b1b;">Saídas do Dia (-)</th>
+                    <th style="text-align: right;">Resultado do Dia</th>
+                    <th style="text-align: right;">Saldo Fechamento</th>
+                    <th style="text-align: center; width: 110px;">Operações</th>
+                    <th style="text-align: center; width: 120px;">Situação</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in statement.daily_closings %}
+                <tr>
+                    <td style="text-align: center; font-weight: 700; color: #1E293B;">
+                        {{ d.date_str }}
+                    </td>
+                    <td style="text-align: right; font-family: monospace; color: #64748B;">
+                        {{ d.opening_balance | currency }}
+                    </td>
+                    <td style="text-align: right; font-weight: 700; color: #166534;">
+                        + {{ d.total_in | currency }}
+                    </td>
+                    <td style="text-align: right; font-weight: 700; color: #dc2626;">
+                        {% if d.total_out > 0 %}- {{ d.total_out | currency }}{% else %}—{% endif %}
+                    </td>
+                    <td style="text-align: right; font-weight: 700; color: {% if d.net_day >= 0 %}#0284c7{% else %}#ea580c{% endif %};">
+                        {% if d.net_day >= 0 %}+{% endif %}{{ d.net_day | currency }}
+                    </td>
+                    <td style="text-align: right; font-weight: 800; color: var(--bling-primary); font-family: monospace;">
+                        {{ d.closing_balance | currency }}
+                    </td>
+                    <td style="text-align: center; font-weight: 600;">
+                        {{ d.operations_count }}x
+                    </td>
+                    <td style="text-align: center;">
+                        <span class="badge badge-success" style="font-size: 11px;">
+                            ✓ {{ d.status }}
+                        </span>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="8" style="text-align: center; padding: 24px; color: var(--text-muted);">
+                        Nenhum fechamento diário registrado no período.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL DE NOVA MOVIMENTAÇÃO / SANGRIA DE CAIXA                            -->
+<!-- ========================================================================= -->
+<div id="cashEntryModalBackdrop" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 9999; align-items: center; justify-content: center; padding: 16px;">
+    <div style="background: #ffffff; border-radius: 12px; max-width: 520px; width: 100%; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); overflow: hidden; animation: popIn 0.2s ease-out;">
+        
+        <form method="POST" action="{{ url_for('finance.add_cash_movement_entry') }}">
+            <div style="padding: 16px 20px; border-bottom: 1px solid #E2E8F0; display: flex; justify-content: space-between; align-items: center; background: #F8FAFC;">
+                <h3 style="font-size: 16px; font-weight: 700; color: #1E293B; margin: 0; display: flex; align-items: center; gap: 8px;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    Registrar Movimentação de Caixa
+                </h3>
+                <button type="button" onclick="closeEntryModal()" style="background: none; border: none; font-size: 20px; color: #64748B; cursor: pointer;">
+                    &times;
+                </button>
+            </div>
+
+            <div style="padding: 20px; display: flex; flex-direction: column; gap: 14px;">
+                <!-- Tipo de Movimento -->
+                <div>
+                    <label style="font-size: 12px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">Tipo de Lançamento:</label>
+                    <select name="entry_type" class="form-control" required style="font-size: 13px;">
+                        <option value="PAGAR">🔴 Saída / Sangria de Caixa / Despesa</option>
+                        <option value="RECEBER">🟢 Entrada / Aporte / Reforço de Caixa</option>
+                    </select>
+                </div>
+
+                <!-- Valor e Data -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div>
+                        <label style="font-size: 12px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">Valor (R$):</label>
+                        <input type="number" step="0.01" name="amount" class="form-control" placeholder="0,00" required style="font-size: 14px; font-weight: 700;">
+                    </div>
+                    <div>
+                        <label style="font-size: 12px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">Data:</label>
+                        <input type="date" name="date" class="form-control" value="{{ end_date }}" required style="font-size: 13px;">
+                    </div>
+                </div>
+
+                <!-- Descrição -->
+                <div>
+                    <label style="font-size: 12px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">Descrição da Operação:</label>
+                    <input type="text" name="description" class="form-control" placeholder="Ex: Sangria para depósito, Frete expresso, Lanche equipe..." required style="font-size: 13px;">
+                </div>
+
+                <!-- Categoria e Meio de Pagamento -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div>
+                        <label style="font-size: 12px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">Categoria:</label>
+                        <select name="category" class="form-control" style="font-size: 13px;">
+                            <option value="Sangria">Sangria de Caixa</option>
+                            <option value="Operacional">Despesa Operacional</option>
+                            <option value="Fornecedores">Fornecedores</option>
+                            <option value="Logística">Logística / Fretes</option>
+                            <option value="Reforço de Caixa">Reforço de Caixa</option>
+                            <option value="Outros">Outros</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size: 12px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">Forma de Pagamento:</label>
+                        <select name="payment_method" class="form-control" style="font-size: 13px;">
+                            <option value="Dinheiro">Dinheiro</option>
+                            <option value="Pix">Pix</option>
+                            <option value="Cartão de Débito">Cartão de Débito</option>
+                            <option value="Cartão de Crédito">Cartão de Crédito</option>
+                            <option value="Boleto Bancário">Boleto Bancário</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Favorecido / Entidade -->
+                <div>
+                    <label style="font-size: 12px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">Favorecido / Destino:</label>
+                    <input type="text" name="entity_name" class="form-control" placeholder="Ex: Caixa da Loja, Banco Bradesco, Fornecedor..." style="font-size: 13px;">
+                </div>
+            </div>
+
+            <div style="padding: 12px 20px; border-top: 1px solid #E2E8F0; display: flex; justify-content: flex-end; gap: 10px; background: #F8FAFC;">
+                <button type="button" class="btn btn-outline" onclick="closeEntryModal()">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Salvar Lançamento</button>
+            </div>
+        </form>
+
+    </div>
+</div>
+
+<style>
+@keyframes popIn {
+    from { opacity: 0; transform: scale(0.96); }
+    to { opacity: 1; transform: scale(1); }
+}
+.statement-row:hover {
+    background-color: #F8FAFC;
+}
+</style>
+
+<!-- Script de Busca Instantânea e Modal -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('statementSearchInput');
+    const table = document.getElementById('statementTable');
+    const rows = table ? table.querySelectorAll('tbody tr.statement-row') : [];
+    const counterBadge = document.getElementById('statementCounterBadge');
+    const emptyRow = document.getElementById('emptyStatementRow');
+
+    if (searchInput) {
+        searchInput.addEventListener('input', function(e) {
+            const query = e.target.value.toLowerCase().trim();
+            let visibleCount = 0;
+
+            rows.forEach(row => {
+                const desc = row.getAttribute('data-desc') || '';
+                const entity = row.getAttribute('data-entity') || '';
+                const doc = row.getAttribute('data-doc') || '';
+                const method = row.getAttribute('data-method') || '';
+
+                const match = desc.includes(query) || entity.includes(query) || doc.includes(query) || method.includes(query);
+
+                if (match) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+
+            if (counterBadge) {
+                counterBadge.textContent = `${visibleCount} lançamentos`;
+            }
+
+            if (emptyRow) {
+                emptyRow.style.display = visibleCount === 0 ? '' : 'none';
+            }
+        });
+    }
+});
+
+function openEntryModal() {
+    const backdrop = document.getElementById('cashEntryModalBackdrop');
+    if (backdrop) backdrop.style.display = 'flex';
+}
+
+function closeEntryModal() {
+    const backdrop = document.getElementById('cashEntryModalBackdrop');
+    if (backdrop) backdrop.style.display = 'none';
+}
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeEntryModal();
+});
+</script>
+{% endblock %}

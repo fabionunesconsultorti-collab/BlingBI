@@ -1,0 +1,41 @@
+<!-- Cabeçalho & Abas Hierárquicas: Setor Produtos e Curva ABC -->
+<div class="sector-header">
+    <div class="sector-header-top">
+        <div>
+            <div class="sector-badge" style="background: #DBEAFE; color: #2563EB;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>
+                Setor de Estoque & Catálogo
+            </div>
+            <h2 class="sector-title">Produtos e Curva ABC</h2>
+            <p class="sector-subtitle">Catálogo integrado do Bling, Curva ABC de Pareto, velocidade de vendas (run-rate), dias de cobertura, ruptura e trocas por SKU.</p>
+        </div>
+    </div>
+
+    <!-- Abas de Navegação Interna do Setor -->
+    <nav class="sector-nav-tabs">
+        {% if is_feature_enabled('products.overview') %}
+        <a href="{{ url_for('products.index') }}" class="sector-nav-tab {% if active_tab == 'catalog' %}active{% endif %}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+            Inventário & Catálogo
+        </a>
+        {% endif %}
+        {% if is_feature_enabled('products.abc') %}
+        <a href="{{ url_for('products.abc') }}" class="sector-nav-tab {% if active_tab == 'abc' %}active{% endif %}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
+            Curva ABC (Pareto)
+        </a>
+        {% endif %}
+        {% if is_feature_enabled('products.stock_coverage') %}
+        <a href="{{ url_for('products.stock_coverage') }}" class="sector-nav-tab {% if active_tab == 'coverage' %}active{% endif %}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            Dias de Cobertura & Ruptura
+        </a>
+        {% endif %}
+        {% if is_feature_enabled('products.returns') %}
+        <a href="{{ url_for('products.returns') }}" class="sector-nav-tab {% if active_tab == 'returns' %}active{% endif %}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 2v6h6M21.5 22v-6h-6"/><path d="M22 11.5A10 10 0 0 0 3.2 7.2M2 12.5a10 10 0 0 0 18.8 4.3"/></svg>
+            Trocas & Devoluções por SKU
+        </a>
+        {% endif %}
+    </nav>
+</div>

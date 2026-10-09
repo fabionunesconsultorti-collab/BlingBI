@@ -1,0 +1,395 @@
+{% extends "base.html" %}
+
+{% block title %}Inventário & Catálogo - Produtos e Curva ABC - BlingBI{% endblock %}
+{% block page_title %}Setor de Produtos e Curva ABC{% endblock %}
+
+{% block content %}
+<!-- Cabeçalho Hierárquico do Setor -->
+{% include "products/nav_header.html" %}
+
+{% if analytics.total_products == 0 %}
+<div class="card" style="border-left: 4px solid #f59e0b; background: #fffbeb; margin-bottom: 20px;">
+    <div class="card-body" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 16px 20px;">
+        <div>
+            <h3 style="font-size: 15px; font-weight: 700; color: #92400e; margin-bottom: 4px;">Nenhum produto cadastrado no momento</h3>
+            <p style="color: #b45309; font-size: 13px;">Sincronize seu catálogo de produtos do Bling para visualizar saldos de estoque e precificação.</p>
+        </div>
+        <div style="display: flex; gap: 8px;">
+            <a href="{{ url_for('integrations.index') }}" class="btn btn-primary btn-sm">Configurar API Bling</a>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- KPIs do Catálogo e Inventário -->
+<div class="kpi-grid">
+    <div class="kpi-card">
+        <span class="kpi-title">Produtos Filtrados</span>
+        <div class="kpi-value" id="kpiTotalProds" style="color: var(--bling-primary);">{{ analytics.total_found | number }}</div>
+        <div class="kpi-subtext">De {{ analytics.total_products | number }} SKUs cadastrados</div>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-title">Peças em Estoque</span>
+        <div class="kpi-value" id="kpiTotalStock">{{ analytics.total_stock_qty | number }} un</div>
+        <div class="kpi-subtext">Saldo físico disponível</div>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-title">Valor Total em Estoque</span>
+        <div class="kpi-value" id="kpiStockValue" style="color: #0369a1;">{{ analytics.total_stock_value | currency }}</div>
+        <div class="kpi-subtext">Avaliado a preço de venda</div>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-title">Vendas no Período</span>
+        <div class="kpi-value" style="color: #15803d;">{{ analytics.total_revenue | currency }}</div>
+        <div class="kpi-subtext">{{ analytics.total_sold_qty | number }} peças faturadas</div>
+    </div>
+</div>
+
+<!-- Barra de Busca Geral & Filtros de Catálogo -->
+<div class="card" style="margin-bottom: 20px;">
+    <div class="card-body" style="padding: 16px 20px;">
+        <form method="GET" id="catalogFilterForm" style="display: flex; flex-direction: column; gap: 14px;">
+            <input type="hidden" name="period" value="{{ period }}">
+            <input type="hidden" name="start_date" value="{{ start_date }}">
+            <input type="hidden" name="end_date" value="{{ end_date }}">
+
+            <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                
+                <!-- 1. Busca por Nome ou SKU -->
+                <div style="flex: 2; min-width: 260px;">
+                    <label style="font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; display: block;">
+                        Nome do Produto ou SKU
+                    </label>
+                    <div style="position: relative;">
+                        <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none;">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                        </span>
+                        <input type="text"
+                               id="prodSearchInput"
+                               name="q"
+                               value="{{ q or '' }}"
+                               class="form-control"
+                               placeholder="Ex: Vestido, Calça Jeans, Blusa, SKU..."
+                               autocomplete="off"
+                               style="padding-left: 36px; padding-right: {% if q %}32px{% else %}12px{% endif %}; height: 38px; font-size: 13px; border-radius: 8px;">
+                        {% if q %}
+                        <a href="{{ url_for('products.index', period=period, start_date=start_date, end_date=end_date, size=size, color=color, stock_status=stock_status, abc_class=abc_class, sort=sort) }}"
+                           style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: #94a3b8; text-decoration: none; font-size: 18px; line-height: 1; font-weight: 700;"
+                           title="Limpar termo">&times;</a>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- 2. Filtro de Tamanho -->
+                <div style="flex: 1; min-width: 140px;">
+                    <label style="font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; display: block;">
+                        Tamanho
+                    </label>
+                    <select name="size" id="sizeSelect" onchange="this.form.submit()" class="form-control" style="height: 38px; font-size: 13px; border-radius: 8px;">
+                        <option value="all">Todos os Tamanhos</option>
+                        {% for sz in filter_options.sizes %}
+                        <option value="{{ sz }}" {% if size == sz %}selected{% endif %}>Tam: {{ sz }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- 3. Filtro de Cor -->
+                <div style="flex: 1; min-width: 160px;">
+                    <label style="font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; display: block;">
+                        Cor / Variação
+                    </label>
+                    <select name="color" id="colorSelect" onchange="this.form.submit()" class="form-control" style="height: 38px; font-size: 13px; border-radius: 8px;">
+                        <option value="all">Todas as Cores</option>
+                        {% for cr in filter_options.colors %}
+                        <option value="{{ cr }}" {% if color == cr %}selected{% endif %}>{{ cr }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- 4. Saldo em Estoque -->
+                <div style="flex: 1; min-width: 150px;">
+                    <label style="font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; display: block;">
+                        Estoque
+                    </label>
+                    <select name="stock_status" onchange="this.form.submit()" class="form-control" style="height: 38px; font-size: 13px; border-radius: 8px;">
+                        <option value="all" {% if stock_status == 'all' %}selected{% endif %}>Qualquer Saldo</option>
+                        <option value="in_stock" {% if stock_status == 'in_stock' %}selected{% endif %}>Com Estoque (&gt; 0)</option>
+                        <option value="zero_stock" {% if stock_status == 'zero_stock' %}selected{% endif %}>Estoque Zerado (= 0)</option>
+                    </select>
+                </div>
+
+                <!-- 5. Curva ABC -->
+                <div style="flex: 1; min-width: 130px;">
+                    <label style="font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; display: block;">
+                        Curva ABC
+                    </label>
+                    <select name="abc_class" onchange="this.form.submit()" class="form-control" style="height: 38px; font-size: 13px; border-radius: 8px;">
+                        <option value="all" {% if abc_class == 'all' %}selected{% endif %}>Todas as Classes</option>
+                        <option value="A" {% if abc_class == 'A' %}selected{% endif %}>Classe A (~80%)</option>
+                        <option value="B" {% if abc_class == 'B' %}selected{% endif %}>Classe B (~15%)</option>
+                        <option value="C" {% if abc_class == 'C' %}selected{% endif %}>Classe C (~5%)</option>
+                    </select>
+                </div>
+
+                <!-- 6. Ordenação -->
+                <div style="flex: 1; min-width: 150px;">
+                    <label style="font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; display: block;">
+                        Ordenar Por
+                    </label>
+                    <select name="sort" onchange="this.form.submit()" class="form-control" style="height: 38px; font-size: 13px; border-radius: 8px;">
+                        <option value="name_asc" {% if sort == 'name_asc' %}selected{% endif %}>Nome (A-Z)</option>
+                        <option value="stock_desc" {% if sort == 'stock_desc' %}selected{% endif %}>Maior Estoque</option>
+                        <option value="stock_asc" {% if sort == 'stock_asc' %}selected{% endif %}>Menor Estoque</option>
+                        <option value="sales_desc" {% if sort == 'sales_desc' %}selected{% endif %}>Mais Vendidos</option>
+                        <option value="price_desc" {% if sort == 'price_desc' %}selected{% endif %}>Maior Preço</option>
+                        <option value="price_asc" {% if sort == 'price_asc' %}selected{% endif %}>Menor Preço</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Botões de Ação & Exportação -->
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; padding-top: 8px; border-top: 1px solid #f1f5f9;">
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <button type="submit" class="btn btn-primary btn-sm" style="height: 36px; padding: 0 16px; border-radius: 6px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                        Filtrar
+                    </button>
+                    {% if q or (size and size != 'all') or (color and color != 'all') or (stock_status and stock_status != 'all') or (abc_class and abc_class != 'all') or (sort and sort != 'name_asc') %}
+                    <a href="{{ url_for('products.index', period=period, start_date=start_date, end_date=end_date) }}" class="btn btn-outline btn-sm" style="height: 36px; display: inline-flex; align-items: center; border-radius: 6px;">
+                        Limpar Filtros
+                    </a>
+                    {% endif %}
+                </div>
+
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <a href="{{ url_for('products.export_abc_excel', period=period, start_date=start_date, end_date=end_date, q=q, size=size, color=color, stock_status=stock_status, abc_class=abc_class, sort=sort) }}" class="btn btn-outline btn-sm" style="height: 36px; display: inline-flex; align-items: center; gap: 6px; border-radius: 6px;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="8" y1="13" x2="16" y2="13"></line><line x1="8" y1="17" x2="16" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                        Exportar Excel (.xlsx)
+                    </a>
+                    <a href="{{ url_for('products.export_abc_pdf', period=period, start_date=start_date, end_date=end_date, q=q, size=size, color=color, stock_status=stock_status, abc_class=abc_class, sort=sort) }}" class="btn btn-primary btn-sm" style="height: 36px; display: inline-flex; align-items: center; gap: 6px; border-radius: 6px;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                        Exportar PDF
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Tabela do Catálogo e Saldos -->
+<div class="card">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <span class="card-title" style="margin-bottom: 0;">Inventário & Catálogo de Produtos</span>
+            <span id="prodCountBadge" class="badge" style="background: #e2e8f0; color: #334155; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 6px;">
+                {{ analytics.products|length }} produtos exibidos
+            </span>
+            {% if q %}
+            <span class="badge" style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; font-size: 11px; padding: 4px 8px; border-radius: 6px;">
+                Termo: "<strong>{{ q }}</strong>"
+            </span>
+            {% endif %}
+            {% if size and size != 'all' %}
+            <span class="badge" style="background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; font-size: 11px; padding: 4px 8px; border-radius: 6px;">
+                Tam: <strong>{{ size }}</strong>
+            </span>
+            {% endif %}
+            {% if color and color != 'all' %}
+            <span class="badge" style="background: #faf5ff; color: #7e22ce; border: 1px solid #e9d5ff; font-size: 11px; padding: 4px 8px; border-radius: 6px;">
+                Cor: <strong>{{ color }}</strong>
+            </span>
+            {% endif %}
+        </div>
+        <div style="font-size: 12px; color: var(--text-muted);">
+            Busca instantânea por <strong>Tamanho</strong>, <strong>Cor</strong> ou <strong>Nome</strong>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="bling-table">
+            <thead>
+                <tr>
+                    <th style="width: 120px;">SKU</th>
+                    <th>Descrição do Produto</th>
+                    <th style="text-align: center; width: 80px;">Tam</th>
+                    <th style="text-align: center; width: 130px;">Cor</th>
+                    <th style="text-align: center; width: 95px;">Curva ABC</th>
+                    <th style="text-align: center; width: 95px;">Estoque</th>
+                    <th style="text-align: center; width: 90px;">Vendidas</th>
+                    <th style="text-align: right; width: 110px;">Preço Venda</th>
+                    <th style="text-align: right; width: 110px;">Margem</th>
+                    <th style="text-align: center; width: 80px;">Status</th>
+                </tr>
+            </thead>
+            <tbody id="catalogTableBody">
+                {% for p in analytics.products %}
+                <tr class="product-row"
+                    data-product-sku="{{ p.sku|lower }}"
+                    data-product-name="{{ p.name|lower }}"
+                    data-product-size="{{ p.size|lower }}"
+                    data-product-color="{{ p.color|lower }}">
+                    
+                    <td style="font-family: monospace; font-size: 12px; color: #64748B;">
+                        <span style="background: #f8fafc; padding: 2px 6px; border-radius: 4px; border: 1px solid #e2e8f0;">
+                            {{ p.sku }}
+                        </span>
+                    </td>
+
+                    <td>
+                        <div style="font-weight: 600; color: #1E293B; font-size: 13.5px;">{{ p.name }}</div>
+                        <div style="font-size: 11px; color: var(--text-muted);">ID Bling: #{{ p.bling_id }}</div>
+                    </td>
+
+                    <!-- Tamanho -->
+                    <td style="text-align: center;">
+                        {% if p.size and p.size != 'N/D' %}
+                        <span class="badge" style="background: #e0f2fe; color: #0369a1; font-weight: 700; padding: 2px 7px; border-radius: 5px; font-size: 11.5px;">
+                            {{ p.size }}
+                        </span>
+                        {% else %}
+                        <span style="color: #94a3b8; font-size: 12px;">-</span>
+                        {% endif %}
+                    </td>
+
+                    <!-- Cor -->
+                    <td style="text-align: center;">
+                        {% if p.color and p.color != 'N/D' %}
+                        <span class="badge" style="background: #f8fafc; color: #334155; border: 1px solid #cbd5e1; font-weight: 600; padding: 2px 7px; border-radius: 5px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;">
+                            <span style="width: 7px; height: 7px; border-radius: 50%; background: #64748b; display: inline-block;"></span>
+                            {{ p.color }}
+                        </span>
+                        {% else %}
+                        <span style="color: #94a3b8; font-size: 12px;">-</span>
+                        {% endif %}
+                    </td>
+
+                    <!-- Curva ABC -->
+                    <td style="text-align: center;">
+                        {% if p.class in ['A', 'B', 'C'] %}
+                        <span class="badge {% if p.class == 'A' %}badge-a{% elif p.class == 'B' %}badge-b{% else %}badge-c{% endif %}">
+                            Classe {{ p.class }}
+                        </span>
+                        {% else %}
+                        <span style="color: #94a3b8; font-size: 11px;">Sem venda</span>
+                        {% endif %}
+                    </td>
+
+                    <!-- Estoque Atual -->
+                    <td style="text-align: center;">
+                        {% if p.stock > 0 %}
+                        <span class="badge badge-success" style="font-size: 11.5px; font-weight: 700; padding: 3px 8px;">
+                            {{ p.stock | number }} un
+                        </span>
+                        {% else %}
+                        <span class="badge badge-danger" style="font-size: 11.5px; font-weight: 700; padding: 3px 8px;">
+                            0 un
+                        </span>
+                        {% endif %}
+                    </td>
+
+                    <!-- Qtd Vendida -->
+                    <td style="text-align: center; font-weight: 600; color: #475569;">
+                        {{ p.qty_sold | number }} un
+                    </td>
+
+                    <!-- Preço de Venda -->
+                    <td style="text-align: right; font-weight: 700; color: #008b54;">
+                        {{ p.price | currency }}
+                    </td>
+
+                    <!-- Margem -->
+                    <td style="text-align: right; font-weight: 600; color: {% if p.margin_pct >= 40 %}#16a34a{% elif p.margin_pct > 0 %}#ca8a04{% else %}#dc2626{% endif %}; font-size: 12px;">
+                        {{ p.margin | currency }} <span style="font-size: 11px; color: var(--text-muted);">({{ "%.0f"|format(p.margin_pct) }}%)</span>
+                    </td>
+
+                    <!-- Status -->
+                    <td style="text-align: center;">
+                        <span class="badge {% if p.status == 'A' %}badge-success{% else %}badge-danger{% endif %}" style="font-size: 11px;">
+                            {{ 'Ativo' if p.status == 'A' else 'Inativo' }}
+                        </span>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="10" style="text-align: center; padding: 36px 20px; color: var(--text-muted);">
+                        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.75" style="margin-bottom: 8px;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                        <div style="font-weight: 600; color: var(--text-dark); margin-bottom: 4px; font-size: 15px;">Nenhum produto atende aos critérios aplicados</div>
+                        <div style="font-size: 13px;">Tente alterar os filtros de tamanho, cor ou termo pesquisado para expandir os resultados.</div>
+                        <div style="margin-top: 14px;">
+                            <a href="{{ url_for('products.index', period=period, start_date=start_date, end_date=end_date) }}" class="btn btn-outline btn-sm">Limpar Filtros</a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+                <tr id="noResultsLiveCatalogRow" style="display: none;">
+                    <td colspan="10" style="text-align: center; padding: 36px 20px; color: var(--text-muted);">
+                        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.75" style="margin-bottom: 8px;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                        <div style="font-weight: 600; color: var(--text-dark); margin-bottom: 4px; font-size: 15px;">Nenhum produto visível na busca instantânea</div>
+                        <div style="font-size: 13px;">Nenhum item na página atual corresponde ao texto digitado.</div>
+                        <div style="margin-top: 14px;">
+                            <button type="button" class="btn btn-outline btn-sm" onclick="clearLiveCatalogSearch()">Limpar Filtro Instantâneo</button>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+// =============================================================================
+// BUSCA INSTANTÂNEA EM TEMPO REAL NA TABELA DE INVENTÁRIO & CATÁLOGO
+// =============================================================================
+function clearLiveCatalogSearch() {
+    const input = document.getElementById('prodSearchInput');
+    if (input) {
+        input.value = '';
+        input.dispatchEvent(new Event('input'));
+        input.focus();
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const input = document.getElementById('prodSearchInput');
+    const rows = Array.from(document.querySelectorAll('.product-row'));
+    const badge = document.getElementById('prodCountBadge');
+    const noResultsRow = document.getElementById('noResultsLiveCatalogRow');
+
+    if (!input) return;
+
+    function runLiveFilter() {
+        const query = input.value.trim().toLowerCase();
+        let visibleCount = 0;
+
+        rows.forEach(function(row) {
+            const name = (row.getAttribute('data-product-name') || '').toLowerCase();
+            const sku = (row.getAttribute('data-product-sku') || '').toLowerCase();
+            const size = (row.getAttribute('data-product-size') || '').toLowerCase();
+            const color = (row.getAttribute('data-product-color') || '').toLowerCase();
+
+            const matches = !query || name.includes(query) || sku.includes(query) || size.includes(query) || color.includes(query);
+
+            if (matches) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        if (badge) {
+            if (!query) {
+                badge.textContent = `${rows.length} produtos exibidos`;
+            } else {
+                badge.textContent = `${visibleCount} de ${rows.length} produtos exibidos`;
+            }
+        }
+
+        if (noResultsRow) {
+            noResultsRow.style.display = (query && visibleCount === 0 && rows.length > 0) ? '' : 'none';
+        }
+    }
+
+    input.addEventListener('input', runLiveFilter);
+});
+</script>
+{% endblock %}

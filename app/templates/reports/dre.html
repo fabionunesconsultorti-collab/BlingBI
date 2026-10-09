@@ -1,0 +1,168 @@
+{% extends 'base.html' %}
+
+{% block title %}DRE Gerencial Sintética - BlingBI{% endblock %}
+{% block page_title %}Demonstrativo de Resultado do Exercício - DRE Gerencial (Pilar 4){% endblock %}
+
+{% block content %}
+<div class="report-container" style="display: flex; flex-direction: column; gap: 24px;">
+
+    <!-- Barra de Filtros e Exportação -->
+    <div class="card" style="padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+        <form method="GET" action="{{ url_for('reports.dre') }}" style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+            <div>
+                <label style="font-size: 11px; font-weight: 600; color: #64748B; display: block; margin-bottom: 2px;">Competência:</label>
+                <select name="period" onchange="this.form.submit()" style="padding: 6px 12px; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 13px;">
+                    <option value="this_month" {% if period == 'this_month' %}selected{% endif %}>Este Mês</option>
+                    <option value="last_month" {% if period == 'last_month' %}selected{% endif %}>Mês Anterior</option>
+                    <option value="last_30_days" {% if period == 'last_30_days' %}selected{% endif %}>Últimos 30 dias</option>
+                </select>
+            </div>
+            <div style="font-size: 12px; color: #64748B; padding-top: 14px;">
+                Regime: <b>Competência</b> | Faturamento: {{ start_date.strftime('%d/%m/%Y') }} a {{ end_date.strftime('%d/%m/%Y') }}
+            </div>
+        </form>
+
+        <!-- Botões de Exportação -->
+        <div style="display: flex; gap: 10px;">
+            <a href="{{ url_for('reports.export_dre_pdf', period=period) }}" class="btn btn-secondary" style="display: flex; align-items: center; gap: 6px;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                Exportar PDF
+            </a>
+            <a href="{{ url_for('reports.export_dre_excel', period=period) }}" class="btn btn-primary" style="display: flex; align-items: center; gap: 6px;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
+                Exportar Excel (.xlsx)
+            </a>
+        </div>
+    </div>
+
+    <!-- Cards de KPIs da DRE -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px;">
+        <div class="card" style="padding: 16px;">
+            <div style="font-size: 12px; color: #64748B; font-weight: 600;">Receita Operacional Líquida</div>
+            <div style="font-size: 22px; font-weight: 800; color: #1E293B; margin-top: 4px;">{{ summary.net_sales|currency }}</div>
+            <div style="font-size: 11px; color: #64748B; margin-top: 2px;">Bruta: {{ summary.gross_sales|currency }}</div>
+        </div>
+        <div class="card" style="padding: 16px;">
+            <div style="font-size: 12px; color: #64748B; font-weight: 600;">CMV (Custo Mercadorias)</div>
+            <div style="font-size: 22px; font-weight: 800; color: #64748B; margin-top: 4px;">{{ summary.cmv|currency }}</div>
+            <div style="font-size: 11px; color: #64748B; margin-top: 2px;">Custo direto das vendas</div>
+        </div>
+        <div class="card" style="padding: 16px;">
+            <div style="font-size: 12px; color: #64748B; font-weight: 600;">Lucro Bruto (Margem)</div>
+            <div style="font-size: 22px; font-weight: 800; color: #008B54; margin-top: 4px;">{{ summary.gross_profit|currency }}</div>
+            <div style="font-size: 11px; color: #008B54; margin-top: 2px; font-weight: 700;">Margem Bruta: {{ summary.gross_margin_pct }}%</div>
+        </div>
+        <div class="card" style="padding: 16px;">
+            <div style="font-size: 12px; color: #64748B; font-weight: 600;">Despesas Operacionais Fixas</div>
+            <div style="font-size: 22px; font-weight: 800; color: #EF4444; margin-top: 4px;">{{ summary.operating_expenses|currency }}</div>
+            <div style="font-size: 11px; color: #64748B; margin-top: 2px;">Contas a Pagar do período</div>
+        </div>
+        <div class="card" style="padding: 16px;">
+            <div style="font-size: 12px; color: #64748B; font-weight: 600;">Resultado Líquido do Período</div>
+            <div style="font-size: 22px; font-weight: 800; color: {% if summary.net_profit >= 0 %}#10B981{% else %}#EF4444{% endif %}; margin-top: 4px;">
+                {{ summary.net_profit|currency }}
+            </div>
+            <div style="font-size: 11px; color: {% if summary.net_profit >= 0 %}#10B981{% else %}#EF4444{% endif %}; margin-top: 2px; font-weight: 700;">
+                Margem Líquida: {{ summary.net_margin_pct }}%
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráfico Cascata (Waterfall) da DRE -->
+    <div class="card" style="padding: 20px;">
+        <h3 style="font-size: 15px; font-weight: 700; color: #1E293B; margin-bottom: 14px;">Fluxo de Formação do Resultado (Gráfico Cascata DRE)</h3>
+        <div style="height: 270px; position: relative;">
+            <canvas id="dreWaterfallChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Tabela Gerencial Estruturada da DRE -->
+    <div class="card" style="padding: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h3 style="font-size: 16px; font-weight: 700; color: #1E293B;">Demonstrativo Contábil-Gerencial Estruturado</h3>
+            <span style="font-size: 12px; color: #64748B;">Competência: {{ start_date.strftime('%d/%m/%Y') }} a {{ end_date.strftime('%d/%m/%Y') }}</span>
+        </div>
+
+        <div style="overflow-x: auto;">
+            <table class="data-table" style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background: #1E293B; color: #FFFFFF; text-align: left;">
+                        <th style="padding: 10px 16px; font-size: 12px; width: 80px;">Código</th>
+                        <th style="padding: 10px 16px; font-size: 12px;">Estrutura Contábil / Gerencial</th>
+                        <th style="padding: 10px 16px; font-size: 12px; text-align: right; width: 180px;">Valor (R$)</th>
+                        <th style="padding: 10px 16px; font-size: 12px; text-align: center; width: 120px;">Margem (%)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for l in lines %}
+                    <tr style="border-bottom: 1px solid #EDF2F7; background: {% if l.type in ['subtotal', 'total'] %}#F8FAFC; font-weight: 700;{% elif l.type == 'positive' %}#FFFFFF; font-weight: 700;{% else %}#FFFFFF;{% endif %}">
+                        <td style="padding: 10px 16px; font-family: monospace; font-size: 12px; color: #64748B;">{{ l.code }}</td>
+                        <td style="padding: 10px 16px; color: {% if l.type in ['subtotal', 'total'] %}#1E293B{% elif l.type == 'negative' %}#475569{% else %}#1E293B{% endif %};">
+                            {{ l.name }}
+                        </td>
+                        <td style="padding: 10px 16px; text-align: right; font-weight: {% if l.type in ['subtotal', 'total', 'positive'] %}800{% else %}500{% endif %}; color: {% if l.value < 0 %}#EF4444{% elif l.type in ['subtotal', 'total'] %}#008B54{% else %}#1E293B{% endif %};">
+                            {{ l.value|currency }}
+                        </td>
+                        <td style="padding: 10px 16px; text-align: center;">
+                            {% if l.margin_pct is defined %}
+                            <span class="badge" style="background: {% if l.margin_pct >= 0 %}#D1FAE5; color: #065F46;{% else %}#FEE2E2; color: #991B1B;{% endif %} padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 700;">
+                                {{ l.margin_pct }}%
+                            </span>
+                            {% else %}
+                            <span style="color: #CBD5E1;">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- Chart.js Scripts -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const wfCtx = document.getElementById('dreWaterfallChart').getContext('2d');
+    const wfLabels = {{ charts.waterfall.labels|tojson }};
+    const wfData = {{ charts.waterfall.data|tojson }};
+
+    const backgroundColors = wfData.map(v => v >= 0 ? '#10B981' : '#EF4444');
+
+    new Chart(wfCtx, {
+        type: 'bar',
+        data: {
+            labels: wfLabels,
+            datasets: [{
+                label: 'Impacto (R$)',
+                data: wfData,
+                backgroundColor: backgroundColors,
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(c) {
+                            return 'R$ ' + c.parsed.y.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    ticks: {
+                        callback: function(v) { return 'R$ ' + v.toLocaleString('pt-BR'); }
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

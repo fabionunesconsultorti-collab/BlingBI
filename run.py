@@ -13,6 +13,7 @@ from app import create_app
 from app.models.order import Order
 from app.models.setting import Setting
 from app.services.demo_data import seed_demo_data
+from app.services.demo_fashion_data import seed_fashion_demo_data
 
 def open_browser(url):
     """Aguarda um instante para o servidor subir e abre no navegador."""
@@ -33,6 +34,9 @@ def main():
         if Order.query.count() == 0 and Setting.get('demo_cleared') != '1':
             print("📦 Base de dados inicializada! Populando dados de demonstração para visualização imediata...")
             seed_demo_data()
+            seed_fashion_demo_data()
+        elif Setting.get('demo_cleared') != '1' and Order.query.filter(Order.payment_method == 'Consignado').count() == 0:
+            seed_fashion_demo_data()
 
     # Verifica se deve abrir o navegador (por padrão abre, exceto se passado --no-browser)
     if '--no-browser' not in sys.argv:
@@ -45,7 +49,7 @@ def main():
     print(f" Pressione Ctrl+C para encerrar o servidor.")
     print(f"=======================================================\n")
 
-    app.run(host=host, port=port, debug=False)
+    app.run(host=host, port=port, debug=True)
 
 if __name__ == '__main__':
     main()

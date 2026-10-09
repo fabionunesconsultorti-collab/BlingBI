@@ -13,6 +13,9 @@ class Customer(db.Model):
     phone = db.Column(db.String(50), nullable=True)
     city = db.Column(db.String(100), nullable=True)
     state = db.Column(db.String(10), nullable=True, index=True) # UF (ex: SP, RJ)
+    birth_date = db.Column(db.Date, nullable=True)
+    preferred_size = db.Column(db.String(20), nullable=True)
+    preferred_style = db.Column(db.String(50), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -30,5 +33,8 @@ class Customer(db.Model):
             'phone': self.phone,
             'city': self.city,
             'state': self.state,
+            'birth_date': self.birth_date.strftime('%Y-%m-%d') if self.birth_date else None,
+            'preferred_size': self.preferred_size,
+            'preferred_style': self.preferred_style,
             'created_at': self.created_at.strftime('%Y-%m-%d') if self.created_at else None
         }

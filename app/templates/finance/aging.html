@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+
+{% block title %}Inadimplência & Aging List - Financeiro e DRE - BlingBI{% endblock %}
+{% block page_title %}Setor Financeiro & DRE{% endblock %}
+
+{% block content %}
+<!-- Cabeçalho Hierárquico do Setor -->
+{% include "finance/nav_header.html" %}
+
+<div class="report-container" style="display: flex; flex-direction: column; gap: 24px;">
+
+    <!-- Filtro de Período -->
+    <div class="card" style="padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+        <form method="GET" action="{{ url_for('finance.aging') }}" style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+            <div>
+                <label style="font-size: 11px; font-weight: 600; color: #64748B; display: block; margin-bottom: 2px;">Filtro de Vencimento:</label>
+                <select name="period" onchange="this.form.submit()" style="padding: 6px 12px; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 13px;">
+                    <option value="all" {% if period == 'all' %}selected{% endif %}>Todos os Títulos em Aberto</option>
+                    <option value="last_30_days" {% if period == 'last_30_days' %}selected{% endif %}>Vencidos nos últimos 30 dias</option>
+                    <option value="last_60_days" {% if period == 'last_60_days' %}selected{% endif %}>Vencidos nos últimos 60 dias</option>
+                    <option value="this_month" {% if period == 'this_month' %}selected{% endif %}>Vencimento este mês</option>
+                </select>
+            </div>
+            <div style="font-size: 12px; color: #64748B; padding-top: 14px;">
+                Mapeamento das faixas etárias de atraso (Aging List) do Contas a Receber para cobrança e gestão de crédito.
+            </div>
+        </form>
+
+        <a href="{{ url_for('finance.index') }}" class="btn btn-secondary">
+            Ir para Visão Geral
+        </a>
+    </div>
+
+    <!-- Cards de KPIs de Inadimplência -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px;">
+        <div class="card" style="padding: 18px; border-left: 4px solid #0EA5E9;">
+            <div style="font-size: 11px; font-weight: 700; color: #64748B; text-transform: uppercase;">Total em Aberto</div>
+            <div style="font-size: 24px; font-weight: 800; color: #1E293B; margin-top: 4px;">{{ report_data.summary.total_open | currency }}</div>
+            <div style="font-size: 12px; color: #64748B; margin-top: 2px;">{{ report_data.summary.total_titles }} títulos pendentes</div>
+        </div>
+
+        <div class="card" style="padding: 18px; border-left: 4px solid #10B981;">
+            <div style="font-size: 11px; font-weight: 700; color: #64748B; text-transform: uppercase;">A Vencer (Em dia)</div>
+            <div style="font-size: 24px; font-weight: 800; color: #10B981; margin-top: 4px;">{{ report_data.summary.total_ontime | currency }}</div>
+            <div style="font-size: 12px; color: #64748B; margin-top: 2px;">Dentro do prazo de vencimento</div>
+        </div>
+
+        <div class="card" style="padding: 18px; border-left: 4px solid #DC2626;">
+            <div style="font-size: 11px; font-weight: 700; color: #64748B; text-transform: uppercase;">Total Vencido (Atraso)</div>
+            <div style="font-size: 24px; font-weight: 800; color: #DC2626; margin-top: 4px;">{{ report_data.summary.total_overdue | currency }}</div>
+            <div style="font-size: 12px; color: #64748B; margin-top: 2px;">Exposição a perdas de crédito</div>
+        </div>
+
+        <div class="card" style="padding: 18px; border-left: 4px solid #F59E0B;">
+            <div style="font-size: 11px; font-weight: 700; color: #64748B; text-transform: uppercase;">Taxa de Inadimplência</div>
+            <div style="font-size: 24px; font-weight: 800; color: {% if report_data.summary.default_rate > 10 %}#DC2626{% else %}#F59E0B{% endif %}; margin-top: 4px;">
+                {{ report_data.summary.default_rate }}%
+            </div>
+            <div style="font-size: 12px; color: #64748B; margin-top: 2px;">Vencidos / Carteira Aberta</div>
+        </div>
+    </div>
+
+    <!-- Gráfico Donut de Faixas de Atraso e Resumo por Faixa -->
+    <div style="display: grid; grid-template-columns: 360px 1fr; gap: 20px;">
+        <div class="card" style="padding: 20px;">
+            <h3 style="font-size: 15px; font-weight: 700; color: #1E293B; margin-bottom: 14px;">
+                Distribuição das Faixas de Vencimento
+            </h3>
+            <div style="height: 240px; position: relative;">
+                <canvas id="agingChart"></canvas>
+            </div>
+        </div>
+
+        <div class="card" style="padding: 20px;">
+            <h3 style="font-size: 15px; font-weight: 700; color: #1E293B; margin-bottom: 16px;">
+                Quadro de Faixas de Atraso (Aging Buckets)
+            </h3>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                {% for b_key, b in report_data.buckets.items() %}
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: #F8FAFC; border-radius: 8px; border-left: 4px solid {{ b.color }};">
+                    <div>
+                        <div style="font-weight: 700; font-size: 13px; color: #1E293B;">{{ b.label }}</div>
+                        <div style="font-size: 11px; color: #64748B;">{{ b.count }} títulos nesta faixa</div>
+                    </div>
+                    <div style="text-align: right;">
+                        <span style="font-size: 16px; font-weight: 800; font-family: monospace; color: {{ b.color }};">{{ b.amount | currency }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabela de Maiores Devedores -->
+    <div class="card" style="padding: 20px;">
+        <h3 style="font-size: 16px; font-weight: 700; color: #1E293B; margin-bottom: 16px;">
+            Maiores Devedores em Atraso (Risco de Crédito)
+        </h3>
+        <div style="overflow-x: auto;">
+            <table class="data-table" style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background: #F8FAFC; border-bottom: 2px solid #E2E8F0; text-align: left;">
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569;">Cliente / Razão Social</th>
+                        <th style="padding: 10px 14px; text-align: center; font-size: 12px; color: #475569;">Títulos Abertos</th>
+                        <th style="padding: 10px 14px; text-align: center; font-size: 12px; color: #475569;">Maior Atraso (Dias)</th>
+                        <th style="padding: 10px 14px; text-align: right; font-size: 12px; color: #475569;">Total Aberto</th>
+                        <th style="padding: 10px 14px; text-align: right; font-size: 12px; color: #475569;">Valor Vencido</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for d in report_data.top_debtors %}
+                    <tr style="border-bottom: 1px solid #F1F5F9; font-size: 13px;">
+                        <td style="padding: 12px 14px; font-weight: 600; color: #1E293B;">{{ d.name }}</td>
+                        <td style="padding: 12px 14px; text-align: center; color: #64748B;">{{ d.titles_count }}</td>
+                        <td style="padding: 12px 14px; text-align: center;">
+                            <span class="badge" style="background: {% if d.max_days_overdue > 60 %}#FEE2E2; color: #991B1B;{% elif d.max_days_overdue > 30 %}#FFEDD5; color: #C2410C;{% else %}#FEF3C7; color: #92400E;{% endif %}; font-weight: 700; padding: 2px 8px; border-radius: 4px; font-size: 11px;">
+                                {{ d.max_days_overdue }} dias
+                            </span>
+                        </td>
+                        <td style="padding: 12px 14px; text-align: right; font-family: monospace; color: #64748B;">{{ d.total_due | currency }}</td>
+                        <td style="padding: 12px 14px; text-align: right; font-family: monospace; font-weight: 700; color: #DC2626;">{{ d.overdue_amount | currency }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" style="text-align: center; padding: 30px; color: #94A3B8;">Nenhum devedor em atraso registrado! Carteira 100% adimplente.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Tabela Detalhada de Títulos -->
+    <div class="card" style="padding: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h3 style="font-size: 16px; font-weight: 700; color: #1E293B;">Títulos Detalhados em Carteira</h3>
+            <span style="font-size: 12px; color: #64748B;">Exibindo os primeiros {{ report_data.entries|length }} títulos</span>
+        </div>
+
+        <div style="overflow-x: auto;">
+            <table class="data-table" style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background: #F8FAFC; border-bottom: 2px solid #E2E8F0; text-align: left;">
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569;">Cliente</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569;">Descrição</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569;">Vencimento</th>
+                        <th style="padding: 10px 14px; text-align: center; font-size: 12px; color: #475569;">Dias Atraso</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569;">Faixa</th>
+                        <th style="padding: 10px 14px; text-align: right; font-size: 12px; color: #475569;">Valor</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in report_data.entries %}
+                    <tr style="border-bottom: 1px solid #F1F5F9; font-size: 13px;">
+                        <td style="padding: 12px 14px; font-weight: 600; color: #1E293B;">{{ item.entity_name }}</td>
+                        <td style="padding: 12px 14px; color: #64748B;">{{ item.description }}</td>
+                        <td style="padding: 12px 14px; white-space: nowrap; color: #475569;">{{ item.due_date }}</td>
+                        <td style="padding: 12px 14px; text-align: center;">
+                            {% if item.days_diff > 0 %}
+                            <span style="color: #DC2626; font-weight: 700;">+{{ item.days_diff }}d</span>
+                            {% else %}
+                            <span style="color: #10B981; font-weight: 600;">Em dia</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 12px 14px;">
+                            <span class="badge" style="background: {{ item.bucket_color }}20; color: {{ item.bucket_color }}; font-weight: 700; padding: 2px 8px; border-radius: 4px; font-size: 11px;">
+                                {{ item.bucket_label }}
+                            </span>
+                        </td>
+                        <td style="padding: 12px 14px; text-align: right; font-weight: 700; font-family: monospace; color: {% if item.days_diff > 0 %}#DC2626{% else %}#1E293B{% endif %};">
+                            {{ item.amount | currency }}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 30px; color: #94A3B8;">Nenhum título em aberto.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- Chart.js Script -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('agingChart');
+    if (ctx) {
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: {{ report_data.chart.labels | tojson }},
+                datasets: [{
+                    data: {{ report_data.chart.data | tojson }},
+                    backgroundColor: {{ report_data.chart.colors | tojson }},
+                    borderWidth: 2,
+                    borderColor: '#ffffff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { boxWidth: 12, font: { size: 10 } }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const val = context.raw || 0;
+                                return context.label + ': ' + new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

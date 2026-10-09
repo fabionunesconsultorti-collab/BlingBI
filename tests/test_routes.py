@@ -7,7 +7,7 @@ def test_dashboard_route(client):
 def test_sales_route(client):
     res = client.get('/sales/')
     assert res.status_code == 200
-    assert b'Vendas &amp; Pedidos' in res.data or b'Vendas & Pedidos' in res.data
+    assert any(term in res.data for term in [b'Vendas e Pedidos', b'Vendas &amp; Pedidos', b'Vendas & Pedidos'])
 
 def test_products_route(client):
     res = client.get('/products/')
@@ -17,7 +17,8 @@ def test_products_route(client):
 def test_customers_route(client):
     res = client.get('/customers/')
     assert res.status_code == 200
-    assert b'Clientes &amp; CRM' in res.data or b'Clientes & CRM' in res.data
+    assert any(term in res.data for term in [b'Clientes e CRM', b'Clientes &amp; CRM', b'Clientes & CRM'])
+
 
 def test_finance_route(client):
     res = client.get('/finance/')

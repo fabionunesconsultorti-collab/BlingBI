@@ -12,6 +12,9 @@ class Product(db.Model):
     cost = db.Column(db.Float, default=0.0)
     stock = db.Column(db.Float, default=0.0)
     category = db.Column(db.String(100), nullable=True, index=True)
+    size = db.Column(db.String(20), nullable=True, index=True)
+    color = db.Column(db.String(50), nullable=True, index=True)
+    style = db.Column(db.String(50), nullable=True, index=True)
     format = db.Column(db.String(50), nullable=True) # S (Simples), C (Composição), etc.
     status = db.Column(db.String(20), default='A') # A (Ativo), I (Inativo)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -30,5 +33,8 @@ class Product(db.Model):
             'cost': self.cost,
             'stock': self.stock,
             'category': self.category or 'Geral',
+            'size': self.size or '',
+            'color': self.color or '',
+            'style': self.style or '',
             'status': self.status
         }

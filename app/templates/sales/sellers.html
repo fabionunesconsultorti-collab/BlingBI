@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+
+{% block title %}Produtividade & Vendedores - Vendas e Pedidos - BlingBI{% endblock %}
+{% block page_title %}Setor de Vendas e Pedidos{% endblock %}
+
+{% block content %}
+<!-- Cabeçalho Hierárquico do Setor -->
+{% include "sales/nav_header.html" %}
+
+<div class="report-container" style="display: flex; flex-direction: column; gap: 24px;">
+
+    <!-- Filtros de Período e Consultor -->
+    <div class="card" style="padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+        <form method="GET" action="{{ url_for('sales.sellers') }}" style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+            <div>
+                <label style="font-size: 11px; font-weight: 600; color: #64748B; display: block; margin-bottom: 2px;">Período:</label>
+                <select name="period" onchange="this.form.submit()" style="padding: 6px 12px; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 13px;">
+                    <option value="last_7_days" {% if period == 'last_7_days' %}selected{% endif %}>Últimos 7 dias</option>
+                    <option value="last_30_days" {% if period == 'last_30_days' %}selected{% endif %}>Últimos 30 dias</option>
+                    <option value="this_month" {% if period == 'this_month' %}selected{% endif %}>Este Mês</option>
+                    <option value="last_month" {% if period == 'last_month' %}selected{% endif %}>Mês Anterior</option>
+                </select>
+            </div>
+
+            <div>
+                <label style="font-size: 11px; font-weight: 600; color: #64748B; display: block; margin-bottom: 2px;">Vendedor / Consultor:</label>
+                <select name="seller" onchange="this.form.submit()" style="padding: 6px 12px; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 13px;">
+                    <option value="all">Todos os Vendedores</option>
+                    {% for s in sellers %}
+                    <option value="{{ s }}" {% if selected_seller == s %}selected{% endif %}>{{ s }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </form>
+
+        <a href="{{ url_for('fashion.export_block3_pdf') }}" class="btn btn-secondary">
+            Exportar Relatório PDF
+        </a>
+    </div>
+
+    <!-- Cards de KPIs de Atendimento -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
+        <div class="card" style="padding: 16px;">
+            <div style="font-size: 12px; color: #64748B; font-weight: 600;">P.A. Médio (Peças por Atendimento)</div>
+            <div style="font-size: 24px; font-weight: 800; color: #008B54; margin-top: 4px;">{{ kpis.avg_pa }} peças</div>
+            <div style="font-size: 11px; color: #64748B; margin-top: 2px;">Média da equipe comercial</div>
+        </div>
+        <div class="card" style="padding: 16px;">
+            <div style="font-size: 12px; color: #64748B; font-weight: 600;">Ticket Médio por Venda</div>
+            <div style="font-size: 24px; font-weight: 800; color: #1E293B; margin-top: 4px;">{{ kpis.avg_ticket|currency }}</div>
+            <div style="font-size: 11px; color: #64748B; margin-top: 2px;">Valor médio faturado</div>
+        </div>
+        <div class="card" style="padding: 16px;">
+            <div style="font-size: 12px; color: #64748B; font-weight: 600;">Taxa Média de Conversão</div>
+            <div style="font-size: 24px; font-weight: 800; color: #3B82F6; margin-top: 4px;">{{ kpis.avg_conversion }}%</div>
+            <div style="font-size: 11px; color: #64748B; margin-top: 2px;">Atendimentos convertidos em compra</div>
+        </div>
+        <div class="card" style="padding: 16px;">
+            <div style="font-size: 12px; color: #64748B; font-weight: 600;">Faturamento Geral da Equipe</div>
+            <div style="font-size: 24px; font-weight: 800; color: #1E293B; margin-top: 4px;">{{ kpis.total_sales|currency }}</div>
+            <div style="font-size: 11px; color: #10B981; margin-top: 2px;">{{ kpis.total_attendances }} atendimentos realizados</div>
+        </div>
+    </div>
+
+    <!-- Gráficos de Performance por Consultor -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <div class="card" style="padding: 20px;">
+            <h3 style="font-size: 15px; font-weight: 700; color: #1E293B; margin-bottom: 14px;">Peças por Atendimento (P.A.) por Consultor</h3>
+            <div style="height: 260px; position: relative;">
+                <canvas id="paChart"></canvas>
+            </div>
+        </div>
+        <div class="card" style="padding: 20px;">
+            <h3 style="font-size: 15px; font-weight: 700; color: #1E293B; margin-bottom: 14px;">Ticket Médio por Consultor (R$)</h3>
+            <div style="height: 260px; position: relative;">
+                <canvas id="ticketChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabela Ranking da Equipe -->
+    <div class="card" style="padding: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h3 style="font-size: 16px; font-weight: 700; color: #1E293B;">Ranking de Produtividade Comercial</h3>
+            <span style="font-size: 12px; color: #64748B;">Período: {{ period }}</span>
+        </div>
+
+        <div style="overflow-x: auto;">
+            <table class="data-table" style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background: #F8FAFC; border-bottom: 2px solid #E2E8F0; text-align: left;">
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569;">Consultor(a)</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569; text-align: center;">Atendimentos</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569; text-align: center;">Vendas Fechadas</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569; text-align: center;">P.A. Médio</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569; text-align: right;">Ticket Médio</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569; text-align: right;">Faturamento Total</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569; text-align: center;">Conversão</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in kpis.sellers %}
+                    <tr style="border-bottom: 1px solid #EDF2F7;">
+                        <td style="padding: 12px 14px; font-weight: 600; color: #1E293B;">{{ s.name }}</td>
+                        <td style="padding: 12px 14px; text-align: center; color: #475569;">{{ s.attendances }}</td>
+                        <td style="padding: 12px 14px; text-align: center; font-weight: 600; color: #10B981;">{{ s.sales_count }}</td>
+                        <td style="padding: 12px 14px; text-align: center; font-weight: 700; color: #008B54;">{{ s.pa }}</td>
+                        <td style="padding: 12px 14px; text-align: right; color: #1E293B;">{{ s.ticket|currency }}</td>
+                        <td style="padding: 12px 14px; text-align: right; font-weight: 700; color: #1E293B;">{{ s.total_revenue|currency }}</td>
+                        <td style="padding: 12px 14px; text-align: center;">
+                            <span class="badge" style="background: {% if s.conversion_rate >= 60 %}#D1FAE5; color: #065F46;{% elif s.conversion_rate >= 40 %}#FEF3C7; color: #92400E;{% else %}#FEE2E2; color: #991B1B;{% endif %} padding: 4px 8px; border-radius: 4px; font-weight: 700;">
+                                {{ s.conversion_rate }}%
+                            </span>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" style="padding: 24px; text-align: center; color: #94A3B8;">Nenhum atendimento registrado no período.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- Chart.js Scripts -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const sLabels = {{ kpis.charts.pa.labels|tojson }};
+    const paData = {{ kpis.charts.pa.data|tojson }};
+    const ticketData = {{ kpis.charts.conversion.tickets|tojson }};
+
+    new Chart(document.getElementById('paChart').getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels: sLabels,
+            datasets: [{
+                label: 'Peças por Atendimento',
+                data: paData,
+                backgroundColor: '#008B54',
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+
+    new Chart(document.getElementById('ticketChart').getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels: sLabels,
+            datasets: [{
+                label: 'Ticket Médio (R$)',
+                data: ticketData,
+                backgroundColor: '#3B82F6',
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(v) { return 'R$ ' + v.toLocaleString('pt-BR'); }
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

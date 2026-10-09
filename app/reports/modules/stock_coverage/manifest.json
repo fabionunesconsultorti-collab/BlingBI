@@ -1,0 +1,14 @@
+{
+  "id": "stock_coverage",
+  "name": "Cobertura de Estoque & Curva ABC",
+  "category": "produtos",
+  "description": "Giro de produtos, dias de cobertura operacional, classificação ABC por faturamento e alertas antecipados de ruptura e excesso de estoque.",
+  "version": "1.0.0",
+  "author": "BlingBI Core Team",
+  "icon": "package",
+  "color": "#3B82F6",
+  "tags": ["Estoque", "Curva ABC", "Ruptura", "Giro", "Cobertura"],
+  "export_formats": ["excel", "pdf"],
+  "default_period": "last_30_days",
+  "legacy_url": "/reports/stock-coverage"
+}

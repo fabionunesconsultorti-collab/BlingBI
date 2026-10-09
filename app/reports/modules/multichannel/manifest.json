@@ -1,0 +1,14 @@
+{
+  "id": "multichannel",
+  "name": "Performance Multicanal & Margem",
+  "category": "comercial",
+  "description": "Rentabilidade real e margem de contribuição por canal de venda (Mercado Livre, Shopee, Site, Loja Física), deduzindo CMV e fretes com taxa de cancelamento.",
+  "version": "1.0.0",
+  "author": "BlingBI Core Team",
+  "icon": "shopping-cart",
+  "color": "#008B54",
+  "tags": ["Vendas", "Marketplaces", "Margem Bruta", "CMV", "Canais"],
+  "export_formats": ["excel", "pdf"],
+  "default_period": "last_30_days",
+  "legacy_url": "/reports/multichannel"
+}

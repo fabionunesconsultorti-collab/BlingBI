@@ -1,0 +1,43 @@
+<div class="sector-header">
+    <div class="sector-header-top">
+        <div>
+            <div class="sector-title">💰 Financeiro & DRE</div>
+            <div class="sector-subtitle">Demonstrativo do Resultado do Exercício, Fluxo de Caixa, Inadimplência e Contas a Receber/Pagar</div>
+        </div>
+        <div style="display: flex; gap: 8px;">
+            <a href="{{ url_for('finance.export_dre_pdf') }}" class="btn btn-secondary">
+                📄 Exportar DRE PDF
+            </a>
+            <a href="{{ url_for('finance.export_dre_excel') }}" class="btn btn-secondary">
+                📊 Exportar DRE Excel
+            </a>
+        </div>
+    </div>
+    <div class="sector-nav-tabs">
+        {% if is_feature_enabled('finance.overview') %}
+        <a href="{{ url_for('finance.index') }}" class="sector-nav-tab {% if active_tab == 'overview' %}active{% endif %}">
+            Visão Geral Financeira
+        </a>
+        {% endif %}
+        {% if is_feature_enabled('finance.dre') %}
+        <a href="{{ url_for('finance.dre') }}" class="sector-nav-tab {% if active_tab == 'dre' %}active{% endif %}">
+            DRE Gerencial (Cascata)
+        </a>
+        {% endif %}
+        {% if is_feature_enabled('finance.cash_flow') %}
+        <a href="{{ url_for('finance.cash_flow') }}" class="sector-nav-tab {% if active_tab == 'cash_flow' %}active{% endif %}">
+            Projeção de Fluxo de Caixa
+        </a>
+        {% endif %}
+        {% if is_feature_enabled('finance.aging') %}
+        <a href="{{ url_for('finance.aging') }}" class="sector-nav-tab {% if active_tab == 'aging' %}active{% endif %}">
+            Inadimplência & Aging List
+        </a>
+        {% endif %}
+        {% if is_feature_enabled('finance.cash_statement') %}
+        <a href="{{ url_for('finance.cash_statement') }}" class="sector-nav-tab {% if active_tab == 'cash_statement' %}active{% endif %}">
+            Fechamento de Caixa & Extrato
+        </a>
+        {% endif %}
+    </div>
+</div>

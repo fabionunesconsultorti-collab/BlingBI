@@ -17,8 +17,14 @@ class BiAnalytics:
             return yesterday, yesterday
         elif period == 'last_7_days':
             return today - timedelta(days=7), today
-        elif period == 'last_30_days':
+        elif period in ['last_30_days', 'month']:
             return today - timedelta(days=30), today
+        elif period in ['last_90_days', 'quarter']:
+            return today - timedelta(days=90), today
+        elif period in ['last_180_days', 'semester']:
+            return today - timedelta(days=180), today
+        elif period in ['last_365_days', 'year']:
+            return today - timedelta(days=365), today
         elif period == 'this_month':
             start = today.replace(day=1)
             return start, today
@@ -27,6 +33,8 @@ class BiAnalytics:
             last_day_prev_month = first_of_this_month - timedelta(days=1)
             start_prev_month = last_day_prev_month.replace(day=1)
             return start_prev_month, last_day_prev_month
+        elif period == 'all':
+            return date(2020, 1, 1), today
         elif period == 'custom' and start_str and end_str:
             try:
                 start = datetime.strptime(start_str, '%Y-%m-%d').date()
@@ -134,12 +142,28 @@ class BiAnalytics:
         }
 
     @staticmethod
-    def get_sales_analytics(start_date, end_date, channel=None, status=None):
+    def get_sales_analytics(start_date, end_date, channel=None, status=None, search=None):
         query = Order.query.filter(Order.order_date >= start_date, Order.order_date <= end_date)
         if channel and channel != 'all':
             query = query.filter(Order.channel == channel)
         if status and status != 'all':
             query = query.filter(Order.status == status)
+
+        if search and search.strip():
+            s = search.strip()
+            digits = "".join(c for c in s if c.isdigit())
+            clean_doc_col = func.replace(func.replace(func.replace(Customer.document, '.', ''), '-', ''), '/', '')
+            conditions = [
+                Order.number.ilike(f"%{s}%"),
+                Customer.name.ilike(f"%{s}%"),
+                Customer.document.ilike(f"%{s}%"),
+                clean_doc_col.ilike(f"%{s}%")
+            ]
+            if len(digits) >= 3:
+                conditions.append(Order.number.ilike(f"%{digits}%"))
+                conditions.append(Customer.document.ilike(f"%{digits}%"))
+                conditions.append(clean_doc_col.ilike(f"%{digits}%"))
+            query = query.outerjoin(Customer, Order.customer_id == Customer.id).filter(or_(*conditions))
 
         orders = query.order_by(desc(Order.order_date)).all()
 

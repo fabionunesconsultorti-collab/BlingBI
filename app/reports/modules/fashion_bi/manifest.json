@@ -1,0 +1,14 @@
+{
+  "id": "fashion_bi",
+  "name": "Varejo de Moda & Customer Success",
+  "category": "moda",
+  "description": "Painel de decisão para lojas de vestuário e moda: Malas Condicionais (home delivery), taxa de conversão, devoluções/trocas por modelagem, aniversariantes e CRM de fidelização.",
+  "version": "1.0.0",
+  "author": "BlingBI Core Team",
+  "icon": "sparkles",
+  "color": "#EC4899",
+  "tags": ["Moda", "Vestuário", "Condicional", "Malas", "Trocas", "NPS", "CRM"],
+  "export_formats": ["excel", "pdf"],
+  "default_period": "last_30_days",
+  "legacy_url": "/fashion/"
+}

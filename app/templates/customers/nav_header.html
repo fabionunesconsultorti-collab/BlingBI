@@ -1,0 +1,53 @@
+<!-- Cabeçalho & Abas Hierárquicas: Setor Clientes e CRM -->
+<div class="sector-header">
+    <div class="sector-header-top">
+        <div>
+            <div class="sector-badge" style="background: #EDE9FE; color: #7C3AED;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                Setor de CRM & Relacionamento
+            </div>
+            <h2 class="sector-title">Clientes e CRM</h2>
+            <p class="sector-subtitle">Segmentação RFM (Recência, Frequência e Valor), Curva ABC de clientes (80/20), perfis de compra, aniversariantes e pós-venda (NPS).</p>
+        </div>
+    </div>
+
+    <!-- Abas de Navegação Interna do Setor -->
+    <nav class="sector-nav-tabs">
+        {% if is_feature_enabled('customers.overview') %}
+        <a href="{{ url_for('customers.index') }}" class="sector-nav-tab {% if active_tab == 'base' %}active{% endif %}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
+            Base de Clientes
+        </a>
+        {% endif %}
+        {% if is_feature_enabled('customers.rfm') %}
+        <a href="{{ url_for('customers.rfm') }}" class="sector-nav-tab {% if active_tab == 'rfm' %}active{% endif %}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polygon points="12 8 8 12 12 16 16 12 12 8"></polygon></svg>
+            Matriz RFM (Clusters)
+        </a>
+        {% endif %}
+        {% if is_feature_enabled('customers.abc') %}
+        <a href="{{ url_for('customers.abc') }}" class="sector-nav-tab {% if active_tab == 'abc' %}active{% endif %}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
+            Curva ABC de Clientes
+        </a>
+        {% endif %}
+        {% if is_feature_enabled('customers.profiles') %}
+        <a href="{{ url_for('customers.profiles') }}" class="sector-nav-tab {% if active_tab == 'profiles' %}active{% endif %}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.38 3.46L16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"></path></svg>
+            Perfil & Preferências
+        </a>
+        {% endif %}
+        {% if is_feature_enabled('customers.birthdays') %}
+        <a href="{{ url_for('customers.birthdays') }}" class="sector-nav-tab {% if active_tab == 'birthdays' %}active{% endif %}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="8" width="18" height="4" rx="1"></rect><path d="M12 8v13"></path><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"></path><path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 4.8 0 0 1 12 8a4.8 4.8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5"></path></svg>
+            Aniversariantes do Mês
+        </a>
+        {% endif %}
+        {% if is_feature_enabled('customers.nps') %}
+        <a href="{{ url_for('customers.nps') }}" class="sector-nav-tab {% if active_tab == 'nps' %}active{% endif %}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+            Satisfação & NPS
+        </a>
+        {% endif %}
+    </nav>
+</div>

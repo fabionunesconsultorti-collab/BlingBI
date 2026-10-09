@@ -18,6 +18,7 @@
 {% endif %}
 
 <!-- Grid de KPIs -->
+{% if is_feature_enabled('dashboard.kpis') %}
 <div class="kpi-grid">
     <div class="kpi-card">
         <div class="kpi-header">
@@ -74,9 +75,12 @@
         <div class="kpi-subtext">Contas e fornecedores a quitar</div>
     </div>
 </div>
+{% endif %}
 
 <!-- Gráficos -->
+{% if is_feature_enabled('dashboard.sales_timeline') or is_feature_enabled('dashboard.channels_pie') %}
 <div class="charts-grid">
+    {% if is_feature_enabled('dashboard.sales_timeline') %}
     <div class="card">
         <div class="card-header">
             <span class="card-title">Evolução de Vendas no Período</span>
@@ -86,7 +90,9 @@
             <canvas id="salesTimelineChart"></canvas>
         </div>
     </div>
+    {% endif %}
 
+    {% if is_feature_enabled('dashboard.channels_pie') %}
     <div class="card">
         <div class="card-header">
             <span class="card-title">Vendas por Canal</span>
@@ -95,11 +101,15 @@
             <canvas id="channelsPieChart"></canvas>
         </div>
     </div>
+    {% endif %}
 </div>
+{% endif %}
 
 <!-- Seção Inferior: Top Produtos & Pedidos Recentes -->
-<div class="charts-grid" style="grid-template-columns: 1fr 1fr;">
+{% if is_feature_enabled('dashboard.top_products') or is_feature_enabled('dashboard.recent_orders') %}
+<div class="charts-grid" style="grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));">
     <!-- Top 5 Produtos -->
+    {% if is_feature_enabled('dashboard.top_products') %}
     <div class="card">
         <div class="card-header">
             <span class="card-title">Top 5 Produtos Mais Faturados</span>
@@ -130,8 +140,10 @@
             </table>
         </div>
     </div>
+    {% endif %}
 
     <!-- Pedidos Recentes -->
+    {% if is_feature_enabled('dashboard.recent_orders') %}
     <div class="card">
         <div class="card-header">
             <span class="card-title">Últimos Pedidos Registrados</span>
@@ -170,21 +182,32 @@
             </table>
         </div>
     </div>
+    {% endif %}
 </div>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        const labels = {{ metrics.chart_labels | tojson }};
-        const revenue = {{ metrics.chart_revenue | tojson }};
-        const orders = {{ metrics.chart_orders | tojson }};
+        {% if is_feature_enabled('dashboard.sales_timeline') %}
+        const salesCanvas = document.getElementById('salesTimelineChart');
+        if (salesCanvas) {
+            const labels = {{ metrics.chart_labels | tojson }};
+            const revenue = {{ metrics.chart_revenue | tojson }};
+            const orders = {{ metrics.chart_orders | tojson }};
+            renderSalesChart('salesTimelineChart', labels, revenue, orders);
+        }
+        {% endif %}
 
-        renderSalesChart('salesTimelineChart', labels, revenue, orders);
-
-        const channelLabels = {{ metrics.channels_labels | tojson }};
-        const channelValues = {{ metrics.channels_values | tojson }};
-        renderDoughnutChart('channelsPieChart', channelLabels, channelValues);
+        {% if is_feature_enabled('dashboard.channels_pie') %}
+        const pieCanvas = document.getElementById('channelsPieChart');
+        if (pieCanvas) {
+            const channelLabels = {{ metrics.channels_labels | tojson }};
+            const channelValues = {{ metrics.channels_values | tojson }};
+            renderDoughnutChart('channelsPieChart', channelLabels, channelValues);
+        }
+        {% endif %}
     });
 </script>
 {% endblock %}

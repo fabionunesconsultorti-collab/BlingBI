@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block title %}Curva ABC de Clientes - Clientes e CRM - BlingBI{% endblock %}
+{% block page_title %}Setor de Clientes e CRM{% endblock %}
+
+{% block content %}
+<!-- Cabeçalho Hierárquico do Setor -->
+{% include "customers/nav_header.html" %}
+
+<div class="report-container" style="display: flex; flex-direction: column; gap: 24px;">
+
+    <!-- Filtros de Período e Classe ABC -->
+    <div class="card" style="padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+        <form method="GET" action="{{ url_for('customers.abc') }}" style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+            <div>
+                <label style="font-size: 11px; font-weight: 600; color: #64748B; display: block; margin-bottom: 2px;">Período:</label>
+                <select name="period" onchange="this.form.submit()" style="padding: 6px 12px; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 13px;">
+                    <option value="last_30_days" {% if period == 'last_30_days' %}selected{% endif %}>Últimos 30 dias</option>
+                    <option value="last_60_days" {% if period == 'last_60_days' %}selected{% endif %}>Últimos 60 dias</option>
+                    <option value="this_month" {% if period == 'this_month' %}selected{% endif %}>Este Mês</option>
+                </select>
+            </div>
+
+            <div>
+                <label style="font-size: 11px; font-weight: 600; color: #64748B; display: block; margin-bottom: 2px;">Classe ABC:</label>
+                <select name="abc_class" onchange="this.form.submit()" style="padding: 6px 12px; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 13px;">
+                    <option value="all">Todas as Classes</option>
+                    <option value="A" {% if selected_class == 'A' %}selected{% endif %}>Classe A (Top 80% Faturamento)</option>
+                    <option value="B" {% if selected_class == 'B' %}selected{% endif %}>Classe B (Intermediários 15%)</option>
+                    <option value="C" {% if selected_class == 'C' %}selected{% endif %}>Classe C (Cauda 5%)</option>
+                </select>
+            </div>
+        </form>
+
+        <a href="{{ url_for('fashion.export_block1_pdf') }}" class="btn btn-secondary">
+            Exportar Relatório PDF
+        </a>
+    </div>
+
+    <!-- Cards de KPIs da Curva ABC de Clientes -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
+        <div class="card" style="padding: 16px;">
+            <div style="font-size: 12px; color: #065F46; font-weight: 700;">Clientes Classe A (VIPs)</div>
+            <div style="font-size: 24px; font-weight: 800; color: #065F46; margin-top: 4px;">{{ abc_data.summary.class_a_count }} clientes</div>
+            <div style="font-size: 11px; color: #64748B; margin-top: 2px;">Geram 80% do faturamento</div>
+        </div>
+        <div class="card" style="padding: 16px;">
+            <div style="font-size: 12px; color: #92400E; font-weight: 700;">Clientes Classe B</div>
+            <div style="font-size: 24px; font-weight: 800; color: #92400E; margin-top: 4px;">{{ abc_data.summary.class_b_count }} clientes</div>
+            <div style="font-size: 11px; color: #64748B; margin-top: 2px;">Geram 15% do faturamento</div>
+        </div>
+        <div class="card" style="padding: 16px;">
+            <div style="font-size: 12px; color: #475569; font-weight: 700;">Clientes Classe C</div>
+            <div style="font-size: 24px; font-weight: 800; color: #475569; margin-top: 4px;">{{ abc_data.summary.class_c_count }} clientes</div>
+            <div style="font-size: 11px; color: #64748B; margin-top: 2px;">Geram 5% do faturamento</div>
+        </div>
+        <div class="card" style="padding: 16px;">
+            <div style="font-size: 12px; color: #64748B; font-weight: 600;">Receita Analisada da Base</div>
+            <div style="font-size: 24px; font-weight: 800; color: #1E293B; margin-top: 4px;">{{ abc_data.summary.total_revenue|currency }}</div>
+            <div style="font-size: 11px; color: #10B981; margin-top: 2px;">Em pedidos atendidos</div>
+        </div>
+    </div>
+
+    <!-- Gráfico Donut de Divisão da Receita por Classe -->
+    <div class="card" style="padding: 20px;">
+        <h3 style="font-size: 15px; font-weight: 700; color: #1E293B; margin-bottom: 14px;">Distribuição de Faturamento por Classe de Cliente</h3>
+        <div style="height: 260px; position: relative;">
+            <canvas id="abcCustomerChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Tabela de Clientes ABC -->
+    <div class="card" style="padding: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h3 style="font-size: 16px; font-weight: 700; color: #1E293B;">Classificação Pareto da Carteira de Clientes</h3>
+            <span style="font-size: 12px; color: #64748B;">Total de clientes: {{ abc_data.customers|length }}</span>
+        </div>
+
+        <div style="overflow-x: auto;">
+            <table class="data-table" style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background: #F8FAFC; border-bottom: 2px solid #E2E8F0; text-align: left;">
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569; text-align: center;">Classe</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569;">Cliente</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569;">Telefone / WhatsApp</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569;">Localidade</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569; text-align: center;">Pedidos</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569; text-align: right;">Total Gasto</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569; text-align: center;">% Acumulado</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569;">Ação Estratégica</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in abc_data.customers %}
+                    <tr style="border-bottom: 1px solid #EDF2F7;">
+                        <td style="padding: 12px 14px; text-align: center;">
+                            <span class="badge" style="background: {% if c.abc_class == 'A' %}#D1FAE5; color: #065F46;{% elif c.abc_class == 'B' %}#FEF3C7; color: #92400E;{% else %}#F1F5F9; color: #475569;{% endif %} padding: 4px 8px; border-radius: 4px; font-weight: 800;">
+                                Classe {{ c.abc_class }}
+                            </span>
+                        </td>
+                        <td style="padding: 12px 14px; font-weight: 600; color: #1E293B;">{{ c.name }}</td>
+                        <td style="padding: 12px 14px; font-size: 13px;">
+                            {% if c.phone %}
+                            <a href="https://wa.me/55{{ c.phone|replace('(', '')|replace(')', '')|replace('-', '')|replace(' ', '') }}" target="_blank" style="color: #008B54; text-decoration: none; font-weight: 600;">
+                                💬 {{ c.phone }}
+                            </a>
+                            {% else %}-{% endif %}
+                        </td>
+                        <td style="padding: 12px 14px; color: #475569;">{{ c.city }} - {{ c.state }}</td>
+                        <td style="padding: 12px 14px; text-align: center; color: #475569;">{{ c.orders_count }}</td>
+                        <td style="padding: 12px 14px; text-align: right; font-weight: 700; color: #008B54;">{{ c.total_spent|currency }}</td>
+                        <td style="padding: 12px 14px; text-align: center; font-weight: 600; color: #64748B;">{{ c.cumulative_pct }}%</td>
+                        <td style="padding: 12px 14px; font-size: 12px; color: #64748B;">
+                            {% if c.abc_class == 'A' %}Atendimento exclusivo e convites VIP{% elif c.abc_class == 'B' %}Ofertas de cross-sell para elevar ticket{% else %}Campanhas automatizadas e promoções sazonais{% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" style="padding: 24px; text-align: center; color: #94A3B8;">Nenhum cliente encontrado para os filtros.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- Chart.js Scripts -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const cLabels = {{ abc_data.chart.labels|tojson }};
+    const cData = {{ abc_data.chart.revenue|tojson }};
+
+    new Chart(document.getElementById('abcCustomerChart').getContext('2d'), {
+        type: 'doughnut',
+        data: {
+            labels: cLabels,
+            datasets: [{
+                data: cData,
+                backgroundColor: ['#10B981', '#F59E0B', '#94A3B8']
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'bottom' } }
+        }
+    });
+});
+</script>
+{% endblock %}

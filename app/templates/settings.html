@@ -225,7 +225,7 @@
                 </span>
                 {% if demo_active %}
                 <span class="badge" style="background: #fef3c7; color: #92400e; border: 1px solid #fde68a; font-size: 11px; padding: 4px 8px; border-radius: 999px; font-weight: 600;">
-                    🟡 Modo Demo Ativo
+                    🟡 Modo Demo: {{ demo_niche_name }}
                 </span>
                 {% else %}
                 <span class="badge" style="background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; font-size: 11px; padding: 4px 8px; border-radius: 999px; font-weight: 600;">
@@ -270,12 +270,12 @@
 
                     <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 4px 0;">
 
-                    <!-- Botão Carregar Dados Demo -->
-                    <button id="btnSeedDemo" class="btn btn-outline" style="width: 100%; background: #fff; border-color: #93c5fd; color: #1d4ed8; font-weight: 600; padding: 10px; font-size: 13px; display: flex; align-items: center; justify-content: center; gap: 8px;">
-                        <span>📦</span> Carregar Dados de Demonstração
+                    <!-- Botão Carregar Dados Demo com Seletor de Setores -->
+                    <button id="btnSeedDemo" class="btn btn-outline" style="width: 100%; background: #fff; border-color: #93c5fd; color: #1d4ed8; font-weight: 600; padding: 11px; font-size: 13px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <span>📦</span> Carregar Base de Demonstração por Setor
                     </button>
                     <span style="font-size: 11px; color: #64748b; line-height: 1.3;">
-                        Carrega dados fictícios para testar dashboards antes de importar sua conta Bling.
+                        Escolha entre <b>Moda, Movelaria, Restaurante, Utilidades, Brinquedos</b> ou <b>Informática/Celular</b> com dados completos e realistas.
                     </span>
                 </div>
             </div>
@@ -283,7 +283,104 @@
     </div>
 </div>
 
-<!-- Modal de Confirmação com Senha de Segurança para Zerar Base -->
+<!-- Modal 1: Seleção de Base de Demonstração por Setor com Senha de Segurança -->
+<div id="selectDemoModal" class="modal-backdrop">
+    <div class="sync-modal-card" style="max-width: 680px; text-align: left; padding: 26px; position: relative; max-height: 90vh; overflow-y: auto;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="width: 42px; height: 42px; border-radius: 10px; background: #eff6ff; color: #1d4ed8; display: flex; align-items: center; justify-content: center; font-size: 22px;">
+                    🏢
+                </div>
+                <div>
+                    <h3 style="font-size: 18px; font-weight: 700; color: #1e3a8a; margin: 0 0 2px 0;">Subir Base de Demonstração</h3>
+                    <p style="font-size: 12px; color: #64748b; margin: 0;">Selecione o setor de mercado desejado para carregar o catálogo e histórico completo</p>
+                </div>
+            </div>
+            <button type="button" id="btnCloseSelectDemoModal" style="background: none; border: none; font-size: 20px; color: #94a3b8; cursor: pointer; padding: 4px;">✕</button>
+        </div>
+
+        <div style="margin-bottom: 16px;">
+            <label style="display: block; font-size: 12px; font-weight: 700; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">
+                1. Escolha o Setor Comercial:
+            </label>
+            <div id="nicheGridContainer" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px;">
+                {% for n in niches %}
+                <label class="niche-card-label" style="display: block; cursor: pointer; position: relative;">
+                    <input type="radio" name="demoNicheRadio" value="{{ n.id }}" {% if n.id == demo_niche_id or (loop.first and not demo_niche_id) %}checked{% endif %} style="position: absolute; opacity: 0; pointer-events: none;">
+                    <div class="niche-card-box" style="border: 2px solid #e2e8f0; border-radius: 10px; padding: 12px; background: white; transition: all 0.2s; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between;">
+                        <div>
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span style="font-size: 24px;">{{ n.icon }}</span>
+                                    <span style="font-size: 14px; font-weight: 700; color: #0f172a;">{{ n.name }}</span>
+                                </div>
+                                <span class="badge" style="background: #e0e7ff; color: #3730a3; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 6px;">
+                                    {{ n.badge }}
+                                </span>
+                            </div>
+                            <p style="font-size: 11px; color: #64748b; line-height: 1.4; margin: 0 0 8px 0;">
+                                {{ n.description }}
+                            </p>
+                        </div>
+                        <div style="display: flex; align-items: center; justify-content: space-between; font-size: 11px; padding-top: 6px; border-top: 1px dashed #f1f5f9; color: #475569;">
+                            <span>Ticket Médio: <b>{{ n.avg_ticket }}</b></span>
+                            <span class="niche-check-indicator" style="font-weight: 700; color: #2563eb;">Selecionar</span>
+                        </div>
+                    </div>
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-bottom: 16px;">
+            <label for="seedDbPasswordInput" style="display: block; font-size: 12px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">
+                2. Senha de Segurança para Subir Nova Base:
+            </label>
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <input type="password" id="seedDbPasswordInput" class="form-control" placeholder="Digite a senha de segurança (c4nib4l)..." style="flex: 1; font-size: 14px; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 6px;">
+            </div>
+            <div style="font-size: 11px; color: #64748b; margin-top: 6px;">
+                🔒 É obrigatório digitar a senha <code>c4nib4l</code> para confirmar a substituição dos dados demonstrativos.
+            </div>
+            <div id="seedDbErrorMsg" style="display: none; color: #dc2626; font-size: 12px; font-weight: 600; margin-top: 8px;"></div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 10px; align-items: center;">
+            <button type="button" id="btnCancelSeedDb" class="btn btn-outline" style="padding: 10px 18px; font-size: 13px; font-weight: 600;">
+                Cancelar
+            </button>
+            <button type="button" id="btnConfirmSeedDb" class="btn btn-primary" style="padding: 10px 22px; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 6px;">
+                <span>🚀</span> Subir Base de Demonstração
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Estilos visuais dos cards de nicho */
+.niche-card-label input[type="radio"]:checked + .niche-card-box {
+    border-color: #2563eb !important;
+    background: #eff6ff !important;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.12) !important;
+}
+.niche-card-label input[type="radio"]:checked + .niche-card-box .niche-check-indicator {
+    color: #1d4ed8 !important;
+    font-weight: 700 !important;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.niche-card-label input[type="radio"]:checked + .niche-card-box .niche-check-indicator::before {
+    content: "✓ ";
+    font-weight: 900;
+}
+.niche-card-box:hover {
+    border-color: #93c5fd;
+    transform: translateY(-1px);
+}
+</style>
+
+<!-- Modal 2: Confirmação com Senha de Segurança para Zerar Base -->
 <div id="clearDatabaseModal" class="modal-backdrop">
     <div class="sync-modal-card" style="max-width: 440px; text-align: left; padding: 24px; position: relative;">
         <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 14px;">
@@ -320,3 +417,4 @@
     </div>
 </div>
 {% endblock %}
+

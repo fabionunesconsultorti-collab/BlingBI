@@ -1,0 +1,631 @@
+{% extends 'base.html' %}
+
+{% block title %}Central & Catálogo de Relatórios - BlingBI{% endblock %}
+{% block page_title %}Catálogo de Relatórios & Inteligência Estratégica{% endblock %}
+
+{% block content %}
+<div class="reports-hub-container" style="display: flex; flex-direction: column; gap: 24px;">
+
+    <!-- Banner Executivo Superior -->
+    <div style="background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%); color: #fff; padding: 26px 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;">
+        <div style="max-width: 680px;">
+            <div style="display: inline-flex; align-items: center; gap: 6px; background: rgba(0, 139, 84, 0.25); border: 1px solid rgba(0, 139, 84, 0.4); color: #34D399; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 20px; text-transform: uppercase; margin-bottom: 8px;">
+                <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #34D399;"></span>
+                Arquitetura Modular Desacoplada
+            </div>
+            <h2 style="font-size: 22px; font-weight: 800; margin-bottom: 6px; color: #FFFFFF;">
+                Central de Relatórios & Hub de Inteligência
+            </h2>
+            <p style="font-size: 13.5px; color: #94A3B8; line-height: 1.5; margin: 0;">
+                Módulos analíticos autocontidos alimentados pela <b>Biblioteca de Dados Central</b> do BlingBI. Cada painel opera de forma independente, com ciclo de vida isolado e capacidade de <b>importação e exportação de pacotes (.zip)</b> em runtime.
+            </p>
+        </div>
+        
+        <!-- Ações no Topo do Banner -->
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button type="button" class="btn btn-secondary" onclick="openModal('dataLibraryModal')" style="background: rgba(255,255,255,0.08); color: #fff; border: 1px solid rgba(255,255,255,0.2); font-size: 13px;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                Biblioteca de Dados
+            </button>
+            <button type="button" class="btn btn-primary" onclick="openModal('importModal')" style="background: #008B54; border-color: #008B54; font-weight: 600; font-size: 13px;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                Importar Pacote (.ZIP)
+            </button>
+        </div>
+    </div>
+
+    <style>
+    .switch {
+        position: relative;
+        display: inline-block;
+        width: 36px;
+        height: 20px;
+        margin: 0;
+    }
+    .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+    .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background-color: #CBD5E1;
+        transition: .25s ease;
+        border-radius: 20px;
+    }
+    .slider:before {
+        position: absolute;
+        content: "";
+        height: 14px;
+        width: 14px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: .25s ease;
+        border-radius: 50%;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    input:checked + .slider {
+        background-color: #10B981;
+    }
+    input:checked + .slider:before {
+        transform: translateX(16px);
+    }
+    .feature-card {
+        transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.2s ease;
+    }
+    .feature-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+    }
+    .hub-nav-tab:hover {
+        filter: brightness(0.96);
+    }
+    </style>
+
+    <!-- Seletor de Visão Principal: Relatórios Modulares vs Abas & Gráficos -->
+    <div style="display: flex; gap: 10px; border-bottom: 2px solid #E2E8F0; padding-bottom: 12px; margin-top: 4px;">
+        <button type="button" id="tab-btn-reports" onclick="switchHubView('reports')" class="hub-nav-tab" style="border-radius: 8px; font-weight: 700; font-size: 13.5px; padding: 9px 20px; display: inline-flex; align-items: center; gap: 8px; background: #008B54; color: #FFFFFF; border: none; cursor: pointer;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+            Relatórios Modulares ({{ all_reports|length }})
+        </button>
+        <button type="button" id="tab-btn-features" onclick="switchHubView('features')" class="hub-nav-tab" style="border-radius: 8px; font-weight: 600; font-size: 13.5px; padding: 9px 20px; display: inline-flex; align-items: center; gap: 8px; background: #F1F5F9; color: #475569; border: 1px solid #CBD5E1; cursor: pointer;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+            Abas, Dashboards & Gráficos (<span id="features-active-count">{{ active_features_count }}</span>/{{ features_count }} ativos)
+        </button>
+    </div>
+
+    <!-- SEÇÃO 1: CATÁLOGO DE RELATÓRIOS MODULARES -->
+    <div id="reports-view-container" style="display: flex; flex-direction: column; gap: 24px;">
+        <!-- Barra de Controle: Filtros por Categoria e Busca Instantânea -->
+        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 10px; padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+            <!-- Categorias -->
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                <a href="{{ url_for('reports.hub', category='all', q=search_query) }}" 
+                   class="btn btn-sm {% if selected_category == 'all' or not selected_category %}btn-primary{% else %}btn-secondary{% endif %}"
+                   style="border-radius: 20px; padding: 4px 12px; font-size: 12.5px;">
+                    Todos ({{ all_reports|length }})
+                </a>
+            {% for cat in categories %}
+            <a href="{{ url_for('reports.hub', category=cat.id, q=search_query) }}" 
+               class="btn btn-sm {% if selected_category == cat.id %}btn-primary{% else %}btn-secondary{% endif %}"
+               style="border-radius: 20px; padding: 4px 12px; font-size: 12.5px;">
+                {{ cat.name }} ({{ cat.count }})
+            </a>
+            {% endfor %}
+        </div>
+
+        <!-- Campo de Pesquisa -->
+        <form method="GET" action="{{ url_for('reports.hub') }}" style="display: flex; gap: 8px; align-items: center; margin: 0;">
+            <input type="hidden" name="category" value="{{ selected_category }}">
+            <div style="position: relative; width: 260px;">
+                <input type="text" name="q" value="{{ search_query }}" placeholder="Buscar por título, tag ou descrição..." class="form-control" style="height: 34px; padding-left: 32px; font-size: 13px; border-radius: 6px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2" style="position: absolute; left: 10px; top: 10px;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            </div>
+            {% if search_query %}
+            <a href="{{ url_for('reports.hub', category=selected_category) }}" class="btn btn-sm btn-secondary" title="Limpar busca" style="height: 34px;">✕</a>
+            {% endif %}
+            <button type="submit" class="btn btn-sm btn-secondary" style="height: 34px; font-size: 13px;">Filtrar</button>
+        </form>
+    </div>
+
+    <!-- Grid dos Relatórios Registrados -->
+    {% if reports|length == 0 %}
+    <div style="text-align: center; padding: 60px 20px; background: #fff; border-radius: 12px; border: 1px dashed #CBD5E1;">
+        <div style="font-size: 36px; margin-bottom: 12px;">🔍</div>
+        <h3 style="font-size: 17px; font-weight: 700; color: #1E293B; margin-bottom: 6px;">Nenhum relatório encontrado</h3>
+        <p style="font-size: 13px; color: #64748B; max-width: 480px; margin: 0 auto 16px auto;">
+            Não há relatórios cadastrados correspondentes ao filtro selecionado. Tente alterar a categoria ou importar um novo módulo.
+        </p>
+        <a href="{{ url_for('reports.hub') }}" class="btn btn-primary btn-sm">Ver Todos os Relatórios</a>
+    </div>
+    {% else %}
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 22px;">
+        {% for report in reports %}
+        <div class="card report-card" style="display: flex; flex-direction: column; justify-content: space-between; border-top: 4px solid {{ report.metadata.color }}; border-radius: 10px; padding: 22px; box-shadow: 0 2px 6px rgba(0,0,0,0.04); background: #FFFFFF; transition: transform 0.15s, box-shadow 0.15s;">
+            <div>
+                <!-- Header do Card: Categoria, Ícone e Toggle -->
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                    <div style="display: flex; gap: 12px; align-items: center;">
+                        <div style="background: {{ report.metadata.color }}15; color: {{ report.metadata.color }}; width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 700;">
+                            {% if report.id == 'multichannel' %}
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
+                            {% elif report.id == 'stock_coverage' %}
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                            {% elif report.id == 'rfm' %}
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                            {% elif report.id == 'dre' %}
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                            {% elif report.id == 'cash_flow' %}
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
+                            {% elif report.id == 'fashion_bi' %}
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
+                            {% else %}
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <span style="font-size: 10.5px; font-weight: 700; color: {{ report.metadata.color }}; text-transform: uppercase; letter-spacing: 0.5px;">
+                                {{ report.category|upper }} • v{{ report.version }}
+                            </span>
+                            <h3 style="font-size: 16px; font-weight: 700; color: #1E293B; margin: 2px 0 0 0; line-height: 1.3;">
+                                {{ report.name }}
+                            </h3>
+                        </div>
+                    </div>
+
+                    <!-- Switch Toggle de Ativação -->
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span id="status-badge-{{ report.id }}" style="font-size: 11px; font-weight: 600; color: {% if report.is_enabled %}#10B981{% else %}#94A3B8{% endif %};">
+                            {% if report.is_enabled %}Ativo{% else %}Inativo{% endif %}
+                        </span>
+                        <label class="switch" style="position: relative; display: inline-block; width: 34px; height: 18px; margin: 0;">
+                            <input type="checkbox" onchange="toggleReportStatus('{{ report.id }}')" {% if report.is_enabled %}checked{% endif %} style="opacity: 0; width: 0; height: 0;">
+                            <span class="slider round" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: {% if report.is_enabled %}#10B981{% else %}#CBD5E1{% endif %}; transition: .2s; border-radius: 18px;"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Descrição -->
+                <p style="font-size: 12.5px; color: #64748B; margin-bottom: 12px; line-height: 1.45; min-height: 48px;">
+                    {{ report.description }}
+                </p>
+
+                <!-- Tags do Manifesto -->
+                <div style="display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 16px;">
+                    {% for tag in report.metadata.tags %}
+                    <span style="font-size: 10.5px; background: #F1F5F9; color: #475569; padding: 2px 7px; border-radius: 4px; font-weight: 500;">
+                        #{{ tag }}
+                    </span>
+                    {% endfor %}
+                </div>
+
+                <!-- Prévia de Métricas do Módulo -->
+                {% set report_summary = report.get_summary() %}
+                <div style="background: #F8FAFC; border: 1px solid #EDF2F7; border-radius: 8px; padding: 10px 12px; margin-bottom: 16px; font-size: 12px;">
+                    <div style="display: flex; justify-content: space-between; color: #64748B; margin-bottom: 4px;">
+                        <span>Autor / Pacote:</span>
+                        <strong style="color: #334155;">{{ report.metadata.author }}</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; color: #64748B;">
+                        <span>Formatos Suportados:</span>
+                        <strong style="color: #334155;">
+                            {{ report.metadata.export_formats|join(', ')|upper }}
+                        </strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Rodapé do Card com Ações -->
+            <div style="display: flex; gap: 8px; border-top: 1px solid #F1F5F9; padding-top: 14px; align-items: center;">
+                <a href="{{ url_for('reports.view_report', report_id=report.id) }}" class="btn btn-primary" style="flex: 1; justify-content: center; background: {{ report.metadata.color }}; border-color: {{ report.metadata.color }}; font-size: 13px;">
+                    Abrir Relatório
+                </a>
+
+                {% if 'pdf' in report.metadata.export_formats %}
+                <a href="{{ url_for('reports.export_report_pdf', report_id=report.id) }}" class="btn btn-secondary" title="Exportar PDF Executivo" style="padding: 6px 10px; font-size: 12px;">
+                    PDF
+                </a>
+                {% endif %}
+
+                {% if 'excel' in report.metadata.export_formats %}
+                <a href="{{ url_for('reports.export_report_excel', report_id=report.id) }}" class="btn btn-secondary" title="Exportar Planilha Excel" style="padding: 6px 10px; font-size: 12px;">
+                    XLSX
+                </a>
+                {% endif %}
+
+                <a href="{{ url_for('reports.export_package', report_id=report.id) }}" class="btn btn-secondary" title="Baixar Pacote de Distribuição (.ZIP)" style="padding: 6px 10px; font-size: 12px; color: #64748B;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    </div> <!-- /reports-view-container -->
+
+    <!-- SEÇÃO 2: GESTÃO GRANULAR DE ABAS, DASHBOARDS E GRÁFICOS -->
+    <div id="features-view-container" style="display: none; flex-direction: column; gap: 22px;">
+        <!-- Banner Informativo -->
+        <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-left: 4px solid #0284C7; border-radius: 8px; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+            <div style="max-width: 650px;">
+                <h4 style="font-size: 14.5px; font-weight: 700; color: #0369A1; margin: 0 0 4px 0;">
+                    Controle de Visibilidade & Ativação Granular
+                </h4>
+                <p style="font-size: 12.5px; color: #64748B; margin: 0; line-height: 1.45;">
+                    Ligue ou desligue qualquer aba setorial, gráfico ou widget em tempo real. As desativações têm efeito imediato nas barras de navegação dos módulos e bloqueiam requisições diretas de rotas com segurança.
+                </p>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <span style="font-size: 12.5px; font-weight: 600; color: #334155;">Buscar:</span>
+                <input type="text" id="featuresSearchInput" onkeyup="filterFeaturesCards()" placeholder="Filtrar por nome, setor ou chave..." class="form-control" style="height: 34px; width: 250px; font-size: 12.5px; border-radius: 6px;">
+            </div>
+        </div>
+
+        <!-- Pílulas de Navegação por Setor -->
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+            <button type="button" onclick="filterSector('all')" class="btn btn-sm btn-sector-filter active-sector" id="btn-sec-all" style="border-radius: 20px; padding: 5px 14px; font-size: 12.5px; background: #1E293B; color: #fff; border: none; cursor: pointer;">
+                Todos os Setores ({{ features_count }})
+            </button>
+            {% for sector_id, sec_data in features_grouped.items() %}
+            <button type="button" onclick="filterSector('{{ sector_id }}')" class="btn btn-sm btn-sector-filter" id="btn-sec-{{ sector_id }}" style="border-radius: 20px; padding: 5px 14px; font-size: 12.5px; background: #F1F5F9; color: #475569; border: 1px solid #CBD5E1; cursor: pointer;">
+                {{ sec_data.sector_name }} ({{ sec_data.features|length }})
+            </button>
+            {% endfor %}
+        </div>
+
+        <!-- Blocos de Cada Setor com Seus Elementos -->
+        {% for sector_id, sec_data in features_grouped.items() %}
+        <div class="sector-block" id="sector-block-{{ sector_id }}" style="display: flex; flex-direction: column; gap: 14px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #E2E8F0; padding-bottom: 8px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 18px;">
+                        {% if sector_id == 'dashboard' %}📊
+                        {% elif sector_id == 'sales' %}💰
+                        {% elif sector_id == 'products' %}📦
+                        {% elif sector_id == 'customers' %}👥
+                        {% elif sector_id == 'finance' %}💳
+                        {% elif sector_id == 'fashion' %}👗
+                        {% else %}📁{% endif %}
+                    </span>
+                    <h3 style="font-size: 16px; font-weight: 700; color: #1E293B; margin: 0;">
+                        {{ sec_data.sector_name }}
+                    </h3>
+                    <span style="font-size: 11.5px; background: #E2E8F0; color: #475569; font-weight: 600; padding: 2px 8px; border-radius: 12px;">
+                        {{ sec_data.features|length }} funcionalidades
+                    </span>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px;">
+                {% for feat in sec_data.features %}
+                <div class="card feature-card" id="feature-card-{{ feat.key|replace('.', '-') }}" 
+                     data-sector="{{ feat.sector }}" 
+                     data-search-text="{{ feat.name|lower }} {{ feat.description|lower }} {{ feat.key|lower }}"
+                     style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 10px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); {% if not feat.is_enabled %}opacity: 0.65;{% endif %}">
+                    
+                    <div>
+                        <!-- Topo: Tipo, Chave e Switch -->
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                            <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                                <span style="font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; text-transform: uppercase;
+                                    {% if feat.type == 'tab' %}background: #EFF6FF; color: #1D4ED8; border: 1px solid #BFDBFE;
+                                    {% elif feat.type == 'chart' %}background: #FAF5FF; color: #7E22CE; border: 1px solid #E9D5FF;
+                                    {% else %}background: #FFFBEB; color: #B45309; border: 1px solid #FDE68A;{% endif %}">
+                                    {{ feat.type|upper }}
+                                </span>
+                                <code style="font-size: 11px; background: #F1F5F9; color: #475569; padding: 1px 5px; border-radius: 3px;">{{ feat.key }}</code>
+                            </div>
+
+                            <!-- Toggle Switch -->
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span id="feature-badge-{{ feat.key|replace('.', '-') }}" style="font-size: 11px; font-weight: 600; color: {% if feat.is_enabled %}#10B981{% else %}#94A3B8{% endif %};">
+                                    {% if feat.is_enabled %}Ativo{% else %}Desativado{% endif %}
+                                </span>
+                                <label class="switch">
+                                    <input type="checkbox" onchange="toggleFeatureStatus('{{ feat.key }}', this)" {% if feat.is_enabled %}checked{% endif %}>
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Título e Descrição -->
+                        <h4 style="font-size: 14.5px; font-weight: 700; color: #1E293B; margin: 0 0 4px 0;">
+                            {{ feat.name }}
+                        </h4>
+                        <p style="font-size: 12px; color: #64748B; margin: 0; line-height: 1.45;">
+                            {{ feat.description }}
+                        </p>
+                    </div>
+
+                    <!-- Rodapé com Link Direto se for Aba -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 10px; border-top: 1px solid #F1F5F9;">
+                        <span style="font-size: 11px; color: #94A3B8;">
+                            {% if feat.type == 'tab' %}Aba de Navegação
+                            {% elif feat.type == 'chart' %}Gráfico Visual
+                            {% else %}Widget / Tabela{% endif %}
+                        </span>
+
+                        {% if feat.url %}
+                        <a href="{{ feat.url }}" id="feature-link-{{ feat.key|replace('.', '-') }}" 
+                           class="btn btn-sm btn-outline" 
+                           style="font-size: 11.5px; padding: 3px 10px; border-radius: 4px; {% if not feat.is_enabled %}pointer-events: none; opacity: 0.4;{% endif %}">
+                            Visualizar ↗
+                        </a>
+                        {% endif %}
+                    </div>
+
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Modal 1: Importar Pacote de Relatório (.ZIP) -->
+<div id="importModal" class="modal-backdrop" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center;">
+    <div style="background: #fff; width: 92%; max-width: 520px; border-radius: 12px; padding: 26px; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h3 style="font-size: 18px; font-weight: 700; color: #1E293B; margin: 0;">
+                Importar Módulo de Relatório (.ZIP)
+            </h3>
+            <button type="button" onclick="closeModal('importModal')" style="background: none; border: none; font-size: 20px; color: #94A3B8; cursor: pointer;">✕</button>
+        </div>
+
+        <p style="font-size: 13px; color: #64748B; margin-bottom: 18px; line-height: 1.5;">
+            Envie o arquivo compactado contendo o pacote encapsulado do relatório. O pacote deve conter obrigatoriamente os arquivos <code>manifest.json</code> e <code>engine.py</code>.
+        </p>
+
+        <form method="POST" action="{{ url_for('reports.import_package') }}" enctype="multipart/form-data">
+            <div style="border: 2px dashed #CBD5E1; border-radius: 8px; padding: 24px; text-align: center; margin-bottom: 18px; background: #F8FAFC;">
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#008B54" stroke-width="2" style="margin-bottom: 8px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                <div style="font-size: 13.5px; font-weight: 600; color: #1E293B; margin-bottom: 4px;">Selecione o arquivo .ZIP do módulo</div>
+                <div style="font-size: 12px; color: #94A3B8; margin-bottom: 12px;">Formatos aceitos: .zip</div>
+                <input type="file" name="package_file" accept=".zip" required class="form-control" style="font-size: 12.5px;">
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('importModal')">Cancelar</button>
+                <button type="submit" class="btn btn-primary" style="background: #008B54; border-color: #008B54;">
+                    Validar & Instalar Relatório
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal 2: Ficha Técnica da Biblioteca de Dados (Data Library) -->
+<div id="dataLibraryModal" class="modal-backdrop" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center;">
+    <div style="background: #fff; width: 92%; max-width: 680px; border-radius: 12px; padding: 26px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); max-height: 85vh; overflow-y: auto;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <div>
+                <span style="font-size: 11px; font-weight: 700; color: #008B54; text-transform: uppercase;">Data Access Layer</span>
+                <h3 style="font-size: 18px; font-weight: 700; color: #1E293B; margin: 2px 0 0 0;">
+                    Biblioteca Central de Dados (BiDataLibrary)
+                </h3>
+            </div>
+            <button type="button" onclick="closeModal('dataLibraryModal')" style="background: none; border: none; font-size: 20px; color: #94A3B8; cursor: pointer;">✕</button>
+        </div>
+
+        <p style="font-size: 13px; color: #64748B; margin-bottom: 16px;">
+            A <code>BiDataLibrary</code> é a camada isolada de dados analíticos do BlingBI. Ao criar novos módulos de relatórios, utilize seus métodos nativos com retornos em <b>Polars DataFrame</b>:
+        </p>
+
+        <table style="width: 100%; font-size: 12px; border-collapse: collapse; margin-bottom: 20px;">
+            <thead>
+                <tr style="background: #F8FAFC; border-bottom: 2px solid #E2E8F0; text-align: left;">
+                    <th style="padding: 8px 10px; color: #475569;">Método Disponível</th>
+                    <th style="padding: 8px 10px; color: #475569;">Retorno</th>
+                    <th style="padding: 8px 10px; color: #475569;">Descrição Operacional</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr style="border-bottom: 1px solid #EDF2F7;">
+                    <td style="padding: 8px 10px; font-family: monospace; color: #008B54;">BiDataLibrary.get_orders_df(start, end, channel, status)</td>
+                    <td style="padding: 8px 10px;"><code>pl.DataFrame</code></td>
+                    <td style="padding: 8px 10px; color: #64748B;">Pedidos completos com cliente, canais, fretes, descontos e faturamento líquido.</td>
+                </tr>
+                <tr style="border-bottom: 1px solid #EDF2F7;">
+                    <td style="padding: 8px 10px; font-family: monospace; color: #008B54;">BiDataLibrary.get_order_items_df(start, end, channel, status)</td>
+                    <td style="padding: 8px 10px;"><code>pl.DataFrame</code></td>
+                    <td style="padding: 8px 10px; color: #64748B;">Itens vendidos por pedido com custo unitário real do catálogo e categorias.</td>
+                </tr>
+                <tr style="border-bottom: 1px solid #EDF2F7;">
+                    <td style="padding: 8px 10px; font-family: monospace; color: #008B54;">BiDataLibrary.get_products_df(category)</td>
+                    <td style="padding: 8px 10px;"><code>pl.DataFrame</code></td>
+                    <td style="padding: 8px 10px; color: #64748B;">Catálogo de SKUs com saldos de estoque físico, custo médio e valor do estoque.</td>
+                </tr>
+                <tr style="border-bottom: 1px solid #EDF2F7;">
+                    <td style="padding: 8px 10px; font-family: monospace; color: #008B54;">BiDataLibrary.get_customers_df()</td>
+                    <td style="padding: 8px 10px;"><code>pl.DataFrame</code></td>
+                    <td style="padding: 8px 10px; color: #64748B;">Base de clientes com total de compras, valor acumulado e data do último pedido.</td>
+                </tr>
+                <tr style="border-bottom: 1px solid #EDF2F7;">
+                    <td style="padding: 8px 10px; font-family: monospace; color: #008B54;">BiDataLibrary.get_financial_entries_df(start, end, entry_type)</td>
+                    <td style="padding: 8px 10px;"><code>pl.DataFrame</code></td>
+                    <td style="padding: 8px 10px; color: #64748B;">Títulos de Contas a Receber ('R') e Pagar ('P') por competência e vencimento.</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px 10px; font-family: monospace; color: #008B54;">BiDataLibrary.parse_date_filter(period, start, end)</td>
+                    <td style="padding: 8px 10px;"><code>(date, date)</code></td>
+                    <td style="padding: 8px 10px; color: #64748B;">Conversor automático de janelas temporais ('today', 'last_30_days', 'this_month', etc.).</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div style="background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 8px; padding: 12px 14px; font-size: 12.5px; color: #166534; margin-bottom: 16px;">
+            💡 <b>Documentação Completa:</b> Consulte o arquivo <code>DOCUMENTACAO_CRIACAO_RELATORIOS.md</code> na raiz do projeto para o passo a passo completo de implementação e empacotamento.
+        </div>
+
+        <div style="display: flex; justify-content: flex-end;">
+            <button type="button" class="btn btn-secondary" onclick="closeModal('dataLibraryModal')">Fechar</button>
+        </div>
+    </div>
+</div>
+
+<script>
+function openModal(id) {
+    var m = document.getElementById(id);
+    if (m) m.style.display = 'flex';
+}
+
+function closeModal(id) {
+    var m = document.getElementById(id);
+    if (m) m.style.display = 'none';
+}
+
+function switchHubView(viewName) {
+    var repBtn = document.getElementById('tab-btn-reports');
+    var featBtn = document.getElementById('tab-btn-features');
+    var repContainer = document.getElementById('reports-view-container');
+    var featContainer = document.getElementById('features-view-container');
+
+    if (viewName === 'features') {
+        repContainer.style.display = 'none';
+        featContainer.style.display = 'flex';
+        featBtn.style.background = '#008B54';
+        featBtn.style.color = '#FFFFFF';
+        featBtn.style.border = 'none';
+        repBtn.style.background = '#F1F5F9';
+        repBtn.style.color = '#475569';
+        repBtn.style.border = '1px solid #CBD5E1';
+        window.location.hash = 'features';
+    } else {
+        repContainer.style.display = 'flex';
+        featContainer.style.display = 'none';
+        repBtn.style.background = '#008B54';
+        repBtn.style.color = '#FFFFFF';
+        repBtn.style.border = 'none';
+        featBtn.style.background = '#F1F5F9';
+        featBtn.style.color = '#475569';
+        featBtn.style.border = '1px solid #CBD5E1';
+        window.location.hash = 'reports';
+    }
+}
+
+function toggleReportStatus(reportId) {
+    fetch('/reports/manage/toggle/' + reportId, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            var badge = document.getElementById('status-badge-' + reportId);
+            if (badge) {
+                badge.innerText = data.enabled ? 'Ativo' : 'Inativo';
+                badge.style.color = data.enabled ? '#10B981' : '#94A3B8';
+            }
+        } else {
+            alert(data.message || 'Erro ao alterar status do relatório.');
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert('Erro de comunicação com o servidor.');
+    });
+}
+
+function toggleFeatureStatus(featureKey, inputEl) {
+    var originalChecked = inputEl.checked;
+    fetch('/reports/manage/features/toggle', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ key: featureKey })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            inputEl.checked = data.enabled;
+            var safeKey = featureKey.replace(/\./g, '-');
+            var badge = document.getElementById('feature-badge-' + safeKey);
+            if (badge) {
+                badge.innerText = data.enabled ? 'Ativo' : 'Desativado';
+                badge.style.color = data.enabled ? '#10B981' : '#94A3B8';
+            }
+            var card = document.getElementById('feature-card-' + safeKey);
+            if (card) {
+                card.style.opacity = data.enabled ? '1' : '0.65';
+            }
+            var linkBtn = document.getElementById('feature-link-' + safeKey);
+            if (linkBtn) {
+                linkBtn.style.pointerEvents = data.enabled ? 'auto' : 'none';
+                linkBtn.style.opacity = data.enabled ? '1' : '0.4';
+            }
+            updateActiveFeaturesCount();
+        } else {
+            inputEl.checked = !originalChecked;
+            alert(data.message || 'Erro ao alterar estado do item.');
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        inputEl.checked = !originalChecked;
+        alert('Erro de comunicação com o servidor.');
+    });
+}
+
+function updateActiveFeaturesCount() {
+    var countEl = document.getElementById('features-active-count');
+    if (!countEl) return;
+    var container = document.getElementById('features-view-container');
+    if (!container) return;
+    var inputs = container.querySelectorAll('input[type="checkbox"]');
+    var activeCount = 0;
+    inputs.forEach(function(inp) {
+        if (inp.checked) activeCount++;
+    });
+    countEl.innerText = activeCount;
+}
+
+function filterSector(sectorId) {
+    var buttons = document.querySelectorAll('.btn-sector-filter');
+    buttons.forEach(function(b) {
+        b.style.background = '#F1F5F9';
+        b.style.color = '#475569';
+        b.style.border = '1px solid #CBD5E1';
+    });
+    var targetBtn = document.getElementById('btn-sec-' + sectorId);
+    if (targetBtn) {
+        targetBtn.style.background = '#1E293B';
+        targetBtn.style.color = '#FFFFFF';
+        targetBtn.style.border = 'none';
+    }
+
+    var blocks = document.querySelectorAll('.sector-block');
+    blocks.forEach(function(block) {
+        if (sectorId === 'all') {
+            block.style.display = 'flex';
+        } else {
+            block.style.display = (block.id === 'sector-block-' + sectorId) ? 'flex' : 'none';
+        }
+    });
+}
+
+function filterFeaturesCards() {
+    var term = (document.getElementById('featuresSearchInput').value || '').toLowerCase().trim();
+    var cards = document.querySelectorAll('.feature-card');
+    cards.forEach(function(card) {
+        var text = (card.getAttribute('data-search-text') || '').toLowerCase();
+        if (!term || text.includes(term)) {
+            card.style.display = 'flex';
+        } else {
+            card.style.display = 'none';
+        }
+    });
+}
+
+window.addEventListener('DOMContentLoaded', function() {
+    if (window.location.hash === '#features') {
+        switchHubView('features');
+    }
+});
+</script>
+{% endblock %}

@@ -307,33 +307,110 @@ document.addEventListener('DOMContentLoaded', function () {
         btn.addEventListener('click', triggerSync);
     });
 
-    // 4. Carregar Dados Demo
+    // 4. Carregar Dados Demo com Seletor de Setor e Senha de Segurança
     const btnSeedDemo = document.getElementById('btnSeedDemo');
-    if (btnSeedDemo) {
-        btnSeedDemo.addEventListener('click', function () {
-            if (!confirm('Deseja popular o banco de dados com dados de teste e demonstração do Bling?')) return;
-            
-            btnSeedDemo.disabled = true;
-            btnSeedDemo.innerText = 'Carregando Dados...';
+    const selectDemoModal = document.getElementById('selectDemoModal');
+    const btnCloseSelectDemoModal = document.getElementById('btnCloseSelectDemoModal');
+    const btnCancelSeedDb = document.getElementById('btnCancelSeedDb');
+    const btnConfirmSeedDb = document.getElementById('btnConfirmSeedDb');
+    const seedDbPasswordInput = document.getElementById('seedDbPasswordInput');
+    const seedDbErrorMsg = document.getElementById('seedDbErrorMsg');
 
-            fetch('/integrations/seed-demo', { method: 'POST' })
-                .then(res => res.json())
-                .then(data => {
-                    btnSeedDemo.disabled = false;
-                    btnSeedDemo.innerText = 'Carregar Dados de Demonstração';
-                    if (data.success) {
-                        window.location.href = '/';
-                    } else {
-                        alert('Falha ao carregar demo: ' + data.message);
-                    }
-                })
-                .catch(err => {
-                    btnSeedDemo.disabled = false;
-                    btnSeedDemo.innerText = 'Carregar Dados de Demonstração';
-                    alert('Erro: ' + err);
-                });
+    if (btnSeedDemo && selectDemoModal) {
+        btnSeedDemo.addEventListener('click', function () {
+            selectDemoModal.classList.add('active');
+            if (seedDbPasswordInput) {
+                seedDbPasswordInput.value = '';
+                seedDbPasswordInput.focus();
+            }
+            if (seedDbErrorMsg) {
+                seedDbErrorMsg.style.display = 'none';
+                seedDbErrorMsg.innerText = '';
+            }
         });
+
+        const closeSeedModal = function () {
+            selectDemoModal.classList.remove('active');
+        };
+
+        if (btnCloseSelectDemoModal) btnCloseSelectDemoModal.addEventListener('click', closeSeedModal);
+        if (btnCancelSeedDb) btnCancelSeedDb.addEventListener('click', closeSeedModal);
+
+        function executeSeedDatabase() {
+            const password = seedDbPasswordInput ? seedDbPasswordInput.value.trim() : '';
+            if (!password) {
+                if (seedDbErrorMsg) {
+                    seedDbErrorMsg.innerText = 'Por favor, informe a senha de segurança (c4nib4l).';
+                    seedDbErrorMsg.style.display = 'block';
+                }
+                if (seedDbPasswordInput) seedDbPasswordInput.focus();
+                return;
+            }
+
+            const selectedRadio = document.querySelector('input[name="demoNicheRadio"]:checked');
+            const niche = selectedRadio ? selectedRadio.value : 'fashion';
+
+            if (seedDbErrorMsg) {
+                seedDbErrorMsg.style.display = 'none';
+            }
+
+            btnConfirmSeedDb.disabled = true;
+            btnConfirmSeedDb.innerHTML = '<span>⏳</span> Carregando Base...';
+
+            fetch('/integrations/seed-demo', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ niche: niche, password: password })
+            })
+            .then(res => res.json().then(data => ({ status: res.status, data: data })))
+            .then(result => {
+                btnConfirmSeedDb.disabled = false;
+                btnConfirmSeedDb.innerHTML = '<span>🚀</span> Subir Base de Demonstração';
+
+                if (result.status === 200 && result.data.success) {
+                    selectDemoModal.classList.remove('active');
+                    alert('✅ ' + result.data.message);
+                    window.location.href = '/';
+                } else {
+                    const msg = (result.data && result.data.message) ? result.data.message : 'Falha ao autenticar senha.';
+                    if (seedDbErrorMsg) {
+                        seedDbErrorMsg.innerText = '❌ ' + msg;
+                        seedDbErrorMsg.style.display = 'block';
+                    } else {
+                        alert('❌ ' + msg);
+                    }
+                    if (seedDbPasswordInput) {
+                        seedDbPasswordInput.select();
+                        seedDbPasswordInput.focus();
+                    }
+                }
+            })
+            .catch(err => {
+                btnConfirmSeedDb.disabled = false;
+                btnConfirmSeedDb.innerHTML = '<span>🚀</span> Subir Base de Demonstração';
+                if (seedDbErrorMsg) {
+                    seedDbErrorMsg.innerText = 'Erro ao processar: ' + err;
+                    seedDbErrorMsg.style.display = 'block';
+                } else {
+                    alert('Erro ao processar: ' + err);
+                }
+            });
+        }
+
+        if (btnConfirmSeedDb) {
+            btnConfirmSeedDb.addEventListener('click', executeSeedDatabase);
+        }
+
+        if (seedDbPasswordInput) {
+            seedDbPasswordInput.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    executeSeedDatabase();
+                }
+            });
+        }
     }
+
 
     // 5. Zerar Base de Dados com Senha de Segurança
     const btnClearDemo = document.getElementById('btnClearDemo');

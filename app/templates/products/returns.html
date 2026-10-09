@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+
+{% block title %}Trocas & Devoluções por SKU - Produtos e Curva ABC - BlingBI{% endblock %}
+{% block page_title %}Setor de Produtos e Curva ABC{% endblock %}
+
+{% block content %}
+<!-- Cabeçalho Hierárquico do Setor -->
+{% include "products/nav_header.html" %}
+
+<div class="report-container" style="display: flex; flex-direction: column; gap: 24px;">
+
+    <!-- Filtros de Período e Motivo -->
+    <div class="card" style="padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+        <form method="GET" action="{{ url_for('products.returns') }}" style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+            <div>
+                <label style="font-size: 11px; font-weight: 600; color: #64748B; display: block; margin-bottom: 2px;">Período:</label>
+                <select name="period" onchange="this.form.submit()" style="padding: 6px 12px; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 13px;">
+                    <option value="last_30_days" {% if period == 'last_30_days' %}selected{% endif %}>Últimos 30 dias</option>
+                    <option value="last_60_days" {% if period == 'last_60_days' %}selected{% endif %}>Últimos 60 dias</option>
+                    <option value="this_month" {% if period == 'this_month' %}selected{% endif %}>Este Mês</option>
+                </select>
+            </div>
+
+            <div>
+                <label style="font-size: 11px; font-weight: 600; color: #64748B; display: block; margin-bottom: 2px;">Motivo da Devolução:</label>
+                <select name="reason" onchange="this.form.submit()" style="padding: 6px 12px; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 13px;">
+                    <option value="all">Todos os Motivos</option>
+                    {% for r in reasons %}
+                    <option value="{{ r }}" {% if selected_reason == r %}selected{% endif %}>{{ r }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </form>
+
+        <a href="{{ url_for('fashion.export_block2_pdf') }}" class="btn btn-secondary">
+            Exportar Relatório PDF
+        </a>
+    </div>
+
+    <!-- Cards de KPIs de Devolução -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
+        <div class="card" style="padding: 16px;">
+            <div style="font-size: 12px; color: #EF4444; font-weight: 700;">Total de Peças Devolvidas / Trocadas</div>
+            <div style="font-size: 24px; font-weight: 800; color: #EF4444; margin-top: 4px;">{{ returns_data.total_pieces_returned|int }} peças</div>
+            <div style="font-size: 11px; color: #64748B; margin-top: 2px;">{{ returns_data.total_returns }} ocorrências no período</div>
+        </div>
+        <div class="card" style="padding: 16px;">
+            <div style="font-size: 12px; color: #64748B; font-weight: 600;">Taxa Média de Devolução</div>
+            <div style="font-size: 24px; font-weight: 800; color: #1E293B; margin-top: 4px;">{{ returns_data.overall_return_rate }}%</div>
+            <div style="font-size: 11px; color: #64748B; margin-top: 2px;">Sobre o volume vendido</div>
+        </div>
+        <div class="card" style="padding: 16px;">
+            <div style="font-size: 12px; color: #64748B; font-weight: 600;">Motivo Mais Frequente</div>
+            <div style="font-size: 18px; font-weight: 700; color: #F59E0B; margin-top: 4px;">
+                {% if returns_data.reasons_distribution %}{{ returns_data.reasons_distribution[0].reason }}{% else %}Nenhum{% endif %}
+            </div>
+            <div style="font-size: 11px; color: #64748B; margin-top: 2px;">Principal causa de fricção</div>
+        </div>
+    </div>
+
+    <!-- Gráficos de Motivos e Categorias Trocadas -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <div class="card" style="padding: 20px;">
+            <h3 style="font-size: 15px; font-weight: 700; color: #1E293B; margin-bottom: 14px;">Distribuição de Devoluções por Motivo</h3>
+            <div style="height: 260px; position: relative;">
+                <canvas id="reasonsDonutChart"></canvas>
+            </div>
+        </div>
+        <div class="card" style="padding: 20px;">
+            <h3 style="font-size: 15px; font-weight: 700; color: #1E293B; margin-bottom: 14px;">Top SKUs com Maior Índice de Troca</h3>
+            <div style="height: 260px; position: relative;">
+                <canvas id="skusBarChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabela Detalhada de Trocas -->
+    <div class="card" style="padding: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h3 style="font-size: 16px; font-weight: 700; color: #1E293B;">Registro Analítico de Trocas e Devoluções</h3>
+            <span style="font-size: 12px; color: #64748B;">Total de registros: {{ returns_data.returns|length }}</span>
+        </div>
+
+        <div style="overflow-x: auto;">
+            <table class="data-table" style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background: #F8FAFC; border-bottom: 2px solid #E2E8F0; text-align: left;">
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569;">Data</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569;">SKU</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569;">Produto</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569;">Cliente</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569; text-align: center;">Qtd</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569;">Motivo Declarado</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569;">Consultor(a)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in returns_data.returns %}
+                    <tr style="border-bottom: 1px solid #EDF2F7;">
+                        <td style="padding: 12px 14px; color: #64748B; font-size: 12.5px;">{{ r.return_date }}</td>
+                        <td style="padding: 12px 14px; font-family: monospace; font-size: 12px; color: #64748B;">{{ r.sku }}</td>
+                        <td style="padding: 12px 14px; font-weight: 600; color: #1E293B;">{{ r.product_name }}</td>
+                        <td style="padding: 12px 14px; color: #1E293B;">{{ r.customer_name }}</td>
+                        <td style="padding: 12px 14px; text-align: center; font-weight: 700; color: #EF4444;">{{ r.quantity|int }}</td>
+                        <td style="padding: 12px 14px;">
+                            <span class="badge" style="background: #FEF3C7; color: #92400E; padding: 4px 8px; border-radius: 4px; font-size: 11.5px; font-weight: 600;">
+                                {{ r.reason }}
+                            </span>
+                        </td>
+                        <td style="padding: 12px 14px; color: #64748B;">{{ r.seller_name }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" style="padding: 24px; text-align: center; color: #94A3B8;">Nenhuma troca ou devolução registrada no período.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- Chart.js Scripts -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const reasonsLabels = {{ returns_data.chart.labels|tojson }};
+    const reasonsData = {{ returns_data.chart.pieces|tojson }};
+
+
+    new Chart(document.getElementById('reasonsDonutChart').getContext('2d'), {
+        type: 'doughnut',
+        data: {
+            labels: reasonsLabels,
+            datasets: [{
+                data: reasonsData,
+                backgroundColor: ['#EF4444', '#F59E0B', '#3B82F6', '#8B5CF6', '#94A3B8']
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'bottom' } }
+        }
+    });
+
+    const skusLabels = {{ returns_data.sku_return_rates[:5]|map(attribute='sku')|list|tojson }};
+    const skusData = {{ returns_data.sku_return_rates[:5]|map(attribute='returned_qty')|list|tojson }};
+
+    new Chart(document.getElementById('skusBarChart').getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels: skusLabels,
+            datasets: [{
+                label: 'Peças Devolvidas',
+                data: skusData,
+                backgroundColor: '#EF4444',
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+});
+</script>
+{% endblock %}
+

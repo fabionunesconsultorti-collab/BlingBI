@@ -1,0 +1,846 @@
+{% extends "base.html" %}
+
+{% block title %}Vendas e Pedidos - BlingBI{% endblock %}
+{% block page_title %}Setor de Vendas e Pedidos{% endblock %}
+
+{% block content %}
+<!-- Cabeçalho Hierárquico do Setor -->
+{% include "sales/nav_header.html" %}
+
+{% if analytics.total_orders == 0 %}
+<div class="card" style="border-left: 4px solid #f59e0b; background: #fffbeb; margin-bottom: 20px;">
+    <div class="card-body" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 16px 20px;">
+        <div>
+            <h3 style="font-size: 15px; font-weight: 700; color: #92400e; margin-bottom: 4px;">Nenhum pedido de venda encontrado para o período</h3>
+            <p style="color: #b45309; font-size: 13px;">Sua conta do Bling ainda não possui vendas no período filtrado ou a sincronização precisa ser executada.</p>
+        </div>
+        <div style="display: flex; gap: 8px;">
+            <a href="{{ url_for('integrations.index') }}" class="btn btn-primary btn-sm">Configurar API Bling</a>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Barra de Ações & Filtros -->
+<div class="card" style="margin-bottom: 20px;">
+    <div class="card-body" style="padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px;">
+        <form method="GET" id="salesFilterForm" style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; flex: 1;">
+            <input type="hidden" name="period" value="{{ period }}">
+            <input type="hidden" name="start_date" value="{{ start_date }}">
+            <input type="hidden" name="end_date" value="{{ end_date }}">
+
+            <!-- Barra de Busca Multifunção -->
+            <div style="display: flex; align-items: center; gap: 6px; flex: 1; max-width: 380px; min-width: 250px;">
+                <div style="position: relative; width: 100%;">
+                    <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; display: flex; align-items: center;">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    </span>
+                    <input type="text"
+                           id="orderSearchInput"
+                           name="q"
+                           value="{{ search or '' }}"
+                           class="form-control"
+                           placeholder="Buscar por cliente, nº pedido ou CPF..."
+                           autocomplete="off"
+                           style="padding-left: 36px; padding-right: {% if search %}32px{% else %}12px{% endif %}; height: 38px; font-size: 13px; border-radius: 8px; border: 1px solid var(--border-color); background: #f8fafc; transition: all 0.2s ease;">
+                    {% if search %}
+                    <a href="{{ url_for('sales.index', period=period, start_date=start_date, end_date=end_date, channel=channel, status=status) }}"
+                       style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: #94a3b8; text-decoration: none; font-size: 18px; line-height: 1; font-weight: 700;"
+                       title="Limpar busca">&times;</a>
+                    {% endif %}
+                </div>
+                <button type="submit" class="btn btn-primary btn-sm" style="height: 38px; padding: 0 14px; border-radius: 8px; font-weight: 600; display: flex; align-items: center; gap: 6px;">
+                    Buscar
+                </button>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 6px;">
+                <label style="font-size: 13px; font-weight: 600; color: var(--text-muted);">Canal:</label>
+                <select name="channel" onchange="this.form.submit()" class="form-control" style="width: auto; padding: 6px 12px; height: 38px; border-radius: 8px;">
+                    <option value="all">Todos os Canais</option>
+                    {% for c, val in analytics.channel_sales.items() %}
+                    <option value="{{ c }}" {% if channel == c %}selected{% endif %}>{{ c }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 6px;">
+                <label style="font-size: 13px; font-weight: 600; color: var(--text-muted);">Status:</label>
+                <select name="status" onchange="this.form.submit()" class="form-control" style="width: auto; padding: 6px 12px; height: 38px; border-radius: 8px;">
+                    <option value="all">Todos os Status</option>
+                    <option value="Atendido" {% if status == 'Atendido' %}selected{% endif %}>Atendido</option>
+                    <option value="Em aberto" {% if status == 'Em aberto' %}selected{% endif %}>Em aberto</option>
+                    <option value="Cancelado" {% if status == 'Cancelado' %}selected{% endif %}>Cancelado</option>
+                </select>
+            </div>
+        </form>
+
+        <!-- Botões de Exportar -->
+        <div style="display: flex; gap: 8px;">
+            <a href="{{ url_for('reports.export_sales_excel', period=period, start_date=start_date, end_date=end_date, channel=channel, status=status, q=search) }}" class="btn btn-outline btn-sm" style="height: 38px; display: inline-flex; align-items: center; gap: 6px; border-radius: 8px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="8" y1="13" x2="16" y2="13"></line><line x1="8" y1="17" x2="16" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                Exportar Excel (.xlsx)
+            </a>
+            <a href="{{ url_for('reports.export_sales_pdf', period=period, start_date=start_date, end_date=end_date, channel=channel, status=status, q=search) }}" class="btn btn-primary btn-sm" style="height: 38px; display: inline-flex; align-items: center; gap: 6px; border-radius: 8px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                Exportar PDF
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- KPIs de Vendas -->
+<div class="kpi-grid">
+    <div class="kpi-card">
+        <span class="kpi-title">Faturamento Atendido</span>
+        <div class="kpi-value" style="color: var(--bling-primary);">{{ analytics.total_gross | currency }}</div>
+        <div class="kpi-subtext">Total líquido de vendas</div>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-title">Total de Pedidos</span>
+        <div class="kpi-value">{{ analytics.total_orders | number }}</div>
+        <div class="kpi-subtext">Em todos os status</div>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-title">Ticket Médio</span>
+        <div class="kpi-value">{{ analytics.avg_ticket | currency }}</div>
+        <div class="kpi-subtext">Média por pedido</div>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-title">Descontos Concedidos</span>
+        <div class="kpi-value" style="color: #dc2626;">{{ analytics.total_discounts | currency }}</div>
+        <div class="kpi-subtext">Cupons e abatimentos</div>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-title">Fretes Cobrados</span>
+        <div class="kpi-value">{{ analytics.total_shipping | currency }}</div>
+        <div class="kpi-subtext">Valor de transporte</div>
+    </div>
+</div>
+
+<!-- Tabela de Pedidos -->
+<div class="card">
+    <div class="card-header" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <span class="card-title" style="margin-bottom: 0;">Listagem Detalhada de Pedidos</span>
+            <span id="orderCountBadge" class="badge" style="background: #e2e8f0; color: #334155; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 6px;">
+                {{ analytics.orders|length }} pedidos encontrados
+            </span>
+            {% if search %}
+            <span class="badge" style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; font-size: 11px; padding: 4px 8px; border-radius: 6px;">
+                Filtro ativo: "<strong>{{ search }}</strong>"
+            </span>
+            {% endif %}
+        </div>
+        <div style="font-size: 12px; color: var(--text-muted);">
+            Busca instantânea por <strong>Cliente</strong>, <strong>Nº Pedido</strong> ou <strong>CPF</strong>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="bling-table">
+            <thead>
+                <tr>
+                    <th>Nº Pedido</th>
+                    <th>Data</th>
+                    <th>Cliente / Documento</th>
+                    <th>Canal / Loja</th>
+                    <th style="text-align: center;">Itens</th>
+                    <th style="text-align: right;">Desconto</th>
+                    <th style="text-align: right;">Frete</th>
+                    <th style="text-align: right;">Total do Pedido</th>
+                    <th style="text-align: center;">Status</th>
+                </tr>
+            </thead>
+            <tbody id="ordersTableBody">
+                {% for o in analytics.orders %}
+                <tr class="order-row"
+                    data-order-number="{{ o.number|lower }}"
+                    data-customer-name="{{ o.customer_name|lower }}"
+                    data-customer-cpf="{{ (o.customer_document or '')|replace('.', '')|replace('-', '')|replace('/', '') }}"
+                    data-raw-cpf="{{ (o.customer_document or '')|lower }}">
+                    <td>
+                        <button type="button" class="order-number-btn" onclick="openOrderDetailsModal({{ o.id }})" title="Clique para ver o detalhamento do pedido e imprimir cupom térmico 78mm">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                            #{{ o.number }}
+                        </button>
+                    </td>
+                    <td>{{ o.order_date }}</td>
+                    <td>
+                        <div style="font-weight: 600; color: var(--text-dark);">{{ o.customer_name }}</div>
+                        {% if o.customer_document %}
+                        <div style="font-size: 11px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; display: flex; align-items: center; gap: 4px; margin-top: 3px;">
+                            <span style="background: #f1f5f9; padding: 1px 6px; border-radius: 4px; border: 1px solid #e2e8f0;">CPF: {{ o.customer_document }}</span>
+                        </div>
+                        {% endif %}
+                    </td>
+                    <td>{{ o.channel }}</td>
+                    <td style="text-align: center;">{{ o.items_count }}</td>
+                    <td style="text-align: right; color: #dc2626;">{{ o.discount | currency }}</td>
+                    <td style="text-align: right;">{{ o.shipping | currency }}</td>
+                    <td style="text-align: right; font-weight: 700;">{{ o.total | currency }}</td>
+                    <td style="text-align: center;">
+                        <span class="badge {% if o.status == 'Atendido' %}badge-success{% elif o.status == 'Em aberto' %}badge-warning{% else %}badge-danger{% endif %}">
+                            {{ o.status }}
+                        </span>
+                    </td>
+                </tr>
+                {% else %}
+                <tr id="serverEmptyRow">
+                    <td colspan="9" style="text-align: center; padding: 36px 20px; color: var(--text-muted);">
+                        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.75" style="margin-bottom: 8px;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                        <div style="font-weight: 600; color: var(--text-dark); margin-bottom: 4px; font-size: 15px;">Nenhum pedido encontrado</div>
+                        <div style="font-size: 13px;">Não encontramos pedidos correspondentes aos filtros{% if search %} ou à busca por "<strong>{{ search }}</strong>"{% endif %}.</div>
+                        {% if search %}
+                        <div style="margin-top: 14px;">
+                            <a href="{{ url_for('sales.index', period=period, start_date=start_date, end_date=end_date, channel=channel, status=status) }}" class="btn btn-outline btn-sm">Limpar busca</a>
+                        </div>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+                <tr id="noResultsSearchRow" style="display: none;">
+                    <td colspan="9" style="text-align: center; padding: 36px 20px; color: var(--text-muted);">
+                        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.75" style="margin-bottom: 8px;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                        <div style="font-weight: 600; color: var(--text-dark); margin-bottom: 4px; font-size: 15px;">Nenhum pedido corresponde à sua pesquisa</div>
+                        <div style="font-size: 13px;">Nenhum registro encontrado para o termo pesquisado na tela atual.</div>
+                        <div style="margin-top: 14px;">
+                            <button type="button" class="btn btn-outline btn-sm" onclick="clearLiveSearch()">Limpar filtro instantâneo</button>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- JANELA MODAL: DETALHAMENTO DO PEDIDO & CUPOM TÉRMICO                     -->
+<!-- ========================================================================= -->
+<div id="orderModalBackdrop" class="order-modal-backdrop" onclick="handleModalBackdropClick(event)">
+    <div class="order-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="modalOrderTitle">
+        <!-- Cabeçalho da Modal -->
+        <div class="order-modal-header">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="background: #e6f6ee; color: #008b54; width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                </div>
+                <div>
+                    <h3 id="modalOrderTitle" style="font-size: 17px; font-weight: 800; color: #1e293B; margin: 0;">Pedido #<span id="mOrderNumber">---</span></h3>
+                    <div style="font-size: 11.5px; color: #64748b; margin-top: 2px;">
+                        Bling ID: <span id="mOrderBlingId">---</span> • Emitido em: <span id="mOrderDate">---</span>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <button type="button" class="btn-print-thermal" onclick="printThermalReceipt()" title="Imprimir cupom no formato de impressora térmica 78mm">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                    Imprimir Cupom 78mm
+                </button>
+                <button type="button" class="order-modal-close-btn" onclick="closeOrderModal()" aria-label="Fechar">
+                    &times;
+                </button>
+            </div>
+        </div>
+
+        <!-- Corpo da Modal -->
+        <div class="order-modal-body">
+            <!-- Spinner de Carregamento -->
+            <div id="modalLoadingSpinner" style="display: none; text-align: center; padding: 40px; color: #64748b;">
+                <div style="display: inline-block; width: 32px; height: 32px; border: 3px solid #e2e8f0; border-top-color: #008b54; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
+                <div style="margin-top: 12px; font-weight: 600; font-size: 13px;">Carregando dados do pedido...</div>
+            </div>
+
+            <!-- Conteúdo dos Dados -->
+            <div id="modalContentWrapper">
+                <!-- Grid de Identificação e Cliente -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                    <!-- Card do Pedido -->
+                    <div class="order-info-card">
+                        <div style="font-size: 11px; font-weight: 700; color: #008b54; text-transform: uppercase; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
+                            Origem & Comercial
+                        </div>
+                        <div class="order-info-grid">
+                            <div class="order-info-item">
+                                <label>Canal / Loja</label>
+                                <span id="mChannel">---</span>
+                            </div>
+                            <div class="order-info-item">
+                                <label>Situação / Status</label>
+                                <span id="mStatusBadge">---</span>
+                            </div>
+                            <div class="order-info-item">
+                                <label>Vendedor(a)</label>
+                                <span id="mSeller">---</span>
+                            </div>
+                            <div class="order-info-item">
+                                <label>Data Registro</label>
+                                <span id="mCreatedAt">---</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Card do Cliente -->
+                    <div class="order-info-card">
+                        <div style="font-size: 11px; font-weight: 700; color: #2563eb; text-transform: uppercase; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                            Dados do Cliente
+                        </div>
+                        <div class="order-info-grid">
+                            <div class="order-info-item">
+                                <label>Nome do Cliente</label>
+                                <span id="mCustomerName">---</span>
+                            </div>
+                            <div class="order-info-item">
+                                <label>CPF / CNPJ</label>
+                                <span id="mCustomerDoc">---</span>
+                            </div>
+                            <div class="order-info-item">
+                                <label>Telefone / WhatsApp</label>
+                                <span id="mCustomerPhone">---</span>
+                            </div>
+                            <div class="order-info-item">
+                                <label>Cidade / UF</label>
+                                <span id="mCustomerCity">---</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabela de Itens Comprados -->
+                <div class="card" style="border: 1px solid #e2e8f0; padding: 0; overflow: hidden; margin-bottom: 16px;">
+                    <div style="padding: 12px 16px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 13px; font-weight: 700; color: #1e293b;">Itens do Pedido (<span id="mItemsCount">0</span>)</span>
+                        <span style="font-size: 11px; color: #64748b;">Produtos conferidos</span>
+                    </div>
+                    <div style="max-height: 240px; overflow-y: auto;">
+                        <table class="order-items-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 100px;">SKU</th>
+                                    <th>Descrição do Produto</th>
+                                    <th style="text-align: center; width: 90px;">Grade / Tam</th>
+                                    <th style="text-align: center; width: 60px;">Qtd</th>
+                                    <th style="text-align: right; width: 100px;">Preço Un.</th>
+                                    <th style="text-align: right; width: 110px;">Subtotal</th>
+                                </tr>
+                            </thead>
+                            <tbody id="mItemsTbody">
+                                <tr><td colspan="6" style="text-align: center; padding: 16px; color: #94a3b8;">Nenhum item listado.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Totais Financeiros do Pedido -->
+                <div class="order-totals-box">
+                    <div class="order-total-row">
+                        <span>Subtotal dos Itens:</span>
+                        <strong id="mSubtotal">R$ 0,00</strong>
+                    </div>
+                    <div class="order-total-row" style="color: #dc2626;">
+                        <span>Desconto Comercial:</span>
+                        <strong id="mDiscount">- R$ 0,00</strong>
+                    </div>
+                    <div class="order-total-row">
+                        <span>Frete / Envio:</span>
+                        <strong id="mShipping">+ R$ 0,00</strong>
+                    </div>
+                    <div class="order-total-row grand-total">
+                        <span>VALOR TOTAL:</span>
+                        <span id="mTotal">R$ 0,00</span>
+                    </div>
+                </div>
+
+                <!-- Observações (se houver) -->
+                <div id="mNotesWrapper" style="display: none; background: #fffbeb; border: 1px solid #fef3c7; border-radius: 6px; padding: 10px 14px; font-size: 12px; color: #92400e; margin-top: 14px;">
+                    <strong>Observações do Pedido:</strong> <span id="mNotes"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Rodapé da Modal -->
+        <div class="order-modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeOrderModal()">
+                Fechar Janela
+            </button>
+            <button type="button" class="btn-print-thermal" onclick="printThermalReceipt()">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                Imprimir Cupom Térmico (78mm)
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- ÁREA ESPECÍFICA DE IMPRESSÃO DO CUPOM TÉRMICO (78mm LARGURA)             -->
+<!-- ========================================================================= -->
+<div id="thermalReceiptPrintArea">
+    <div class="thermal-header">
+        <div class="thermal-title">BLING BI - VENDAS</div>
+        <div class="thermal-subtitle">COMPROVANTE DE PEDIDO / NÃO FISCAL</div>
+        <div style="font-size: 10px; margin-top: 1mm;">*** CUPOM TÉRMICO 78mm ***</div>
+    </div>
+
+    <hr class="thermal-divider-double">
+
+    <div class="thermal-row">
+        <span>PEDIDO: <strong id="tOrderNumber">---</strong></span>
+        <span>STATUS: <strong id="tOrderStatus">---</strong></span>
+    </div>
+    <div class="thermal-row">
+        <span>BLING ID: <span id="tOrderBlingId">---</span></span>
+        <span>DATA: <span id="tOrderDate">---</span></span>
+    </div>
+    <div class="thermal-row">
+        <span>CANAL: <span id="tOrderChannel">---</span></span>
+    </div>
+    <div class="thermal-row">
+        <span>ATENDENTE: <span id="tOrderSeller">---</span></span>
+    </div>
+
+    <hr class="thermal-divider">
+
+    <div style="font-size: 10px; font-weight: bold; margin-bottom: 1mm;">DADOS DO CLIENTE:</div>
+    <div class="thermal-row">
+        <span>NOME: <span id="tCustomerName">---</span></span>
+    </div>
+    <div class="thermal-row">
+        <span>DOC: <span id="tCustomerDoc">---</span></span>
+        <span>TEL: <span id="tCustomerPhone">---</span></span>
+    </div>
+    <div class="thermal-row">
+        <span>CIDADE: <span id="tCustomerCity">---</span></span>
+    </div>
+
+    <hr class="thermal-divider">
+
+    <div style="font-size: 10px; font-weight: bold; margin-bottom: 1mm;">ITENS DO PEDIDO:</div>
+    <table class="thermal-items-table">
+        <thead>
+            <tr>
+                <th style="width: 50%;">DESCRIÇÃO</th>
+                <th style="text-align: center; width: 15%;">QTD</th>
+                <th style="text-align: right; width: 17%;">UN(R$)</th>
+                <th style="text-align: right; width: 18%;">TOT(R$)</th>
+            </tr>
+        </thead>
+        <tbody id="tItemsTbody">
+            <!-- Linhas inseridas dinamicamente -->
+        </tbody>
+    </table>
+
+    <hr class="thermal-divider">
+
+    <div class="thermal-total-row">
+        <span>SUBTOTAL DOS ITENS:</span>
+        <strong id="tSubtotal">R$ 0,00</strong>
+    </div>
+    <div class="thermal-total-row">
+        <span>DESCONTOS:</span>
+        <strong id="tDiscount">- R$ 0,00</strong>
+    </div>
+    <div class="thermal-total-row">
+        <span>FRETE / TRANSPORTE:</span>
+        <strong id="tShipping">+ R$ 0,00</strong>
+    </div>
+
+    <div class="thermal-total-row thermal-grand-total">
+        <span>VALOR TOTAL:</span>
+        <span id="tTotal">R$ 0,00</span>
+    </div>
+
+    <div id="tNotesContainer" style="display: none; margin: 2mm 0; font-size: 9.5px;">
+        <strong>OBS:</strong> <span id="tNotes"></span>
+    </div>
+
+    <hr class="thermal-divider-double">
+
+    <div class="thermal-footer">
+        <div>OBRIGADO PELA PREFERÊNCIA!</div>
+        <div style="margin-top: 1mm;">Trocas em até 30 dias mediante este comprovante</div>
+        <div style="margin-top: 1.5mm; font-size: 8px;">EMITIDO VIA BLING BI • IMPRESSÃO 78mm</div>
+        <div style="font-size: 8px;" id="tPrintTimestamp">---</div>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- JAVASCRIPT: CONTROLE DA MODAL E IMPRESSÃO DO CUPOM TÉRMICO               -->
+<!-- ========================================================================= -->
+<script>
+let currentLoadedOrder = null;
+
+function formatCurrencyBRL(val) {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
+}
+
+function openOrderDetailsModal(orderId) {
+    const backdrop = document.getElementById('orderModalBackdrop');
+    const spinner = document.getElementById('modalLoadingSpinner');
+    const content = document.getElementById('modalContentWrapper');
+    
+    if (!backdrop) return;
+    
+    backdrop.classList.add('show');
+    spinner.style.display = 'block';
+    content.style.display = 'none';
+
+    fetch('/sales/orders/' + orderId)
+        .then(response => {
+            if (!response.ok) throw new Error('Não foi possível obter dados do pedido');
+            return response.json();
+        })
+        .then(order => {
+            currentLoadedOrder = order;
+            populateOrderModal(order);
+            populateThermalReceipt(order);
+            spinner.style.display = 'none';
+            content.style.display = 'block';
+        })
+        .catch(err => {
+            spinner.innerHTML = '<div style="color: #dc2626; font-weight: 700;">Erro ao carregar detalhes: ' + err.message + '</div>';
+        });
+}
+
+function closeOrderModal() {
+    const backdrop = document.getElementById('orderModalBackdrop');
+    if (backdrop) backdrop.classList.remove('show');
+}
+
+function handleModalBackdropClick(event) {
+    if (event.target.id === 'orderModalBackdrop') {
+        closeOrderModal();
+    }
+}
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeOrderModal();
+    }
+});
+
+function populateOrderModal(o) {
+    document.getElementById('mOrderNumber').innerText = o.number;
+    document.getElementById('mOrderBlingId').innerText = o.bling_id;
+    document.getElementById('mOrderDate').innerText = o.order_date;
+    document.getElementById('mChannel').innerText = o.channel;
+    document.getElementById('mSeller').innerText = o.seller_name;
+    document.getElementById('mCreatedAt').innerText = o.created_at || o.order_date;
+
+    // Status Badge
+    const statusEl = document.getElementById('mStatusBadge');
+    let badgeClass = 'badge-warning';
+    if (o.status === 'Atendido') badgeClass = 'badge-success';
+    else if (o.status === 'Cancelado') badgeClass = 'badge-danger';
+    statusEl.innerHTML = `<span class="badge ${badgeClass}">${o.status}</span>`;
+
+    // Cliente
+    document.getElementById('mCustomerName').innerText = o.customer.name;
+    document.getElementById('mCustomerDoc').innerText = o.customer.document || 'Não informado';
+    document.getElementById('mCustomerPhone').innerText = o.customer.phone || 'Não informado';
+    document.getElementById('mCustomerCity').innerText = (o.customer.city && o.customer.state) ? `${o.customer.city} / ${o.customer.state}` : (o.customer.city || 'Não informado');
+
+    // Itens
+    document.getElementById('mItemsCount').innerText = o.items.length;
+    const tbody = document.getElementById('mItemsTbody');
+    if (o.items && o.items.length > 0) {
+        tbody.innerHTML = o.items.map(item => `
+            <tr>
+                <td style="font-family: monospace; font-size: 12px; color: #64748b;">${item.sku}</td>
+                <td>
+                    <div style="font-weight: 600; color: #1e293b;">${item.product_name}</div>
+                    ${item.style ? `<div style="font-size: 11px; color: #94a3b8;">Estilo: ${item.style}</div>` : ''}
+                </td>
+                <td style="text-align: center;">
+                    ${item.size ? `<span class="badge" style="background:#e0f2fe; color:#0369a1; padding: 2px 6px; font-size:11px;">${item.size}</span>` : '-'}
+                    ${item.color ? `<span style="font-size: 11px; color: #64748b;">${item.color}</span>` : ''}
+                </td>
+                <td style="text-align: center; font-weight: 700;">${item.quantity}</td>
+                <td style="text-align: right; color: #64748b; font-family: monospace;">${formatCurrencyBRL(item.unit_price)}</td>
+                <td style="text-align: right; font-weight: 700; color: #008b54; font-family: monospace;">${formatCurrencyBRL(item.total_price)}</td>
+            </tr>
+        `).join('');
+    } else {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 16px; color: #94a3b8;">Nenhum item encontrado neste pedido.</td></tr>';
+    }
+
+    // Totais
+    document.getElementById('mSubtotal').innerText = formatCurrencyBRL(o.financial.subtotal);
+    document.getElementById('mDiscount').innerText = `- ${formatCurrencyBRL(o.financial.discount)}`;
+    document.getElementById('mShipping').innerText = `+ ${formatCurrencyBRL(o.financial.shipping)}`;
+    document.getElementById('mTotal').innerText = formatCurrencyBRL(o.financial.total);
+
+    // Observações
+    const notesWrapper = document.getElementById('mNotesWrapper');
+    if (o.notes && o.notes.trim()) {
+        notesWrapper.style.display = 'block';
+        document.getElementById('mNotes').innerText = o.notes;
+    } else {
+        notesWrapper.style.display = 'none';
+    }
+}
+
+function populateThermalReceipt(o) {
+    document.getElementById('tOrderNumber').innerText = '#' + o.number;
+    document.getElementById('tOrderStatus').innerText = o.status;
+    document.getElementById('tOrderBlingId').innerText = o.bling_id;
+    document.getElementById('tOrderDate').innerText = o.order_date;
+    document.getElementById('tOrderChannel').innerText = o.channel;
+    document.getElementById('tOrderSeller').innerText = o.seller_name;
+
+    document.getElementById('tCustomerName').innerText = o.customer.name;
+    document.getElementById('tCustomerDoc').innerText = o.customer.document || '-';
+    document.getElementById('tCustomerPhone').innerText = o.customer.phone || '-';
+    document.getElementById('tCustomerCity').innerText = (o.customer.city && o.customer.state) ? `${o.customer.city}/${o.customer.state}` : (o.customer.city || '-');
+
+    const tbody = document.getElementById('tItemsTbody');
+    if (o.items && o.items.length > 0) {
+        tbody.innerHTML = o.items.map(item => `
+            <tr>
+                <td>
+                    <div style="font-weight: bold;">${item.product_name}</div>
+                    <div style="font-size: 9px; color: #333;">SKU: ${item.sku} ${item.size ? '• Tam:' + item.size : ''}</div>
+                </td>
+                <td style="text-align: center; font-weight: bold;">${item.quantity}</td>
+                <td style="text-align: right;">${formatCurrencyBRL(item.unit_price)}</td>
+                <td style="text-align: right; font-weight: bold;">${formatCurrencyBRL(item.total_price)}</td>
+            </tr>
+        `).join('');
+    } else {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 2mm;">Sem itens</td></tr>';
+    }
+
+    document.getElementById('tSubtotal').innerText = formatCurrencyBRL(o.financial.subtotal);
+    document.getElementById('tDiscount').innerText = `- ${formatCurrencyBRL(o.financial.discount)}`;
+    document.getElementById('tShipping').innerText = `+ ${formatCurrencyBRL(o.financial.shipping)}`;
+    document.getElementById('tTotal').innerText = formatCurrencyBRL(o.financial.total);
+
+    const notesContainer = document.getElementById('tNotesContainer');
+    if (o.notes && o.notes.trim()) {
+        notesContainer.style.display = 'block';
+        document.getElementById('tNotes').innerText = o.notes;
+    } else {
+        notesContainer.style.display = 'none';
+    }
+
+    const now = new Date();
+    document.getElementById('tPrintTimestamp').innerText = now.toLocaleDateString('pt-BR') + ' ' + now.toLocaleTimeString('pt-BR');
+}
+
+// Mover elemento de impressão térmica para o body para evitar ocultamento por pais
+document.addEventListener('DOMContentLoaded', function() {
+    const pArea = document.getElementById('thermalReceiptPrintArea');
+    if (pArea && pArea.parentElement !== document.body) {
+        document.body.appendChild(pArea);
+    }
+});
+
+function printThermalReceipt() {
+    const printArea = document.getElementById('thermalReceiptPrintArea');
+    if (!printArea) {
+        alert('Conteúdo do cupom térmico não encontrado.');
+        return;
+    }
+
+    // Cria ou reutiliza iframe invisível e isolado para impressão direta sem falhas
+    let printFrame = document.getElementById('thermalPrintIframe');
+    if (!printFrame) {
+        printFrame = document.createElement('iframe');
+        printFrame.id = 'thermalPrintIframe';
+        printFrame.style.position = 'fixed';
+        printFrame.style.right = '0';
+        printFrame.style.bottom = '0';
+        printFrame.style.width = '0';
+        printFrame.style.height = '0';
+        printFrame.style.border = '0';
+        printFrame.style.zIndex = '-9999';
+        document.body.appendChild(printFrame);
+    }
+
+    const orderNum = currentLoadedOrder ? currentLoadedOrder.number : 'Pedido';
+    const content = printArea.innerHTML;
+
+    const frameDoc = printFrame.contentWindow.document;
+    frameDoc.open();
+    frameDoc.write(`<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Cupom #${orderNum}</title>
+    <style>
+        @page {
+            size: 78mm auto;
+            margin: 0mm;
+        }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        html, body {
+            width: 78mm;
+            max-width: 78mm;
+            background: #ffffff;
+            color: #000000;
+            font-family: 'Courier New', Courier, monospace, 'Lucida Console', monospace;
+            font-size: 11px;
+            line-height: 1.25;
+            padding: 2.5mm 3.5mm;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .thermal-header {
+            text-align: center;
+            margin-bottom: 2.5mm;
+        }
+        .thermal-title {
+            font-size: 13.5px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .thermal-subtitle {
+            font-size: 9px;
+            margin-top: 1mm;
+        }
+        .thermal-divider {
+            border: none;
+            border-top: 1px dashed #000000;
+            margin: 2mm 0;
+        }
+        .thermal-divider-double {
+            border: none;
+            border-top: 2px solid #000000;
+            margin: 2.5mm 0;
+        }
+        .thermal-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10.5px;
+            margin-bottom: 1mm;
+        }
+        .thermal-bold {
+            font-weight: bold;
+        }
+        .thermal-items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 2mm 0;
+            font-size: 10.5px;
+        }
+        .thermal-items-table th {
+            text-align: left;
+            border-bottom: 1px dashed #000000;
+            padding-bottom: 1mm;
+            font-size: 9.5px;
+        }
+        .thermal-items-table td {
+            padding: 1.5mm 0;
+            vertical-align: top;
+        }
+        .thermal-total-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            margin-bottom: 1mm;
+        }
+        .thermal-grand-total {
+            font-size: 13.5px;
+            font-weight: 900;
+            border-top: 1px dashed #000000;
+            border-bottom: 1px dashed #000000;
+            padding: 2mm 0;
+            margin: 2mm 0;
+        }
+        .thermal-footer {
+            text-align: center;
+            font-size: 9px;
+            margin-top: 3mm;
+            margin-bottom: 4mm;
+        }
+    </style>
+</head>
+<body>
+    ${content}
+</body>
+</html>`);
+    frameDoc.close();
+
+    // Timeout para garantir renderização do documento no iframe antes de chamar o print
+    setTimeout(function() {
+        printFrame.contentWindow.focus();
+        printFrame.contentWindow.print();
+    }, 200);
+}
+
+// =============================================================================
+// FILTRAGEM INSTANTÂNEA NA TABELA DE PEDIDOS (CLIENTE, Nº PEDIDO, CPF)
+// =============================================================================
+function clearLiveSearch() {
+    const input = document.getElementById('orderSearchInput');
+    if (input) {
+        input.value = '';
+        input.dispatchEvent(new Event('input'));
+        input.focus();
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('orderSearchInput');
+    const rows = Array.from(document.querySelectorAll('.order-row'));
+    const countBadge = document.getElementById('orderCountBadge');
+    const noResultsRow = document.getElementById('noResultsSearchRow');
+
+    if (!searchInput) return;
+
+    function applyInstantFilter() {
+        const query = searchInput.value.trim().toLowerCase();
+        const queryDigits = query.replace(/\D/g, '');
+        let visibleCount = 0;
+
+        rows.forEach(function(row) {
+            const orderNum = (row.getAttribute('data-order-number') || '').toLowerCase();
+            const custName = (row.getAttribute('data-customer-name') || '').toLowerCase();
+            const custCpf = (row.getAttribute('data-customer-cpf') || '');
+            const rawCpf = (row.getAttribute('data-raw-cpf') || '').toLowerCase();
+
+            const matchOrder = orderNum.includes(query) || (queryDigits.length >= 2 && orderNum.includes(queryDigits));
+            const matchName = custName.includes(query);
+            const matchCpf = (queryDigits.length >= 3 && custCpf.includes(queryDigits)) || rawCpf.includes(query);
+
+            if (!query || matchOrder || matchName || matchCpf) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        if (countBadge) {
+            if (!query) {
+                countBadge.textContent = `${rows.length} pedidos encontrados`;
+            } else {
+                countBadge.textContent = `${visibleCount} de ${rows.length} pedidos exibidos`;
+            }
+        }
+
+        if (noResultsRow) {
+            noResultsRow.style.display = (query && visibleCount === 0 && rows.length > 0) ? '' : 'none';
+        }
+    }
+
+    searchInput.addEventListener('input', applyInstantFilter);
+
+    if (searchInput.value.trim() && rows.length > 0) {
+        applyInstantFilter();
+    }
+});
+</script>
+<style>
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+</style>
+{% endblock %}
+

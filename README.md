@@ -101,6 +101,14 @@ A URL pública gerada (ex: `https://xxxx.ngrok-free.app/integrations/webhook`) e
 - Endpoint para Webhook do Bling (`/integrations/webhook`).
 - Botão para recarregar **Dados de Demonstração** quando desejar.
 
+### 7. BI Varejo de Moda & Customer Success (4 Blocos Estratégicos com Polars)
+- 👗 **Motor Polars de Alta Performance**: Processamento em memória ultrarrápido com Apache Arrow e lazy execution.
+- 👤 **Bloco 1 - Perfil & Comportamento**: Curva ABC de Clientes (Regra 80/20), Moda Estatística (Tamanho, Cor e Estilo preferidos) e Aniversariantes do Mês com contagem de dias.
+- 🛍️ **Bloco 2 - Movimentação & Moda**: Taxa de Conversão de Malas Condicionais (peças faturadas vs retiradas), Ranking por Categoria (Window Rank) e Relatório de Trocas & Devoluções por SKU e Motivo.
+- 🎯 **Bloco 3 - Desempenho do Atendimento**: P.A. (Peças por Atendimento) médio por vendedora, Ticket Médio e Taxa de Conversão comercial.
+- 💎 **Bloco 4 - Relacionamento & CRM**: Relatório de Inatividade e Faixas de Recência (<60d, 60-90d, 91-180d, >180d Churn) com atalho para WhatsApp, Matriz Cohort de Recompra e Pesquisas NPS/CSAT com feedbacks.
+- 📥 **Exportações Dedicadas em Excel**: Curva ABC de clientes, lista de inativos para WhatsApp e relatório de malas condicionais.
+
 ---
 
 ## 🛠️ Tecnologias Utilizadas

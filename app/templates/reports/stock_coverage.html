@@ -1,0 +1,252 @@
+{% extends 'base.html' %}
+
+{% block title %}Curva ABC & Cobertura de Estoque - BlingBI{% endblock %}
+{% block page_title %}Curva ABC & Dias de Cobertura de Estoque (Pilar 2){% endblock %}
+
+{% block content %}
+<div class="report-container" style="display: flex; flex-direction: column; gap: 24px;">
+
+    <!-- Barra de Filtros e Exportação -->
+    <div class="card" style="padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+        <form method="GET" action="{{ url_for('reports.stock_coverage') }}" style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+            <div>
+                <label style="font-size: 11px; font-weight: 600; color: #64748B; display: block; margin-bottom: 2px;">Período Base (Giro):</label>
+                <select name="period" onchange="this.form.submit()" style="padding: 6px 12px; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 13px;">
+                    <option value="last_30_days" {% if period == 'last_30_days' %}selected{% endif %}>Últimos 30 dias</option>
+                    <option value="last_60_days" {% if period == 'last_60_days' %}selected{% endif %}>Últimos 60 dias</option>
+                    <option value="this_month" {% if period == 'this_month' %}selected{% endif %}>Este Mês</option>
+                    <option value="last_month" {% if period == 'last_month' %}selected{% endif %}>Mês Anterior</option>
+                </select>
+            </div>
+
+            <div>
+                <label style="font-size: 11px; font-weight: 600; color: #64748B; display: block; margin-bottom: 2px;">Categoria:</label>
+                <select name="category" onchange="this.form.submit()" style="padding: 6px 12px; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 13px;">
+                    <option value="all">Todas as Categorias</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat }}" {% if selected_category == cat %}selected{% endif %}>{{ cat }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label style="font-size: 11px; font-weight: 600; color: #64748B; display: block; margin-bottom: 2px;">Status de Estoque:</label>
+                <select name="status" onchange="this.form.submit()" style="padding: 6px 12px; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 13px;">
+                    <option value="all" {% if selected_status == 'all' %}selected{% endif %}>Todos os Status</option>
+                    <option value="CRÍTICO" {% if selected_status == 'CRÍTICO' %}selected{% endif %}>🔴 Ruptura Crítica (< 7d)</option>
+                    <option value="ESGOTADO" {% if selected_status == 'ESGOTADO' %}selected{% endif %}>⚫ Esgotado / Sem Saldo</option>
+                    <option value="ATENÇÃO" {% if selected_status == 'ATENÇÃO' %}selected{% endif %}>🟡 Atenção (7 a 15d)</option>
+                    <option value="EQUILIBRADO" {% if selected_status == 'EQUILIBRADO' %}selected{% endif %}>🟢 Equilibrado (16 a 45d)</option>
+                    <option value="EXCESSO" {% if selected_status == 'EXCESSO' %}selected{% endif %}>🔵 Excesso (> 45d)</option>
+                    <option value="SEM GIRO" {% if selected_status == 'SEM GIRO' %}selected{% endif %}>⚪ Sem Giro / Parado</option>
+                </select>
+            </div>
+        </form>
+
+        <!-- Botões de Exportação -->
+        <div style="display: flex; gap: 10px;">
+            <a href="{{ url_for('reports.export_stock_coverage_pdf', period=period, category=selected_category, status=selected_status) }}" class="btn btn-secondary" style="display: flex; align-items: center; gap: 6px;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                Exportar PDF
+            </a>
+            <a href="{{ url_for('reports.export_stock_coverage_excel', period=period, category=selected_category, status=selected_status) }}" class="btn btn-primary" style="display: flex; align-items: center; gap: 6px;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
+                Exportar Excel (.xlsx)
+            </a>
+        </div>
+    </div>
+
+    <!-- Cards de KPIs Executivos -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px;">
+        <div class="card" style="padding: 16px;">
+            <div style="font-size: 12px; color: #64748B; font-weight: 600;">Itens Ativos no Catálogo</div>
+            <div style="font-size: 22px; font-weight: 800; color: #1E293B; margin-top: 4px;">{{ summary.total_products }} SKUs</div>
+            <div style="font-size: 11px; color: #10B981; margin-top: 2px;">Sincronizados com Bling</div>
+        </div>
+        <div class="card" style="padding: 16px;">
+            <div style="font-size: 12px; color: #EF4444; font-weight: 700;">🔴 Em Risco de Ruptura</div>
+            <div style="font-size: 22px; font-weight: 800; color: #EF4444; margin-top: 4px;">{{ summary.critical_rupture_count }} SKUs</div>
+            <div style="font-size: 11px; color: #64748B; margin-top: 2px;">Cobertura < 7 dias ou Zerado</div>
+        </div>
+        <div class="card" style="padding: 16px;">
+            <div style="font-size: 12px; color: #64748B; font-weight: 600;">Cobertura Média da Loja</div>
+            <div style="font-size: 22px; font-weight: 800; color: #3B82F6; margin-top: 4px;">{{ summary.avg_coverage_days }} dias</div>
+            <div style="font-size: 11px; color: #64748B; margin-top: 2px;">Para itens com saída ativa</div>
+        </div>
+        <div class="card" style="padding: 16px;">
+            <div style="font-size: 12px; color: #64748B; font-weight: 600;">Capital Total em Estoque</div>
+            <div style="font-size: 22px; font-weight: 800; color: #1E293B; margin-top: 4px;">{{ summary.total_stock_capital|currency }}</div>
+            <div style="font-size: 11px; color: #64748B; margin-top: 2px;">Valorizado a preço de custo</div>
+        </div>
+        <div class="card" style="padding: 16px;">
+            <div style="font-size: 12px; color: #F59E0B; font-weight: 700;">Capital Deadstock (Parado)</div>
+            <div style="font-size: 22px; font-weight: 800; color: #F59E0B; margin-top: 4px;">{{ summary.deadstock_capital|currency }}</div>
+            <div style="font-size: 11px; color: #64748B; margin-top: 2px;">Sem giro ou excessivo</div>
+        </div>
+    </div>
+
+    <!-- Gráficos Interativos (Chart.js) -->
+    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px;">
+        <div class="card" style="padding: 20px;">
+            <h3 style="font-size: 15px; font-weight: 700; color: #1E293B; margin-bottom: 14px;">Curva de Pareto: Top 15 SKUs (Receita vs % Acumulado)</h3>
+            <div style="height: 280px; position: relative;">
+                <canvas id="paretoChart"></canvas>
+            </div>
+        </div>
+        <div class="card" style="padding: 20px;">
+            <h3 style="font-size: 15px; font-weight: 700; color: #1E293B; margin-bottom: 14px;">Distribuição de Saúde do Estoque</h3>
+            <div style="height: 280px; position: relative;">
+                <canvas id="coverageStatusDonutChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabela Analítica de SKUs e Cobertura -->
+    <div class="card" style="padding: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h3 style="font-size: 16px; font-weight: 700; color: #1E293B;">Inventário Analítico: Giro, Cobertura e Pareto ABC</h3>
+            <span style="font-size: 12px; color: #64748B;">Total de itens exibidos: {{ items|length }}</span>
+        </div>
+
+        <div style="overflow-x: auto;">
+            <table class="data-table" style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background: #F8FAFC; border-bottom: 2px solid #E2E8F0; text-align: left;">
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569;">SKU</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569;">Produto</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569;">Categoria</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569; text-align: center;">Curva ABC</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569; text-align: center;">Estoque</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569; text-align: right;">Custo Unit.</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569; text-align: center;">Venda/Dia</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569; text-align: center;">Cobertura</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569; text-align: center;">Status Estoque</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569; text-align: right;">Receita (30d)</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569; text-align: right;">Margem Bruta</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for it in items %}
+                    <tr style="border-bottom: 1px solid #EDF2F7;">
+                        <td style="padding: 12px 14px; font-family: monospace; font-size: 12px; color: #64748B;">{{ it.sku }}</td>
+                        <td style="padding: 12px 14px; font-weight: 600; color: #1E293B;">{{ it.name }}</td>
+                        <td style="padding: 12px 14px; color: #475569;">{{ it.category }}</td>
+                        <td style="padding: 12px 14px; text-align: center;">
+                            <span class="badge" style="background: {% if it.abc_class == 'A' %}#D1FAE5; color: #065F46;{% elif it.abc_class == 'B' %}#FEF3C7; color: #92400E;{% else %}#F1F5F9; color: #475569;{% endif %} padding: 4px 8px; border-radius: 4px; font-weight: 800;">
+                                {{ it.abc_class }}
+                            </span>
+                        </td>
+                        <td style="padding: 12px 14px; text-align: center; font-weight: 700; color: {% if it.stock <= 0 %}#EF4444{% else %}#1E293B{% endif %};">
+                            {{ it.stock|int }}
+                        </td>
+                        <td style="padding: 12px 14px; text-align: right; color: #64748B;">{{ it.cost|currency }}</td>
+                        <td style="padding: 12px 14px; text-align: center; color: #1E293B; font-weight: 600;">{{ it.run_rate }}</td>
+                        <td style="padding: 12px 14px; text-align: center;">
+                            {% if it.coverage_days >= 900 %}
+                                <span style="color: #94A3B8; font-size: 12px;">Sem Giro</span>
+                            {% else %}
+                                <span style="font-weight: 700; color: {% if it.coverage_days < 7 %}#EF4444{% elif it.coverage_days < 16 %}#F59E0B{% else %}#10B981{% endif %};">
+                                    {{ it.coverage_days }}d
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 12px 14px; text-align: center;">
+                            <span class="badge" style="background: {% if it.cov_status in ['CRÍTICO', 'ESGOTADO'] %}#FEE2E2; color: #991B1B;{% elif it.cov_status == 'ATENÇÃO' %}#FEF3C7; color: #92400E;{% elif it.cov_status == 'EQUILIBRADO' %}#D1FAE5; color: #065F46;{% elif it.cov_status == 'EXCESSO' %}#DBEAFE; color: #1E40AF;{% else %}#F1F5F9; color: #475569;{% endif %} padding: 4px 8px; border-radius: 4px; font-size: 11.5px; font-weight: 700;">
+                                {{ it.cov_status }}
+                            </span>
+                        </td>
+                        <td style="padding: 12px 14px; text-align: right; font-weight: 700; color: #1E293B;">{{ it.revenue|currency }}</td>
+                        <td style="padding: 12px 14px; text-align: right; font-weight: 700; color: #008B54;">{{ it.gross_profit|currency }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="11" style="padding: 30px; text-align: center; color: #94A3B8;">Nenhum produto encontrado para os filtros selecionados.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- Chart.js Scripts -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const paretoCtx = document.getElementById('paretoChart').getContext('2d');
+    const pLabels = {{ charts.pareto.labels|tojson }};
+    const pRevenues = {{ charts.pareto.revenues|tojson }};
+    const pCumPct = {{ charts.pareto.cum_pct|tojson }};
+
+    new Chart(paretoCtx, {
+        type: 'bar',
+        data: {
+            labels: pLabels,
+            datasets: [
+                {
+                    label: 'Faturamento (R$)',
+                    data: pRevenues,
+                    backgroundColor: '#3B82F6',
+                    yAxisID: 'y'
+                },
+                {
+                    label: '% Acumulado',
+                    data: pCumPct,
+                    type: 'line',
+                    borderColor: '#F59E0B',
+                    backgroundColor: '#F59E0B',
+                    borderWidth: 2,
+                    pointRadius: 3,
+                    yAxisID: 'y1'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    type: 'linear',
+                    position: 'left',
+                    ticks: {
+                        callback: function(v) { return 'R$ ' + v.toLocaleString('pt-BR'); }
+                    }
+                },
+                y1: {
+                    type: 'linear',
+                    position: 'right',
+                    min: 0,
+                    max: 100,
+                    grid: { drawOnChartArea: false },
+                    ticks: {
+                        callback: function(v) { return v + '%'; }
+                    }
+                }
+            }
+        }
+    });
+
+    const statusCtx = document.getElementById('coverageStatusDonutChart').getContext('2d');
+    const stLabels = {{ charts.coverage_status.labels|tojson }};
+    const stData = {{ charts.coverage_status.data|tojson }};
+
+    new Chart(statusCtx, {
+        type: 'doughnut',
+        data: {
+            labels: stLabels,
+            datasets: [{
+                data: stData,
+                backgroundColor: ['#EF4444', '#7F1D1D', '#F59E0B', '#10B981', '#3B82F6', '#94A3B8']
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom' }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

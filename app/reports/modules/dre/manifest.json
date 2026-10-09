@@ -1,0 +1,14 @@
+{
+  "id": "dre",
+  "name": "DRE Gerencial Estratégico",
+  "category": "financeiro",
+  "description": "Demonstrativo do Resultado do Exercício por regime de competência, estruturando Receita Bruta, Deduções, CMV Real, Margem de Contribuição, Despesas Fixas e Lucro Líquido.",
+  "version": "1.0.0",
+  "author": "BlingBI Core Team",
+  "icon": "file-text",
+  "color": "#10B981",
+  "tags": ["Financeiro", "DRE", "Competência", "CMV", "EBITDA", "Lucro Líquido"],
+  "export_formats": ["excel", "pdf"],
+  "default_period": "last_30_days",
+  "legacy_url": "/reports/dre"
+}

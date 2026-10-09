@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block title %}Projeção de Fluxo de Caixa - Financeiro e DRE - BlingBI{% endblock %}
+{% block page_title %}Setor Financeiro & DRE{% endblock %}
+
+{% block content %}
+<!-- Cabeçalho Hierárquico do Setor -->
+{% include "finance/nav_header.html" %}
+
+<div class="report-container" style="display: flex; flex-direction: column; gap: 24px;">
+
+    <!-- Barra de Filtros e Projeção -->
+    <div class="card" style="padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+        <form method="GET" action="{{ url_for('finance.cash_flow') }}" style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+            <div>
+                <label style="font-size: 11px; font-weight: 600; color: #64748B; display: block; margin-bottom: 2px;">Horizonte de Projeção:</label>
+                <select name="days" onchange="this.form.submit()" style="padding: 6px 12px; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 13px;">
+                    <option value="15" {% if days == 15 %}selected{% endif %}>Próximos 15 dias</option>
+                    <option value="30" {% if days == 30 %}selected{% endif %}>Próximos 30 dias</option>
+                    <option value="60" {% if days == 60 %}selected{% endif %}>Próximos 60 dias</option>
+                </select>
+            </div>
+            <div style="font-size: 12px; color: #64748B; padding-top: 14px;">
+                Previsão de liquidez baseada nos vencimentos de <b>Contas a Receber</b> vs <b>Contas a Pagar</b>.
+            </div>
+        </form>
+
+        <a href="{{ url_for('finance.index') }}" class="btn btn-secondary">
+            Ir para Visão Geral
+        </a>
+    </div>
+
+    <!-- Cards de KPIs da Projeção -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px;">
+        <div class="card" style="padding: 16px; border-left: 4px solid #10B981;">
+            <div style="font-size: 12px; color: #10B981; font-weight: 700;">Recebíveis Previstos (Entradas)</div>
+            <div style="font-size: 24px; font-weight: 800; color: #10B981; margin-top: 4px;">{{ report_data.summary.total_receivables | currency }}</div>
+            <div style="font-size: 11px; color: #64748B; margin-top: 2px;">Contas a Receber no período</div>
+        </div>
+        <div class="card" style="padding: 16px; border-left: 4px solid #EF4444;">
+            <div style="font-size: 12px; color: #EF4444; font-weight: 700;">Obrigações Previstas (Saídas)</div>
+            <div style="font-size: 24px; font-weight: 800; color: #EF4444; margin-top: 4px;">{{ report_data.summary.total_payables | currency }}</div>
+            <div style="font-size: 11px; color: #64748B; margin-top: 2px;">Contas a Pagar no período</div>
+        </div>
+        <div class="card" style="padding: 16px; border-left: 4px solid #2563EB;">
+            <div style="font-size: 12px; color: #64748B; font-weight: 700;">Saldo Líquido Projetado</div>
+            <div style="font-size: 24px; font-weight: 800; color: {% if report_data.summary.net_projected_balance >= 0 %}#10B981{% else %}#EF4444{% endif %}; margin-top: 4px;">
+                {{ report_data.summary.net_projected_balance | currency }}
+            </div>
+            <div style="font-size: 11px; color: #64748B; margin-top: 2px;">Entradas subtraídas das Saídas</div>
+        </div>
+    </div>
+
+    <!-- Gráfico Combinado Chart.js -->
+    <div class="card" style="padding: 20px;">
+        <h3 style="font-size: 15px; font-weight: 700; color: #1E293B; margin-bottom: 14px;">Curva Diária de Entradas, Saídas e Saldo Acumulado</h3>
+        <div style="height: 280px; position: relative;">
+            <canvas id="cashFlowChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Tabela Diária Projetada -->
+    <div class="card" style="padding: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h3 style="font-size: 16px; font-weight: 700; color: #1E293B;">Demonstrativo Diário de Caixa</h3>
+            <span style="font-size: 12px; color: #64748B;">Total de {{ report_data.daily_rows|length }} dias projetados</span>
+        </div>
+
+        <div style="overflow-x: auto;">
+            <table class="data-table" style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background: #F8FAFC; border-bottom: 2px solid #E2E8F0; text-align: left;">
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569;">Data</th>
+                        <th style="padding: 10px 14px; text-align: right; font-size: 12px; color: #475569;">Entradas Previstas</th>
+                        <th style="padding: 10px 14px; text-align: right; font-size: 12px; color: #475569;">Saídas Previstas</th>
+                        <th style="padding: 10px 14px; text-align: right; font-size: 12px; color: #475569;">Resultado do Dia</th>
+                        <th style="padding: 10px 14px; text-align: right; font-size: 12px; color: #475569;">Saldo Acumulado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in report_data.daily_rows %}
+                    <tr style="border-bottom: 1px solid #F1F5F9; font-size: 13px;">
+                        <td style="padding: 10px 14px; font-weight: 600; color: #1E293B;">{{ row.date }}</td>
+                        <td style="padding: 10px 14px; text-align: right; color: #10B981; font-family: monospace;">{{ row.receivables | currency }}</td>
+                        <td style="padding: 10px 14px; text-align: right; color: #EF4444; font-family: monospace;">{{ row.payables | currency }}</td>
+                        <td style="padding: 10px 14px; text-align: right; font-weight: 700; font-family: monospace; color: {% if row.net >= 0 %}#10B981{% else %}#EF4444{% endif %};">
+                            {{ row.net | currency }}
+                        </td>
+                        <td style="padding: 10px 14px; text-align: right; font-weight: 700; font-family: monospace; color: {% if row.accumulated >= 0 %}#0EA5E9{% else %}#DC2626{% endif %};">
+                            {{ row.accumulated | currency }}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" style="text-align: center; padding: 24px; color: #94A3B8;">Nenhum lançamento previsto para o horizonte.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- Chart.js Script -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('cashFlowChart');
+    if (ctx) {
+        new Chart(ctx, {
+            data: {
+                labels: {{ report_data.charts.labels | tojson }},
+                datasets: [
+                    {
+                        type: 'line',
+                        label: 'Saldo Acumulado (R$)',
+                        data: {{ report_data.charts.accumulated | tojson }},
+                        borderColor: '#0284C7',
+                        borderWidth: 2,
+                        tension: 0.2,
+                        fill: false,
+                        yAxisID: 'y'
+                    },
+                    {
+                        type: 'bar',
+                        label: 'Entradas (Receber)',
+                        data: {{ report_data.charts.receivables | tojson }},
+                        backgroundColor: 'rgba(16, 185, 129, 0.7)',
+                        borderRadius: 3,
+                        yAxisID: 'y'
+                    },
+                    {
+                        type: 'bar',
+                        label: 'Saídas (Pagar)',
+                        data: {{ report_data.charts.payables | tojson }},
+                        backgroundColor: 'rgba(239, 68, 68, 0.7)',
+                        borderRadius: 3,
+                        yAxisID: 'y'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        grid: { color: '#F1F5F9' },
+                        ticks: {
+                            callback: function(v) { return 'R$ ' + v.toLocaleString('pt-BR'); }
+                        }
+                    },
+                    x: {
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

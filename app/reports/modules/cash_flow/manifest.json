@@ -1,0 +1,14 @@
+{
+  "id": "cash_flow",
+  "name": "Fluxo de Caixa Operacional",
+  "category": "financeiro",
+  "description": "Projeção temporal por regime de caixa cruzando vencimentos de Contas a Receber e a Pagar com saldo líquido previsto nos próximos 30 dias.",
+  "version": "1.0.0",
+  "author": "BlingBI Core Team",
+  "icon": "dollar-sign",
+  "color": "#F59E0B",
+  "tags": ["Financeiro", "Fluxo de Caixa", "Tesouraria", "Contas a Pagar", "Contas a Receber"],
+  "export_formats": ["excel", "pdf"],
+  "default_period": "this_month",
+  "legacy_url": "/reports/cash-flow"
+}

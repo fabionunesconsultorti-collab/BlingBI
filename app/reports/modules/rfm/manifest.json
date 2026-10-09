@@ -1,0 +1,14 @@
+{
+  "id": "rfm",
+  "name": "Segmentação RFM de Clientes",
+  "category": "clientes",
+  "description": "Clusterização avançada da base de clientes em Campeões, Fiéis, Em Risco, Hibernando e Novos, baseada em Recência, Frequência e Valor Monetário.",
+  "version": "1.0.0",
+  "author": "BlingBI Core Team",
+  "icon": "users",
+  "color": "#8B5CF6",
+  "tags": ["CRM", "Clientes", "RFM", "Fidelização", "Churn"],
+  "export_formats": ["excel", "pdf"],
+  "default_period": "all",
+  "legacy_url": "/reports/rfm"
+}

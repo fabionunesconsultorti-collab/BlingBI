@@ -36,181 +36,24 @@ DEMO_PRODUCTS = [
 CHANNELS = ["Mercado Livre", "Site Próprio", "Shopee", "Amazon Brasil", "Loja Física / Balcão"]
 STATUSES = ["Atendido", "Atendido", "Atendido", "Atendido", "Em aberto", "Cancelado"]
 
-def seed_demo_data():
-    """Gera um conjunto completo de dados de BI para teste e demonstração."""
-    # Limpa dados anteriores caso existam
-    OrderItem.query.delete()
-    Order.query.delete()
-    Product.query.delete()
-    Customer.query.delete()
-    FinancialEntry.query.delete()
-    db.session.commit()
+from app.services.niche_demo_data import seed_niche_demo_data, clear_operational_data, NICHE_METADATA
 
-    # 1. Cria Clientes
-    customer_objs = []
-    for idx, (name, doc, ptype, email, phone, city, state) in enumerate(DEMO_CUSTOMERS, start=101):
-        c = Customer(
-            bling_id=idx,
-            name=name,
-            document=doc,
-            person_type=ptype,
-            email=email,
-            phone=phone,
-            city=city,
-            state=state,
-            created_at=datetime.utcnow() - timedelta(days=random.randint(20, 180))
-        )
-        db.session.add(c)
-        customer_objs.append(c)
-    db.session.commit()
-
-    # 2. Cria Produtos
-    product_objs = []
-    for idx, (sku, name, price, cost, stock, category) in enumerate(DEMO_PRODUCTS, start=201):
-        p = Product(
-            bling_id=idx,
-            sku=sku,
-            name=name,
-            price=price,
-            cost=cost,
-            stock=stock,
-            category=category,
-            status='A'
-        )
-        db.session.add(p)
-        product_objs.append(p)
-    db.session.commit()
-
-    # 3. Cria Pedidos dos últimos 60 dias
-    today = date.today()
-    order_num = 1001
-
-    for days_ago in range(60, -1, -1):
-        order_date = today - timedelta(days=days_ago)
-        # 1 a 4 pedidos por dia
-        daily_orders_count = random.randint(1, 4)
-        for _ in range(daily_orders_count):
-            cust = random.choice(customer_objs)
-            channel = random.choice(CHANNELS)
-            status = random.choice(STATUSES)
-
-            order = Order(
-                bling_id=order_num + 5000,
-                number=str(order_num),
-                order_date=order_date,
-                status=status,
-                channel=channel,
-                customer_id=cust.id,
-                total=0.0,
-                discount=random.choice([0.0, 10.0, 25.0]),
-                shipping=random.choice([0.0, 19.90, 29.90, 45.00])
-            )
-            db.session.add(order)
-            db.session.flush()
-
-            # Adiciona 1 a 3 itens no pedido
-            selected_products = random.sample(product_objs, random.randint(1, 3))
-            subtotal = 0.0
-            for prod in selected_products:
-                qty = random.randint(1, 2)
-                item_total = prod.price * qty
-                subtotal += item_total
-                item = OrderItem(
-                    order_id=order.id,
-                    product_id=prod.id,
-                    product_name=prod.name,
-                    sku=prod.sku,
-                    quantity=qty,
-                    unit_price=prod.price,
-                    cost_price=prod.cost,
-                    total_price=item_total
-                )
-                db.session.add(item)
-
-            order.total = max(0.0, subtotal - order.discount + order.shipping)
-            order_num += 1
-
-    db.session.commit()
-
-    # 4. Cria Contas a Pagar e Receber
-    # Contas a Receber (baseadas em vendas atendidas)
-    fin_id = 9001
-    for days_ago in range(45, -15, -3):
-        due = today - timedelta(days=days_ago)
-        is_past = due <= today
-        status = 'Pago' if is_past and random.random() > 0.1 else ('Atrasado' if is_past else 'Pendente')
-        pay_date = due if status == 'Pago' else None
-
-        rec = FinancialEntry(
-            bling_id=fin_id,
-            entry_type='RECEBER',
-            description=f"Recebimento de Venda / Parcela {random.randint(1, 3)}x",
-            entity_name=random.choice(DEMO_CUSTOMERS)[0],
-            category="Vendas de Mercadorias",
-            amount=round(random.uniform(350.0, 3800.0), 2),
-            issue_date=due - timedelta(days=15),
-            due_date=due,
-            payment_date=pay_date,
-            status=status,
-            payment_method=random.choice(["Pix", "Boleto Bancário", "Cartão de Crédito"])
-        )
-        db.session.add(rec)
-        fin_id += 1
-
-    # Contas a Pagar (fornecedores, impostos, operacional)
-    expenses = [
-        ("Fornecedor Componentes Tech SP", "Aquisição de Mercadorias / Custo", 1500.0, 7500.0, "Fornecedores"),
-        ("Receita Federal / Simples Nacional", "Tributos e Impostos sobre Vendas", 800.0, 2400.0, "Impostos"),
-        ("Aluguel Galpão / Escritório", "Despesas Operacionais Fixas", 2200.0, 2200.0, "Operacional"),
-        ("Correios & Transportadoras", "Fretes e Logística Reversa", 650.0, 1850.0, "Logística"),
-        ("Plataforma E-commerce & Hospedagem", "Softwares e Ferramentas", 350.0, 700.0, "Tecnologia"),
-    ]
-
-    for days_ago in range(45, -20, -5):
-        due = today - timedelta(days=days_ago)
-        is_past = due <= today
-        supplier, desc, min_v, max_v, cat = random.choice(expenses)
-        status = 'Pago' if is_past and random.random() > 0.08 else ('Atrasado' if is_past else 'Pendente')
-        pay_date = due if status == 'Pago' else None
-
-        pag = FinancialEntry(
-            bling_id=fin_id,
-            entry_type='PAGAR',
-            description=desc,
-            entity_name=supplier,
-            category=cat,
-            amount=round(random.uniform(min_v, max_v), 2),
-            issue_date=due - timedelta(days=20),
-            due_date=due,
-            payment_date=pay_date,
-            status=status,
-            payment_method=random.choice(["Boleto Bancário", "Pix"])
-        )
-        db.session.add(pag)
-        fin_id += 1
-
-    # Atualiza configuração de status
-    Setting.set('demo_mode_active', '1')
-    Setting.set('demo_cleared', '0')
-    Setting.set('last_sync_date', datetime.utcnow().strftime('%d/%m/%Y %H:%M:%S'))
-    Setting.set('last_sync_status', 'Dados de Demonstração Carregados')
-    db.session.commit()
-    return True
+def seed_demo_data(niche: str = "fashion"):
+    """Gera um conjunto completo de dados de BI para teste e demonstração para o nicho especificado."""
+    return seed_niche_demo_data(niche=niche, clear_first=True)
 
 def clear_demo_data():
     """
-    Remove todos os registros operacionais (pedidos, itens, produtos, clientes, financeiro)
+    Remove todos os registros operacionais (pedidos, itens, produtos, clientes, financeiro, malas)
     mantendo intactas as configurações e chaves de integração do Bling.
     """
     try:
-        OrderItem.query.delete()
-        Order.query.delete()
-        Product.query.delete()
-        Customer.query.delete()
-        FinancialEntry.query.delete()
+        clear_operational_data()
 
         Setting.set('demo_mode_active', '0')
         Setting.set('demo_cleared', '1')
+        Setting.set('demo_niche_id', '')
+        Setting.set('demo_niche_name', '')
         Setting.set('last_sync_date', '-')
         Setting.set('last_sync_status', 'Base zerada - Pronta para sincronização real')
         db.session.commit()
@@ -218,3 +61,4 @@ def clear_demo_data():
     except Exception as e:
         db.session.rollback()
         raise e
+

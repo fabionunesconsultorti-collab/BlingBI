@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block title %}Aniversariantes do Mês - Clientes e CRM - BlingBI{% endblock %}
+{% block page_title %}Setor de Clientes e CRM{% endblock %}
+
+{% block content %}
+<!-- Cabeçalho Hierárquico do Setor -->
+{% include "customers/nav_header.html" %}
+
+<div class="report-container" style="display: flex; flex-direction: column; gap: 24px;">
+
+    <!-- Filtros de Mês -->
+    <div class="card" style="padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+        <form method="GET" action="{{ url_for('customers.birthdays') }}" style="display: flex; gap: 14px; align-items: center; flex-wrap: wrap;">
+            <div>
+                <label style="font-size: 11px; font-weight: 600; color: #64748B; display: block; margin-bottom: 2px;">Mês Alvo:</label>
+                <select name="month" onchange="this.form.submit()" style="padding: 6px 12px; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 13px; font-weight: 500;">
+                    {% for m in months %}
+                    <option value="{{ m.num }}" {% if selected_month == m.num %}selected{% endif %}>{{ m.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div style="font-size: 12px; color: #64748B; padding-top: 14px;">
+                Identifique aniversariantes para ações proativas de Customer Success, cupons de aniversário e mimos personalizados.
+            </div>
+        </form>
+
+        <a href="{{ url_for('fashion.export_block1_pdf') }}" class="btn btn-secondary">
+            Exportar Relatório PDF
+        </a>
+    </div>
+
+    <!-- Cards de Resumo & Gráfico Semanal -->
+    <div style="display: grid; grid-template-columns: 320px 1fr; gap: 20px;">
+        <!-- Card Resumo -->
+        <div class="card" style="padding: 24px; display: flex; flex-direction: column; justify-content: center;">
+            <div style="font-size: 13px; font-weight: 600; color: #64748B; text-transform: uppercase; margin-bottom: 8px;">
+                Total de Aniversariantes
+            </div>
+            <div style="font-size: 36px; font-weight: 800; color: #ec4899; line-height: 1.1;">
+                {{ birthdays_data.customers|length }}
+            </div>
+            <p style="font-size: 12px; color: #94A3B8; margin-top: 8px; line-height: 1.4;">
+                Clientes cadastrados que completam ano neste mês. Entre em contato antecipadamente para fidelização!
+            </p>
+        </div>
+
+        <!-- Gráfico de Distribuição por Semana -->
+        <div class="card" style="padding: 20px;">
+            <h3 style="font-size: 15px; font-weight: 700; color: #1E293B; margin-bottom: 14px;">
+                Distribuição de Aniversários por Período do Mês
+            </h3>
+            <div style="height: 180px; position: relative;">
+                <canvas id="chartBirthdaysWeekly"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabela de Aniversariantes -->
+    <div class="card" style="padding: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h3 style="font-size: 16px; font-weight: 700; color: #1E293B;">🎂 Lista de Clientes Aniversariantes</h3>
+            <span style="font-size: 12px; color: #64748B;">Total: {{ birthdays_data.customers|length }} clientes</span>
+        </div>
+
+        <div style="overflow-x: auto;">
+            <table class="data-table" style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background: #F8FAFC; border-bottom: 2px solid #E2E8F0; text-align: left;">
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569;">Cliente</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569;">Data / Dia</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569;">Idade</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569;">Tamanho / Estilo</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569;">Contato</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569;">Status / Contagem</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for b in birthdays_data.customers %}
+                    <tr style="border-bottom: 1px solid #F1F5F9; font-size: 13px;">
+                        <td style="padding: 12px 14px; font-weight: 600; color: #1E293B;">
+                            {{ b.name }}
+                            {% if b.city %}<div style="font-size: 11px; font-weight: 400; color: #94A3B8;">{{ b.city }} / {{ b.state }}</div>{% endif %}
+                        </td>
+                        <td style="padding: 12px 14px; white-space: nowrap; font-weight: 600; color: #0284C7;">
+                            {{ b.birth_date[:5] }}
+                        </td>
+                        <td style="padding: 12px 14px; color: #64748B;">
+                            {{ b.age }} anos
+                        </td>
+                        <td style="padding: 12px 14px;">
+                            <span class="badge" style="background: #E0F2FE; color: #0369A1; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">
+                                {{ b.preferred_size }}
+                            </span>
+                            <span style="font-size: 12px; color: #64748B; margin-left: 4px;">{{ b.preferred_style }}</span>
+                        </td>
+                        <td style="padding: 12px 14px; font-size: 12px; color: #475569;">
+                            <div>{{ b.phone }}</div>
+                            <div style="color: #94A3B8; font-size: 11px;">{{ b.email }}</div>
+                        </td>
+                        <td style="padding: 12px 14px;">
+                            <span class="badge" style="background: {% if 'Hoje' in b.status %}#DCFCE7; color: #166534; font-weight: 700;{% elif 'dias' in b.status %}#FEF3C7; color: #92400E;{% else %}#F1F5F9; color: #475569;{% endif %}; padding: 3px 8px; border-radius: 4px; font-size: 11px;">
+                                {{ b.status }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 30px; color: #94A3B8;">
+                            Nenhum cliente aniversariante registrado neste mês.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- Chart.js Script -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const ctxBdays = document.getElementById('chartBirthdaysWeekly');
+    if (ctxBdays) {
+        new Chart(ctxBdays, {
+            type: 'bar',
+            data: {
+                labels: {{ birthdays_data.chart.labels | tojson }},
+                datasets: [{
+                    label: 'Aniversariantes',
+                    data: {{ birthdays_data.chart.data | tojson }},
+                    backgroundColor: '#ec4899',
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: '#f1f5f9' } },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block title %}Perfil & Preferências - Clientes e CRM - BlingBI{% endblock %}
+{% block page_title %}Setor de Clientes e CRM{% endblock %}
+
+{% block content %}
+<!-- Cabeçalho Hierárquico do Setor -->
+{% include "customers/nav_header.html" %}
+
+<div class="report-container" style="display: flex; flex-direction: column; gap: 24px;">
+
+    <!-- Filtros de Período -->
+    <div class="card" style="padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+        <form method="GET" action="{{ url_for('customers.profiles') }}" style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+            <div>
+                <label style="font-size: 11px; font-weight: 600; color: #64748B; display: block; margin-bottom: 2px;">Período Analisado:</label>
+                <select name="period" onchange="this.form.submit()" style="padding: 6px 12px; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 13px;">
+                    <option value="last_30_days" {% if period == 'last_30_days' %}selected{% endif %}>Últimos 30 dias</option>
+                    <option value="last_60_days" {% if period == 'last_60_days' %}selected{% endif %}>Últimos 60 dias</option>
+                    <option value="this_month" {% if period == 'this_month' %}selected{% endif %}>Este Mês</option>
+                </select>
+            </div>
+            <div style="font-size: 12px; color: #64748B; padding-top: 14px;">
+                Identificação dos padrões de tamanho, cores e estilos mais comprados por cliente.
+            </div>
+        </form>
+
+        <a href="{{ url_for('fashion.export_block1_pdf') }}" class="btn btn-secondary">
+            Exportar Relatório PDF
+        </a>
+    </div>
+
+    <!-- Gráficos de Preferências Gerais da Base -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <div class="card" style="padding: 20px;">
+            <h3 style="font-size: 15px; font-weight: 700; color: #1E293B; margin-bottom: 14px;">Distribuição de Tamanhos Mais Comprados</h3>
+            <div style="height: 250px; position: relative;">
+                <canvas id="sizesChart"></canvas>
+            </div>
+        </div>
+        <div class="card" style="padding: 20px;">
+            <h3 style="font-size: 15px; font-weight: 700; color: #1E293B; margin-bottom: 14px;">Estilos & Caimentos Mais Procurados</h3>
+            <div style="height: 250px; position: relative;">
+                <canvas id="stylesChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabela de Perfis de Clientes -->
+    <div class="card" style="padding: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h3 style="font-size: 16px; font-weight: 700; color: #1E293B;">Perfil Individual de Compra dos Clientes</h3>
+            <span style="font-size: 12px; color: #64748B;">Total de perfis: {{ profile_data.profiles|length }}</span>
+        </div>
+
+        <div style="overflow-x: auto;">
+            <table class="data-table" style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background: #F8FAFC; border-bottom: 2px solid #E2E8F0; text-align: left;">
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569;">Cliente</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569;">Telefone</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569; text-align: center;">Tamanho Preferido</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569;">Cor Preferida</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569;">Estilo / Caimento</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569; text-align: center;">Peças Compradas</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569; text-align: right;">Total Gasto</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in profile_data.profiles %}
+                    <tr style="border-bottom: 1px solid #EDF2F7;">
+                        <td style="padding: 12px 14px; font-weight: 600; color: #1E293B;">{{ p.customer_name }}</td>
+                        <td style="padding: 12px 14px; font-size: 13px; color: #64748B;">{{ p.phone or '-' }}</td>
+                        <td style="padding: 12px 14px; text-align: center;">
+                            <span class="badge" style="background: #E2E8F0; color: #1E293B; font-weight: 700; padding: 3px 8px; border-radius: 4px;">
+                                {{ p.preferred_size }}
+                            </span>
+                        </td>
+                        <td style="padding: 12px 14px; color: #475569;">{{ p.preferred_color }}</td>
+                        <td style="padding: 12px 14px; color: #475569;">{{ p.preferred_style }}</td>
+                        <td style="padding: 12px 14px; text-align: center; font-weight: 600; color: #1E293B;">{{ p.total_pieces|int }}</td>
+                        <td style="padding: 12px 14px; text-align: right; font-weight: 700; color: #008B54;">{{ p.total_spent|currency }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" style="padding: 24px; text-align: center; color: #94A3B8;">Nenhum perfil gerado no período.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- Chart.js Scripts -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const sLabels = {{ profile_data.charts.sizes.labels|tojson }};
+    const sData = {{ profile_data.charts.sizes.data|tojson }};
+
+    new Chart(document.getElementById('sizesChart').getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels: sLabels,
+            datasets: [{
+                label: 'Peças por Tamanho',
+                data: sData,
+                backgroundColor: '#3B82F6',
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+
+    const stLabels = {{ profile_data.charts.styles.labels|tojson }};
+    const stData = {{ profile_data.charts.styles.data|tojson }};
+
+    new Chart(document.getElementById('stylesChart').getContext('2d'), {
+        type: 'doughnut',
+        data: {
+            labels: stLabels,
+            datasets: [{
+                data: stData,
+                backgroundColor: ['#8B5CF6', '#EC4899', '#10B981', '#F59E0B', '#3B82F6']
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'bottom' } }
+        }
+    });
+});
+</script>
+{% endblock %}

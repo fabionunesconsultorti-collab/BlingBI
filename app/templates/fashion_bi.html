@@ -1,0 +1,1160 @@
+{% extends "base.html" %}
+
+{% block title %}Moda & CS / Vendas - BlingBI{% endblock %}
+{% block page_title %}BI Varejo de Moda & Customer Success{% endblock %}
+
+{% block content %}
+<!-- Barra de Abas Estratégicas (4 Blocos) -->
+<div class="card" style="margin-bottom: 16px; padding: 12px 16px; background: #ffffff; border-radius: 8px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            {% if is_feature_enabled('fashion.block1') %}
+            <a href="{{ url_for('fashion.index', tab='block1', period=period, start_date=start_date, end_date=end_date, seller=current_seller, category=current_category) }}" 
+               class="btn btn-sm {% if active_tab == 'block1' %}btn-primary{% else %}btn-outline{% endif %}">
+                👤 1. Perfil & Comportamento
+            </a>
+            {% endif %}
+            {% if is_feature_enabled('fashion.block2') %}
+            <a href="{{ url_for('fashion.index', tab='block2', period=period, start_date=start_date, end_date=end_date, seller=current_seller, category=current_category) }}" 
+               class="btn btn-sm {% if active_tab == 'block2' %}btn-primary{% else %}btn-outline{% endif %}">
+                👗 2. Movimentação & Moda
+            </a>
+            {% endif %}
+            {% if is_feature_enabled('fashion.block3') %}
+            <a href="{{ url_for('fashion.index', tab='block3', period=period, start_date=start_date, end_date=end_date, seller=current_seller, category=current_category) }}" 
+               class="btn btn-sm {% if active_tab == 'block3' %}btn-primary{% else %}btn-outline{% endif %}">
+                🎯 3. Desempenho do Atendimento
+            </a>
+            {% endif %}
+            {% if is_feature_enabled('fashion.block4') %}
+            <a href="{{ url_for('fashion.index', tab='block4', period=period, start_date=start_date, end_date=end_date, seller=current_seller, category=current_category) }}" 
+               class="btn btn-sm {% if active_tab == 'block4' %}btn-primary{% else %}btn-outline{% endif %}">
+                💎 4. Relacionamento & CRM
+            </a>
+            {% endif %}
+        </div>
+
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+            <a href="{{ url_for('fashion.seed_demo') }}" class="btn btn-sm btn-outline" title="Recarregar Dados Demo de Moda">
+                🔄 Recarregar Dados
+            </a>
+            {% if active_tab == 'block1' %}
+            <a href="{{ url_for('fashion.export_abc', period=period, start_date=start_date, end_date=end_date, seller=current_seller, abc_class=current_abc_class) }}" class="btn btn-sm btn-primary">
+                📥 Excel Curva ABC
+            </a>
+            <a href="{{ url_for('fashion.export_abc_pdf', period=period, start_date=start_date, end_date=end_date, seller=current_seller, abc_class=current_abc_class) }}" class="btn btn-sm btn-outline" style="color: #dc2626; border-color: #fca5a5;">
+                📄 PDF Curva ABC
+            </a>
+            {% elif active_tab == 'block2' %}
+            <a href="{{ url_for('fashion.export_bags', period=period, start_date=start_date, end_date=end_date, seller=current_seller) }}" class="btn btn-sm btn-primary">
+                📥 Excel Malas
+            </a>
+            <a href="{{ url_for('fashion.export_bags_pdf', period=period, start_date=start_date, end_date=end_date, seller=current_seller) }}" class="btn btn-sm btn-outline" style="color: #dc2626; border-color: #fca5a5;">
+                📄 PDF Malas
+            </a>
+            {% elif active_tab == 'block3' %}
+            <a href="{{ url_for('fashion.export_kpis_pdf', period=period, start_date=start_date, end_date=end_date, seller=current_seller) }}" class="btn btn-sm btn-primary">
+                📄 Exportar Relatório Comercial (PDF)
+            </a>
+            {% elif active_tab == 'block4' %}
+            <a href="{{ url_for('fashion.export_inactives', tier=current_tier) }}" class="btn btn-sm btn-primary">
+                📥 Excel Inativos WhatsApp
+            </a>
+            <a href="{{ url_for('fashion.export_inactives_pdf', tier=current_tier) }}" class="btn btn-sm btn-outline" style="color: #dc2626; border-color: #fca5a5;">
+                📄 PDF Inativos
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Barra de Filtros Refinados -->
+<div class="card" style="margin-bottom: 20px; padding: 12px 16px; background: #f8fafc; border: 1px solid var(--border-color); border-radius: 8px;">
+    <form method="GET" action="{{ url_for('fashion.index') }}" style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+        <input type="hidden" name="tab" value="{{ active_tab }}">
+        
+        <!-- Filtro Período -->
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+            <label style="font-size: 11px; font-weight: 700; color: var(--text-muted);">PERÍODO</label>
+            <select name="period" class="form-control" style="height: 32px; padding: 2px 8px; font-size: 13px;" onchange="this.form.submit()">
+                <option value="today" {% if period == 'today' %}selected{% endif %}>Hoje</option>
+                <option value="yesterday" {% if period == 'yesterday' %}selected{% endif %}>Ontem</option>
+                <option value="last_7_days" {% if period == 'last_7_days' %}selected{% endif %}>Últimos 7 dias</option>
+                <option value="last_30_days" {% if period == 'last_30_days' or not period %}selected{% endif %}>Últimos 30 dias</option>
+                <option value="this_month" {% if period == 'this_month' %}selected{% endif %}>Este Mês</option>
+                <option value="last_month" {% if period == 'last_month' %}selected{% endif %}>Mês Anterior</option>
+            </select>
+        </div>
+
+        <!-- Filtro Vendedora -->
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+            <label style="font-size: 11px; font-weight: 700; color: var(--text-muted);">VENDEDORA / CONSULTORA</label>
+            <select name="seller" class="form-control" style="height: 32px; padding: 2px 8px; font-size: 13px;" onchange="this.form.submit()">
+                <option value="all">Todas as Vendedoras</option>
+                {% for s in filter_options.sellers %}
+                <option value="{{ s }}" {% if current_seller == s %}selected{% endif %}>{{ s }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Filtro Categoria -->
+        {% if active_tab in ['block1', 'block2'] %}
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+            <label style="font-size: 11px; font-weight: 700; color: var(--text-muted);">CATEGORIA DE PRODUTO</label>
+            <select name="category" class="form-control" style="height: 32px; padding: 2px 8px; font-size: 13px;" onchange="this.form.submit()">
+                <option value="all">Todas as Categorias</option>
+                {% for c in filter_options.categories %}
+                <option value="{{ c }}" {% if current_category == c %}selected{% endif %}>{{ c }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+
+        <!-- Filtro Contextual: Classe ABC (Bloco 1) -->
+        {% if active_tab == 'block1' %}
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+            <label style="font-size: 11px; font-weight: 700; color: var(--text-muted);">CLASSE ABC</label>
+            <select name="abc_class" class="form-control" style="height: 32px; padding: 2px 8px; font-size: 13px;" onchange="this.form.submit()">
+                <option value="all">Todas as Classes</option>
+                <option value="A" {% if current_abc_class == 'A' %}selected{% endif %}>Classe A (80% receita)</option>
+                <option value="B" {% if current_abc_class == 'B' %}selected{% endif %}>Classe B (15% receita)</option>
+                <option value="C" {% if current_abc_class == 'C' %}selected{% endif %}>Classe C (5% cauda)</option>
+            </select>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+            <label style="font-size: 11px; font-weight: 700; color: var(--text-muted);">MÊS ANIVERSÁRIO</label>
+            <select name="month" class="form-control" style="height: 32px; padding: 2px 8px; font-size: 13px;" onchange="this.form.submit()">
+                {% for m in filter_options.months %}
+                <option value="{{ m.num }}" {% if current_month == m.num %}selected{% endif %}>{{ m.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+
+        <!-- Filtro Contextual: Motivo de Devolução (Bloco 2) -->
+        {% if active_tab == 'block2' %}
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+            <label style="font-size: 11px; font-weight: 700; color: var(--text-muted);">MOTIVO DE DEVOLUÇÃO</label>
+            <select name="reason" class="form-control" style="height: 32px; padding: 2px 8px; font-size: 13px;" onchange="this.form.submit()">
+                <option value="all">Todos os Motivos</option>
+                {% for r in filter_options.reasons %}
+                <option value="{{ r }}" {% if current_reason == r %}selected{% endif %}>{{ r }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+
+        <!-- Filtro Contextual: Faixa de Inatividade (Bloco 4) -->
+        {% if active_tab == 'block4' %}
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+            <label style="font-size: 11px; font-weight: 700; color: var(--text-muted);">FAIXA DE RECÊNCIA / RISCO</label>
+            <select name="tier" class="form-control" style="height: 32px; padding: 2px 8px; font-size: 13px;" onchange="this.form.submit()">
+                <option value="all">Todas as Faixas</option>
+                {% for t in filter_options.tiers %}
+                <option value="{{ t }}" {% if current_tier == t %}selected{% endif %}>{{ t }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+
+        <div style="display: flex; gap: 6px; align-items: flex-end; margin-top: 16px;">
+            <button type="submit" class="btn btn-sm btn-primary">Aplicar Filtros</button>
+            <a href="{{ url_for('fashion.index', tab=active_tab) }}" class="btn btn-sm btn-outline">Limpar</a>
+        </div>
+    </form>
+</div>
+
+<!-- ========================================================================= -->
+<!-- BLOCO 1: PERFIL E COMPORTAMENTO DE COMPRA                                 -->
+<!-- ========================================================================= -->
+{% if active_tab == 'block1' %}
+<div class="kpi-grid">
+    <div class="kpi-card">
+        <span class="kpi-title">Clientes Classe A (Pareto)</span>
+        <div class="kpi-value" style="color: var(--bling-primary);">{{ abc_data.summary.class_a_count }}</div>
+        <div class="kpi-subtext">Geram {{ "%.1f"|format(abc_data.summary.class_a_perc) }}% da receita (80/20)</div>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-title">Clientes Classe B</span>
+        <div class="kpi-value" style="color: #f59e0b;">{{ abc_data.summary.class_b_count }}</div>
+        <div class="kpi-subtext">{{ "%.1f"|format(abc_data.summary.class_b_perc) }}% da receita (15%)</div>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-title">Clientes Classe C</span>
+        <div class="kpi-value" style="color: #64748b;">{{ abc_data.summary.class_c_count }}</div>
+        <div class="kpi-subtext">{{ "%.1f"|format(abc_data.summary.class_c_perc) }}% da receita (5% cauda)</div>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-title">Aniversariantes do Mês</span>
+        <div class="kpi-value" style="color: #ec4899;">{{ birthdays_data.customers|length }}</div>
+        <div class="kpi-subtext">Oportunidades de contato ativo no CS</div>
+    </div>
+</div>
+
+<!-- GRÁFICOS REPRESENTATIVOS BLOCO 1 -->
+<div class="charts-grid" style="grid-template-columns: 1fr 1fr 1fr; margin-bottom: 24px;">
+    <!-- Gráfico 1: Rosca Curva ABC Receita -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">Distribuição de Receita por Classe</span>
+        </div>
+        <div style="padding: 16px; height: 260px; position: relative;">
+            <canvas id="chartAbcRevenue"></canvas>
+        </div>
+    </div>
+
+    <!-- Gráfico 2: Top Tamanhos Comprados (Moda) -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">Tamanhos Mais Vendidos (Moda)</span>
+        </div>
+        <div style="padding: 16px; height: 260px; position: relative;">
+            <canvas id="chartPreferredSizes"></canvas>
+        </div>
+    </div>
+
+    <!-- Gráfico 3: Aniversariantes ao longo do mês -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">Aniversariantes por Semana</span>
+        </div>
+        <div style="padding: 16px; height: 260px; position: relative;">
+            <canvas id="chartBirthdaysWeekly"></canvas>
+        </div>
+    </div>
+</div>
+
+<div class="charts-grid" style="grid-template-columns: 2fr 1fr; margin-bottom: 24px;">
+    <!-- Tabela Curva ABC de Clientes -->
+    <div class="card">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <span class="card-title">Curva ABC de Clientes (Regra 80/20)</span>
+            <span style="font-size: 12px; color: var(--text-muted);">Total: {{ abc_data.summary.total_revenue | currency }}</span>
+        </div>
+        <div class="table-responsive">
+            <table class="bling-table">
+                <thead>
+                    <tr>
+                        <th>Cliente</th>
+                        <th>Contato</th>
+                        <th>Cidade / UF</th>
+                        <th style="text-align: center;">Pedidos</th>
+                        <th style="text-align: right;">Faturamento</th>
+                        <th style="text-align: right;">% Acum.</th>
+                        <th style="text-align: center;">Classe</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in abc_data.customers %}
+                    <tr>
+                        <td style="font-weight: 600;">{{ c.customer_name }}</td>
+                        <td style="font-size: 12px; color: var(--text-muted);">{{ c.customer_phone or '-' }}</td>
+                        <td>{{ c.customer_city }}/{{ c.customer_state }}</td>
+                        <td style="text-align: center;">{{ c.orders_count }}</td>
+                        <td style="text-align: right; font-weight: 700; color: var(--bling-primary);">{{ c.total_revenue | currency }}</td>
+                        <td style="text-align: right; font-family: monospace; font-size: 12px;">{{ "%.1f"|format(c.cum_perc) }}%</td>
+                        <td style="text-align: center;">
+                            {% if c.abc_class == 'A' %}
+                            <span class="badge" style="background: #dcfce7; color: #166534; font-weight: 700; padding: 4px 8px; border-radius: 4px;">Classe A</span>
+                            {% elif c.abc_class == 'B' %}
+                            <span class="badge" style="background: #fef9c3; color: #854d0e; font-weight: 700; padding: 4px 8px; border-radius: 4px;">Classe B</span>
+                            {% else %}
+                            <span class="badge" style="background: #f1f5f9; color: #475569; font-weight: 700; padding: 4px 8px; border-radius: 4px;">Classe C</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 24px; color: var(--text-muted);">Nenhum comprador no período selecionado.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Aniversariantes do Mês -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">🎂 Aniversariantes do Mês (Ações CS)</span>
+        </div>
+        <div class="table-responsive" style="max-height: 480px; overflow-y: auto;">
+            <table class="bling-table">
+                <thead>
+                    <tr>
+                        <th>Cliente</th>
+                        <th>Data</th>
+                        <th>Tamanho/Estilo</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for b in birthdays_data.customers %}
+                    <tr>
+                        <td>
+                            <div style="font-weight: 600;">{{ b.name }}</div>
+                            <div style="font-size: 11px; color: var(--text-muted);">{{ b.phone }}</div>
+                        </td>
+                        <td style="white-space: nowrap;">{{ b.birth_date[:5] }}</td>
+                        <td>
+                            <span class="badge" style="background: #e0f2fe; color: #0369a1;">{{ b.preferred_size }}</span>
+                            <span style="font-size: 11px; color: var(--text-muted);">{{ b.preferred_style }}</span>
+                        </td>
+                        <td>
+                            <span class="badge" style="background: {% if 'Hoje' in b.status %}#dcfce7; color: #166534;{% else %}#f1f5f9; color: #475569;{% endif %}">
+                                {{ b.status }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" style="text-align: center; padding: 20px; color: var(--text-muted);">Nenhum aniversariante encontrado.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Perfil de Consumo por Cliente (Moda das Colunas) -->
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">👔 Perfil & Preferências de Moda por Cliente (Moda Estatística)</span>
+    </div>
+    <div class="table-responsive">
+        <table class="bling-table">
+            <thead>
+                <tr>
+                    <th>Cliente</th>
+                    <th>Cidade / UF</th>
+                    <th style="text-align: center;">Tamanho Preferido (Moda)</th>
+                    <th style="text-align: center;">Cor Preferida (Moda)</th>
+                    <th style="text-align: center;">Estilo Favorito (Moda)</th>
+                    <th style="text-align: center;">Peças Compradas</th>
+                    <th style="text-align: right;">Total Gasto</th>
+                    <th style="text-align: right;">Ticket Médio</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in profiles_data.profiles %}
+                <tr>
+                    <td style="font-weight: 600;">{{ p.customer_name }}</td>
+                    <td>{{ p.customer_city }}/{{ p.customer_state }}</td>
+                    <td style="text-align: center;">
+                        <span class="badge" style="background: #fdf2f8; color: #9d174d; font-weight: 700; padding: 4px 10px; border-radius: 6px;">
+                            {{ p.preferred_size }}
+                        </span>
+                    </td>
+                    <td style="text-align: center;">
+                        <span class="badge" style="background: #eff6ff; color: #1d4ed8; font-weight: 600;">
+                            {{ p.preferred_color }}
+                        </span>
+                    </td>
+                    <td style="text-align: center;">
+                        <span class="badge" style="background: #f0fdf4; color: #15803d; font-weight: 600;">
+                            {{ p.preferred_style }}
+                        </span>
+                    </td>
+                    <td style="text-align: center; font-weight: 600;">{{ "%.0f"|format(p.total_pieces) }}</td>
+                    <td style="text-align: right; font-weight: 700; color: var(--bling-primary);">{{ p.total_spent | currency }}</td>
+                    <td style="text-align: right; color: var(--text-main);">{{ p.avg_ticket | currency }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="8" style="text-align: center; padding: 24px; color: var(--text-muted);">Sem compras registradas no período.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- ========================================================================= -->
+<!-- BLOCO 2: MOVIMENTAÇÃO E PREFERÊNCIAS DE MODA                              -->
+<!-- ========================================================================= -->
+{% if active_tab == 'block2' %}
+<div class="kpi-grid">
+    <div class="kpi-card">
+        <span class="kpi-title">Malas Condicionais Enviadas</span>
+        <div class="kpi-value" style="color: var(--text-main);">{{ bags_data.total_bags }}</div>
+        <div class="kpi-subtext">{{ bags_data.total_sent }} peças enviadas para prova</div>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-title">Taxa de Conversão da Bag</span>
+        <div class="kpi-value" style="color: var(--bling-primary);">{{ "%.1f"|format(bags_data.overall_conversion_rate) }}%</div>
+        <div class="kpi-subtext">{{ bags_data.total_invoiced }} peças faturadas de {{ bags_data.total_sent }}</div>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-title">Receita Gerada por Malas</span>
+        <div class="kpi-value" style="color: #2563eb;">{{ bags_data.total_invoiced_value | currency }}</div>
+        <div class="kpi-subtext">De {{ bags_data.total_sent_value | currency }} enviados</div>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-title">Taxa Geral de Devolução</span>
+        <div class="kpi-value" style="color: #ef4444;">{{ "%.1f"|format(returns_data.overall_return_rate) }}%</div>
+        <div class="kpi-subtext">{{ "%.0f"|format(returns_data.total_pieces_returned) }} peças devolvidas/trocadas</div>
+    </div>
+</div>
+
+<!-- GRÁFICOS REPRESENTATIVOS BLOCO 2 -->
+<div class="charts-grid" style="grid-template-columns: 1fr 1fr; margin-bottom: 24px;">
+    <!-- Gráfico 1: Desempenho de Malas por Vendedora -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">Peças Enviadas vs Faturadas por Vendedora</span>
+        </div>
+        <div style="padding: 16px; height: 270px; position: relative;">
+            <canvas id="chartBagsPerformance"></canvas>
+        </div>
+    </div>
+
+    <!-- Gráfico 2: Motivos de Trocas e Devoluções (Rosca) -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">Distribuição dos Motivos de Devolução</span>
+        </div>
+        <div style="padding: 16px; height: 270px; position: relative;">
+            <canvas id="chartReturnReasons"></canvas>
+        </div>
+    </div>
+</div>
+
+<div class="charts-grid" style="grid-template-columns: 1fr 1fr; margin-bottom: 24px;">
+    <!-- Conversão de Condicionais por Consultora/Vendedora -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">Eficiência de Condicionais por Vendedora</span>
+        </div>
+        <div class="table-responsive">
+            <table class="bling-table">
+                <thead>
+                    <tr>
+                        <th>Vendedora</th>
+                        <th style="text-align: center;">Malas</th>
+                        <th style="text-align: center;">Enviadas</th>
+                        <th style="text-align: center;">Faturadas</th>
+                        <th style="text-align: right;">Conversão</th>
+                        <th style="text-align: right;">Faturamento</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in bags_data.sellers_conversion %}
+                    <tr>
+                        <td style="font-weight: 600;">{{ s.seller_name }}</td>
+                        <td style="text-align: center;">{{ s.bags_count }}</td>
+                        <td style="text-align: center;">{{ s.sent }}</td>
+                        <td style="text-align: center; font-weight: 600;">{{ s.invoiced }}</td>
+                        <td style="text-align: right; font-weight: 700; color: var(--bling-primary);">{{ "%.1f"|format(s.conv_rate) }}%</td>
+                        <td style="text-align: right; font-weight: 600;">{{ s.revenue | currency }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="6" style="text-align: center; padding: 20px;">Sem malas no período.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Motivos de Trocas e Devoluções -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">Motivos de Trocas & Devoluções</span>
+        </div>
+        <div class="table-responsive">
+            <table class="bling-table">
+                <thead>
+                    <tr>
+                        <th>Motivo da Devolução</th>
+                        <th style="text-align: center;">Ocorrências</th>
+                        <th style="text-align: center;">Peças</th>
+                        <th style="text-align: right;">% do Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in returns_data.reasons_distribution %}
+                    <tr>
+                        <td style="font-weight: 600; color: #dc2626;">{{ r.reason }}</td>
+                        <td style="text-align: center;">{{ r.count }}</td>
+                        <td style="text-align: center; font-weight: 600;">{{ "%.0f"|format(r.pieces) }}</td>
+                        <td style="text-align: right; font-weight: 700;">{{ "%.1f"|format(r.percentage) }}%</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="4" style="text-align: center; padding: 20px;">Nenhuma devolução no período.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Produtos Mais Vendidos por Categoria (Window Rank) -->
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">🏆 Ranking dos Mais Vendidos por Categoria (Polars Window Rank)</span>
+    </div>
+    <div class="table-responsive">
+        <table class="bling-table">
+            <thead>
+                <tr>
+                    <th style="text-align: center; width: 80px;">Posição</th>
+                    <th>Categoria</th>
+                    <th>SKU</th>
+                    <th>Produto</th>
+                    <th style="text-align: center;">Peças Vendidas</th>
+                    <th style="text-align: right;">Receita Gerada</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for tp in top_categories_data.products %}
+                <tr>
+                    <td style="text-align: center;">
+                        <span class="badge" style="background: {% if tp.rank_in_category == 1 %}#fef08a; color: #854d0e; font-size: 13px; font-weight: 800;{% else %}#f1f5f9; color: #475569;{% endif %}">
+                            #{{ tp.rank_in_category }}
+                        </span>
+                    </td>
+                    <td style="font-weight: 600; color: #0284c7;">{{ tp.category }}</td>
+                    <td style="font-family: monospace; font-size: 12px;">{{ tp.sku }}</td>
+                    <td style="font-weight: 600;">{{ tp.product_name }}</td>
+                    <td style="text-align: center; font-weight: 700;">{{ "%.0f"|format(tp.total_quantity) }}</td>
+                    <td style="text-align: right; font-weight: 700; color: var(--bling-primary);">{{ tp.total_revenue | currency }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" style="text-align: center; padding: 24px;">Sem vendas por categoria no período.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- ========================================================================= -->
+<!-- BLOCO 3: DESEMPENHO DO ATENDIMENTO (KPIS)                                 -->
+<!-- ========================================================================= -->
+{% if active_tab == 'block3' %}
+<div class="kpi-grid">
+    <div class="kpi-card">
+        <span class="kpi-title">P.A. Geral da Loja (Peças/Atendimento)</span>
+        <div class="kpi-value" style="color: var(--bling-primary);">{{ "%.2f"|format(service_kpis.store_pa) }}</div>
+        <div class="kpi-subtext">Média de peças por venda fechada</div>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-title">Ticket Médio Geral</span>
+        <div class="kpi-value" style="color: #2563eb;">{{ service_kpis.store_ticket | currency }}</div>
+        <div class="kpi-subtext">Receita média por pedido</div>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-title">Taxa de Conversão de Atendimento</span>
+        <div class="kpi-value" style="color: #10b981;">{{ "%.1f"|format(service_kpis.store_conversion) }}%</div>
+        <div class="kpi-subtext">Atendimentos iniciados convertidos em vendas</div>
+    </div>
+</div>
+
+<!-- GRÁFICOS REPRESENTATIVOS BLOCO 3 -->
+<div class="charts-grid" style="grid-template-columns: 1fr 1fr; margin-bottom: 24px;">
+    <!-- Gráfico 1: P.A. por Consultora vs Meta/Média da Loja -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">Peças por Atendimento (P.A.) por Consultora</span>
+        </div>
+        <div style="padding: 16px; height: 270px; position: relative;">
+            <canvas id="chartSellersPA"></canvas>
+        </div>
+    </div>
+
+    <!-- Gráfico 2: Conversão Comercial (%) e Ticket Médio -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">Taxa de Conversão Comercial (%) por Consultora</span>
+        </div>
+        <div style="padding: 16px; height: 270px; position: relative;">
+            <canvas id="chartSellersConversion"></canvas>
+        </div>
+    </div>
+</div>
+
+<div class="charts-grid" style="grid-template-columns: 2fr 1fr; margin-bottom: 24px;">
+    <!-- Desempenho por Vendedora / Consultora -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">Quadro de Desempenho Comercial por Vendedora</span>
+        </div>
+        <div class="table-responsive">
+            <table class="bling-table">
+                <thead>
+                    <tr>
+                        <th>Consultora / Vendedora</th>
+                        <th style="text-align: center;">Atendimentos</th>
+                        <th style="text-align: center;">Vendas Fechadas</th>
+                        <th style="text-align: center; font-weight: 700; color: var(--bling-primary);">P.A. (Peças)</th>
+                        <th style="text-align: right;">Ticket Médio</th>
+                        <th style="text-align: right;">Conversão (%)</th>
+                        <th style="text-align: right;">Total Faturado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in service_kpis.sellers_kpis %}
+                    <tr>
+                        <td style="font-weight: 700;">{{ s.seller_name }}</td>
+                        <td style="text-align: center;">{{ s.total_attendances }}</td>
+                        <td style="text-align: center; font-weight: 600;">{{ s.orders_count }}</td>
+                        <td style="text-align: center;">
+                            <span class="badge" style="background: #ecfdf5; color: #065f46; font-size: 13px; font-weight: 800;">
+                                {{ "%.2f"|format(s.pa) }}
+                            </span>
+                        </td>
+                        <td style="text-align: right; font-weight: 600;">{{ s.ticket_medio | currency }}</td>
+                        <td style="text-align: right; font-weight: 700; color: #2563eb;">{{ "%.1f"|format(s.conversion_rate) }}%</td>
+                        <td style="text-align: right; font-weight: 800; color: var(--bling-primary);">{{ s.total_revenue | currency }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="7" style="text-align: center; padding: 24px;">Nenhum atendimento registrado.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Top Clientes por Ticket Médio -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">Top Ticket Médio por Cliente</span>
+        </div>
+        <div class="table-responsive">
+            <table class="bling-table">
+                <thead>
+                    <tr>
+                        <th>Cliente</th>
+                        <th style="text-align: center;">Pedidos</th>
+                        <th style="text-align: right;">Ticket Médio</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ct in service_kpis.customer_tickets %}
+                    <tr>
+                        <td style="font-weight: 600;">{{ ct.customer_name }}</td>
+                        <td style="text-align: center;">{{ ct.orders }}</td>
+                        <td style="text-align: right; font-weight: 700; color: var(--bling-primary);">{{ ct.ticket | currency }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="3" style="text-align: center; padding: 20px;">Sem dados.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- ========================================================================= -->
+<!-- BLOCO 4: RELACIONAMENTO E FIDELIZAÇÃO (CRM)                               -->
+<!-- ========================================================================= -->
+{% if active_tab == 'block4' %}
+<div class="kpi-grid">
+    <div class="kpi-card">
+        <span class="kpi-title">Clientes Ativos (< 60d)</span>
+        <div class="kpi-value" style="color: var(--bling-primary);">{{ inactives_data.active_count }}</div>
+        <div class="kpi-subtext">Compraram recentemente</div>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-title">Em Alerta (60 a 90d)</span>
+        <div class="kpi-value" style="color: #f59e0b;">{{ inactives_data.warning_count }}</div>
+        <div class="kpi-subtext">Momento ideal para nova coleção</div>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-title">Inativos (91 a 180d)</span>
+        <div class="kpi-value" style="color: #ea580c;">{{ inactives_data.inactive_count }}</div>
+        <div class="kpi-subtext">Risco iminente de perda</div>
+    </div>
+    <div class="kpi-card">
+        <span class="kpi-title">Risco Churn (> 180d)</span>
+        <div class="kpi-value" style="color: #dc2626;">{{ inactives_data.churn_count }}</div>
+        <div class="kpi-subtext">Campanha de reativação necessária</div>
+    </div>
+</div>
+
+<!-- GRÁFICOS REPRESENTATIVOS BLOCO 4 -->
+<div class="charts-grid" style="grid-template-columns: 1fr 1fr 1fr; margin-bottom: 24px;">
+    <!-- Gráfico 1: Faixas de Recência / Risco (Rosca) -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">Distribuição de Clientes por Faixa</span>
+        </div>
+        <div style="padding: 16px; height: 260px; position: relative;">
+            <canvas id="chartRecencyTiers"></canvas>
+        </div>
+    </div>
+
+    <!-- Gráfico 2: NPS e Satisfação (Rosca) -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">Pesquisa NPS (Promotores vs Detratores)</span>
+        </div>
+        <div style="padding: 16px; height: 260px; position: relative;">
+            <canvas id="chartNpsDonut"></canvas>
+        </div>
+    </div>
+
+    <!-- Gráfico 3: LTV Histórico em Risco -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">Receita Histórica (LTV) por Faixa</span>
+        </div>
+        <div style="padding: 16px; height: 260px; position: relative;">
+            <canvas id="chartLtvTiers"></canvas>
+        </div>
+    </div>
+</div>
+
+<div class="charts-grid" style="grid-template-columns: 1fr 1fr; margin-bottom: 24px;">
+    <!-- Pesquisa de Satisfação NPS & CSAT -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">Pesquisa de Satisfação & NPS da Loja</span>
+        </div>
+        <div style="padding: 20px;">
+            <div style="display: flex; justify-content: space-around; align-items: center; margin-bottom: 20px; text-align: center;">
+                <div>
+                    <div style="font-size: 38px; font-weight: 800; color: #16a34a;">{{ satisfaction.nps_score }}</div>
+                    <div style="font-size: 13px; font-weight: 600; color: var(--text-muted);">Net Promoter Score (NPS)</div>
+                </div>
+                <div style="height: 50px; width: 1px; background: #e2e8f0;"></div>
+                <div>
+                    <div style="font-size: 38px; font-weight: 800; color: #2563eb;">{{ satisfaction.csat_score }} / 5</div>
+                    <div style="font-size: 13px; font-weight: 600; color: var(--text-muted);">Média CSAT</div>
+                </div>
+            </div>
+
+            <div style="background: #f8fafc; padding: 14px; border-radius: 8px; margin-bottom: 16px;">
+                <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px;">
+                    <span>🟢 Promotores (Notas 9-10): <strong>{{ satisfaction.promoters_count }} ({{ satisfaction.promoters_perc }}%)</strong></span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px;">
+                    <span>🟡 Neutros (Notas 7-8): <strong>{{ satisfaction.passives_count }} ({{ satisfaction.passives_perc }}%)</strong></span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 13px;">
+                    <span>🔴 Detratores (Notas 0-6): <strong>{{ satisfaction.detractors_count }} ({{ satisfaction.detractors_perc }}%)</strong></span>
+                </div>
+            </div>
+
+            <h4 style="font-size: 13px; font-weight: 700; margin-bottom: 8px; color: var(--text-main);">Depoimentos Recentes de Clientes:</h4>
+            <div style="max-height: 160px; overflow-y: auto;">
+                {% for sv in satisfaction.surveys[:4] %}
+                <div style="font-size: 12px; border-left: 3px solid #10b981; padding-left: 8px; margin-bottom: 8px;">
+                    <em>"{{ sv.feedback }}"</em> - <strong>{{ sv.customer_name }}</strong> (Nota: {{ sv.nps_score }})
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Matriz Cohort de Recompra -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">Retenção de Clientes por Safra (Cohort Analysis)</span>
+        </div>
+        <div class="table-responsive">
+            <table class="bling-table">
+                <thead>
+                    <tr>
+                        <th>Safra (Mês 1ª Compra)</th>
+                        <th style="text-align: center;">Base Inicial</th>
+                        <th>Recompra nos Meses Seguintes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in cohort_data.matrix %}
+                    <tr>
+                        <td style="font-weight: 700; color: var(--bling-primary);">{{ row.cohort }}</td>
+                        <td style="text-align: center; font-weight: 600;">{{ row.initial_size }} clientes</td>
+                        <td>
+                            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                                {% for m_key, m_val in row.retention.items() %}
+                                <span class="badge" style="background: #e0f2fe; color: #0284c7; font-size: 11px;">
+                                    {{ m_key }}: {{ m_val.percentage }}% ({{ m_val.count }})
+                                </span>
+                                {% endfor %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="3" style="text-align: center; padding: 20px;">Sem dados de recompra suficientes.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Tabela de Clientes Inativos para Ação Imediata de CS / WhatsApp -->
+<div class="card">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <span class="card-title">🚨 Lista de Recência de Clientes para Abordagem no WhatsApp (CS & Vendas)</span>
+        <span style="font-size: 12px; color: var(--text-muted);">Ordenado pela maior urgência de reativação</span>
+    </div>
+    <div class="table-responsive">
+        <table class="bling-table">
+            <thead>
+                <tr>
+                    <th>Cliente</th>
+                    <th>WhatsApp / Contato</th>
+                    <th>Localidade</th>
+                    <th style="text-align: center;">Tamanho / Estilo</th>
+                    <th style="text-align: center;">Última Compra</th>
+                    <th style="text-align: center;">Dias Inativo</th>
+                    <th style="text-align: center;">Faixa de Risco</th>
+                    <th style="text-align: right;">LTV Histórico</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for inact in inactives_data.customers %}
+                <tr>
+                    <td style="font-weight: 600;">{{ inact.customer_name }}</td>
+                    <td>
+                        {% if inact.customer_phone %}
+                        <a href="https://wa.me/55{{ inact.customer_phone | replace('(', '') | replace(')', '') | replace(' ', '') | replace('-', '') }}" 
+                           target="_blank" style="color: #16a34a; font-weight: 600; text-decoration: none;">
+                            💬 {{ inact.customer_phone }}
+                        </a>
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                    <td>{{ inact.location }}</td>
+                    <td style="text-align: center;">
+                        <span class="badge" style="background: #f1f5f9; color: #334155;">{{ inact.preferred_size }}</span>
+                        <span style="font-size: 11px; color: var(--text-muted);">{{ inact.preferred_style }}</span>
+                    </td>
+                    <td style="text-align: center;">{{ inact.last_purchase }}</td>
+                    <td style="text-align: center; font-weight: 700;">{{ inact.days_inactive }} dias</td>
+                    <td style="text-align: center;">
+                        {% if inact.days_inactive < 60 %}
+                        <span class="badge" style="background: #dcfce7; color: #166534; font-weight: 700;">Ativo</span>
+                        {% elif inact.days_inactive <= 90 %}
+                        <span class="badge" style="background: #fef9c3; color: #854d0e; font-weight: 700;">Atenção (60-90d)</span>
+                        {% elif inact.days_inactive <= 180 %}
+                        <span class="badge" style="background: #ffedd5; color: #c2410c; font-weight: 700;">Inativo (91-180d)</span>
+                        {% else %}
+                        <span class="badge" style="background: #fee2e2; color: #b91c1c; font-weight: 700;">Churn (> 180d)</span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align: right; font-weight: 700; color: var(--bling-primary);">{{ inact.lifetime_value | currency }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="8" style="text-align: center; padding: 24px;">Nenhum cliente cadastrado.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    {% if active_tab == 'block1' %}
+    // 1. Gráfico Rosca Curva ABC Receita
+    const ctxAbc = document.getElementById('chartAbcRevenue');
+    if (ctxAbc) {
+        new Chart(ctxAbc, {
+            type: 'doughnut',
+            data: {
+                labels: {{ abc_data.chart.labels | tojson }},
+                datasets: [{
+                    data: {{ abc_data.chart.revenue | tojson }},
+                    backgroundColor: ['#008b54', '#f59e0b', '#94a3b8'],
+                    borderWidth: 2,
+                    borderColor: '#ffffff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                return ctx.label + ': R$ ' + Number(ctx.raw).toLocaleString('pt-BR', {minimumFractionDigits: 2});
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // 2. Gráfico Tamanhos Mais Vendidos (Moda)
+    const ctxSizes = document.getElementById('chartPreferredSizes');
+    if (ctxSizes) {
+        new Chart(ctxSizes, {
+            type: 'bar',
+            data: {
+                labels: {{ profiles_data.charts.sizes.labels | tojson }},
+                datasets: [{
+                    label: 'Peças Compradas',
+                    data: {{ profiles_data.charts.sizes.data | tojson }},
+                    backgroundColor: '#3b82f6',
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, grid: { color: '#f1f5f9' } },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+    }
+
+    // 3. Gráfico Aniversariantes por Semana
+    const ctxBdays = document.getElementById('chartBirthdaysWeekly');
+    if (ctxBdays) {
+        new Chart(ctxBdays, {
+            type: 'bar',
+            data: {
+                labels: {{ birthdays_data.chart.labels | tojson }},
+                datasets: [{
+                    label: 'Aniversariantes',
+                    data: {{ birthdays_data.chart.data | tojson }},
+                    backgroundColor: '#ec4899',
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: '#f1f5f9' } },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+    }
+    {% endif %}
+
+    {% if active_tab == 'block2' %}
+    // 1. Desempenho de Malas por Vendedora (Enviadas vs Faturadas)
+    const ctxBags = document.getElementById('chartBagsPerformance');
+    if (ctxBags) {
+        new Chart(ctxBags, {
+            type: 'bar',
+            data: {
+                labels: {{ bags_data.chart.labels | tojson }},
+                datasets: [
+                    {
+                        label: 'Peças Enviadas',
+                        data: {{ bags_data.chart.sent | tojson }},
+                        backgroundColor: '#cbd5e1',
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Peças Faturadas',
+                        data: {{ bags_data.chart.invoiced | tojson }},
+                        backgroundColor: '#008b54',
+                        borderRadius: 4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } } },
+                scales: {
+                    y: { beginAtZero: true, grid: { color: '#f1f5f9' } },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+    }
+
+    // 2. Motivos de Devolução (Rosca)
+    const ctxReasons = document.getElementById('chartReturnReasons');
+    if (ctxReasons) {
+        new Chart(ctxReasons, {
+            type: 'doughnut',
+            data: {
+                labels: {{ returns_data.chart.labels | tojson }},
+                datasets: [{
+                    data: {{ returns_data.chart.pieces | tojson }},
+                    backgroundColor: ['#ef4444', '#f97316', '#f59e0b', '#3b82f6', '#8b5cf6'],
+                    borderWidth: 2,
+                    borderColor: '#ffffff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                return ctx.label + ': ' + ctx.raw + ' peças';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    {% endif %}
+
+    {% if active_tab == 'block3' %}
+    // 1. P.A. por Consultora
+    const ctxPa = document.getElementById('chartSellersPA');
+    if (ctxPa) {
+        new Chart(ctxPa, {
+            type: 'bar',
+            data: {
+                labels: {{ service_kpis.charts.pa.labels | tojson }},
+                datasets: [{
+                    label: 'P.A. da Consultora',
+                    data: {{ service_kpis.charts.pa.data | tojson }},
+                    backgroundColor: '#008b54',
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            afterLabel: function() {
+                                return 'Média Loja: {{ "%.2f"|format(service_kpis.store_pa) }} peças/atendimento';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: { beginAtZero: true, grid: { color: '#f1f5f9' } },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+    }
+
+    // 2. Conversão Comercial por Consultora
+    const ctxConv = document.getElementById('chartSellersConversion');
+    if (ctxConv) {
+        new Chart(ctxConv, {
+            type: 'bar',
+            data: {
+                labels: {{ service_kpis.charts.conversion.labels | tojson }},
+                datasets: [{
+                    label: 'Taxa de Conversão (%)',
+                    data: {{ service_kpis.charts.conversion.rates | tojson }},
+                    backgroundColor: '#2563eb',
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, max: 100, ticks: { callback: v => v + '%' }, grid: { color: '#f1f5f9' } },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+    }
+    {% endif %}
+
+    {% if active_tab == 'block4' %}
+    // 1. Faixas de Recência / Risco
+    const ctxRec = document.getElementById('chartRecencyTiers');
+    if (ctxRec) {
+        new Chart(ctxRec, {
+            type: 'doughnut',
+            data: {
+                labels: {{ inactives_data.chart.labels | tojson }},
+                datasets: [{
+                    data: {{ inactives_data.chart.counts | tojson }},
+                    backgroundColor: ['#10b981', '#f59e0b', '#ea580c', '#dc2626'],
+                    borderWidth: 2,
+                    borderColor: '#ffffff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } } }
+            }
+        });
+    }
+
+    // 2. Pesquisa NPS
+    const ctxNps = document.getElementById('chartNpsDonut');
+    if (ctxNps) {
+        new Chart(ctxNps, {
+            type: 'doughnut',
+            data: {
+                labels: {{ satisfaction.chart.labels | tojson }},
+                datasets: [{
+                    data: {{ satisfaction.chart.data | tojson }},
+                    backgroundColor: ['#16a34a', '#eab308', '#dc2626'],
+                    borderWidth: 2,
+                    borderColor: '#ffffff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } } }
+            }
+        });
+    }
+
+    // 3. LTV em Risco por Faixa
+    const ctxLtv = document.getElementById('chartLtvTiers');
+    if (ctxLtv) {
+        new Chart(ctxLtv, {
+            type: 'bar',
+            data: {
+                labels: {{ inactives_data.chart.labels | tojson }},
+                datasets: [{
+                    label: 'LTV Histórico (R$)',
+                    data: {{ inactives_data.chart.ltv | tojson }},
+                    backgroundColor: ['#10b981', '#f59e0b', '#ea580c', '#dc2626'],
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                return 'R$ ' + Number(ctx.raw).toLocaleString('pt-BR', {minimumFractionDigits: 2});
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { callback: v => 'R$ ' + (v >= 1000 ? (v/1000).toFixed(0) + 'k' : v) },
+                        grid: { color: '#f1f5f9' }
+                    },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+    }
+    {% endif %}
+});
+</script>
+{% endblock %}

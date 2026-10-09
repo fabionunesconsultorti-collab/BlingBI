@@ -42,6 +42,10 @@ def create_app(config_class=Config):
     app.jinja_env.filters['currency'] = format_currency
     app.jinja_env.filters['number'] = format_number
 
+    # Funções globais do Jinja2 para ativação/desativação dinâmica de abas e gráficos
+    from app.core.feature_registry import FeatureRegistry
+    app.jinja_env.globals['is_feature_enabled'] = FeatureRegistry.is_enabled
+
     # Registro de Blueprints
     from app.routes.dashboard import bp as dashboard_bp
     from app.routes.sales import bp as sales_bp
@@ -50,6 +54,7 @@ def create_app(config_class=Config):
     from app.routes.finance import bp as finance_bp
     from app.routes.integrations import bp as integrations_bp
     from app.routes.reports import bp as reports_bp
+    from app.routes.fashion_bi import bp as fashion_bp
 
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(sales_bp)
@@ -58,9 +63,14 @@ def create_app(config_class=Config):
     app.register_blueprint(finance_bp)
     app.register_blueprint(integrations_bp)
     app.register_blueprint(reports_bp)
+    app.register_blueprint(fashion_bp)
 
-    # Cria tabelas caso não existam
+    # Cria tabelas caso não existam e aplica migrações não-destrutivas de colunas
     with app.app_context():
         db.create_all()
+        from app.services.migration import check_and_apply_migrations
+        check_and_apply_migrations()
+        from app.reports.registry import report_registry
+        report_registry.discover_and_register_modules()
 
     return app

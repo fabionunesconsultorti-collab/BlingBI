@@ -199,6 +199,14 @@ class SyncService:
                     
                     prod.format = item.get('formato')
                     prod.status = item.get('situacao', 'A')
+
+                    from app.services.product_attributes import parse_product_attributes
+                    s_det, c_det = parse_product_attributes(prod.name)
+                    if s_det and not prod.size:
+                        prod.size = s_det
+                    if c_det and not prod.color:
+                        prod.color = c_det
+
                     count += 1
                 except Exception as item_err:
                     logger.warning(f"Erro no produto {item.get('id')}: {item_err}")
@@ -227,11 +235,23 @@ class SyncService:
         try:
             product_map = {p.bling_id: p for p in Product.query.all() if p.bling_id}
             customer_map = {c.bling_id: c.id for c in Customer.query.all() if c.bling_id}
+            seller_map = {}
+            try:
+                sellers_res = client.request('GET', '/vendedores?limite=100')
+                if sellers_res and sellers_res.status_code == 200:
+                    for v in sellers_res.json().get('data', []):
+                        v_id = v.get('id')
+                        v_name = v.get('contato', {}).get('nome') or v.get('nome')
+                        if v_id and v_name:
+                            seller_map[v_id] = v_name
+            except Exception as s_err:
+                logger.warning(f"Aviso ao consultar vendedores no Bling: {s_err}")
         except Exception as pre_err:
             logger.warning(f"Aviso no pré-carregamento para sync de pedidos: {pre_err}")
             db.session.rollback()
             product_map = {}
             customer_map = {}
+            seller_map = {}
 
         while True:
             items = client.get_orders(page=page, limit=100)
@@ -279,6 +299,46 @@ class SyncService:
                     
                     loja = item.get('loja')
                     order.channel = loja.get('nome', 'Loja Virtual') if isinstance(loja, dict) else 'Loja Virtual'
+
+                    # Vendedor devidamente cadastrado no Bling (sem inventar)
+                    vendedor = item.get('vendedor')
+                    seller_nome = None
+                    if isinstance(vendedor, dict):
+                        v_id = vendedor.get('id')
+                        seller_nome = vendedor.get('nome') or seller_map.get(v_id)
+                        if not seller_nome and vendedor.get('contato'):
+                            seller_nome = vendedor.get('contato', {}).get('nome')
+                    elif isinstance(vendedor, str):
+                        seller_nome = vendedor
+                    order.seller_name = seller_nome
+
+                    # Observações do pedido
+                    notes_txt = item.get('observacoes') or item.get('observacaoInterna')
+                    if notes_txt:
+                        order.notes = str(notes_txt)
+
+                    # Forma de pagamento
+                    pay_method = 'Cartão de Crédito'
+                    parcelas = item.get('parcelas', [])
+                    if parcelas and isinstance(parcelas, list) and len(parcelas) > 0:
+                        fp = parcelas[0].get('formaPagamento', {})
+                        if isinstance(fp, dict):
+                            pay_method = fp.get('descricao') or fp.get('nome') or pay_method
+                        elif isinstance(fp, str):
+                            pay_method = fp
+                    else:
+                        fp_root = item.get('formaPagamento')
+                        if isinstance(fp_root, dict):
+                            pay_method = fp_root.get('descricao') or fp_root.get('nome') or pay_method
+                        elif isinstance(fp_root, str):
+                            pay_method = fp_root
+
+                    # Detecção inteligente de Consignado nas observações se não vier explícito
+                    full_obs = f"{order.notes or ''}".lower()
+                    if 'consignad' in full_obs or 'condicional' in full_obs or 'mala' in full_obs:
+                        pay_method = 'Consignado'
+
+                    order.payment_method = pay_method
                     
                     contato = item.get('contato')
                     if isinstance(contato, dict) and contato.get('id'):

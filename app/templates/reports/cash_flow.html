@@ -1,0 +1,161 @@
+{% extends 'base.html' %}
+
+{% block title %}Fluxo de Caixa Projetado - BlingBI{% endblock %}
+{% block page_title %}Fluxo de Caixa Projetado & Tesouraria (Pilar 4.2){% endblock %}
+
+{% block content %}
+<div class="report-container" style="display: flex; flex-direction: column; gap: 24px;">
+
+    <!-- Barra de Filtros e Projeção -->
+    <div class="card" style="padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+        <form method="GET" action="{{ url_for('reports.cash_flow') }}" style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+            <div>
+                <label style="font-size: 11px; font-weight: 600; color: #64748B; display: block; margin-bottom: 2px;">Horizonte de Projeção:</label>
+                <select name="days" onchange="this.form.submit()" style="padding: 6px 12px; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 13px;">
+                    <option value="15" {% if days == 15 %}selected{% endif %}>Próximos 15 dias</option>
+                    <option value="30" {% if days == 30 %}selected{% endif %}>Próximos 30 dias</option>
+                    <option value="60" {% if days == 60 %}selected{% endif %}>Próximos 60 dias</option>
+                </select>
+            </div>
+            <div style="font-size: 12px; color: #64748B; padding-top: 14px;">
+                Previsão de liquidez baseada nos vencimentos de <b>Contas a Receber</b> vs <b>Contas a Pagar</b>.
+            </div>
+        </form>
+
+        <a href="{{ url_for('finance.index') }}" class="btn btn-secondary">
+            Ir para Painel Financeiro
+        </a>
+    </div>
+
+    <!-- Cards de KPIs da Projeção -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px;">
+        <div class="card" style="padding: 16px;">
+            <div style="font-size: 12px; color: #10B981; font-weight: 700;">Recebíveis Previstos (Entradas)</div>
+            <div style="font-size: 24px; font-weight: 800; color: #10B981; margin-top: 4px;">{{ summary.total_receivables|currency }}</div>
+            <div style="font-size: 11px; color: #64748B; margin-top: 2px;">Contas a Receber em aberto</div>
+        </div>
+        <div class="card" style="padding: 16px;">
+            <div style="font-size: 12px; color: #EF4444; font-weight: 700;">Obrigações Previstas (Saídas)</div>
+            <div style="font-size: 24px; font-weight: 800; color: #EF4444; margin-top: 4px;">{{ summary.total_payables|currency }}</div>
+            <div style="font-size: 11px; color: #64748B; margin-top: 2px;">Contas a Pagar em aberto</div>
+        </div>
+        <div class="card" style="padding: 16px;">
+            <div style="font-size: 12px; color: #64748B; font-weight: 700;">Saldo Líquido Projetado</div>
+            <div style="font-size: 24px; font-weight: 800; color: {% if summary.net_projected_balance >= 0 %}#10B981{% else %}#EF4444{% endif %}; margin-top: 4px;">
+                {{ summary.net_projected_balance|currency }}
+            </div>
+            <div style="font-size: 11px; color: #64748B; margin-top: 2px;">Entradas subtraídas das Saídas</div>
+        </div>
+    </div>
+
+    <!-- Gráfico Combinado Chart.js -->
+    <div class="card" style="padding: 20px;">
+        <h3 style="font-size: 15px; font-weight: 700; color: #1E293B; margin-bottom: 14px;">Curva Diária de Entradas, Saídas e Saldo Acumulado</h3>
+        <div style="height: 280px; position: relative;">
+            <canvas id="cashFlowChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Tabela Diária Projetada -->
+    <div class="card" style="padding: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h3 style="font-size: 16px; font-weight: 700; color: #1E293B;">Projeção Diária Passo a Passo</h3>
+            <span style="font-size: 12px; color: #64748B;">Janela: {{ days }} dias corridos</span>
+        </div>
+
+        <div style="overflow-x: auto;">
+            <table class="data-table" style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background: #F8FAFC; border-bottom: 2px solid #E2E8F0; text-align: left;">
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569;">Data Vencimento</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #10B981; text-align: right;">(+) Recebíveis</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #EF4444; text-align: right;">(-) A Pagar</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569; text-align: right;">Resultado do Dia</th>
+                        <th style="padding: 10px 14px; font-size: 12px; color: #475569; text-align: right;">Saldo Acumulado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in daily_rows %}
+                    {% if row.receivables > 0 or row.payables > 0 %}
+                    <tr style="border-bottom: 1px solid #EDF2F7;">
+                        <td style="padding: 10px 14px; font-weight: 600; color: #1E293B;">{{ row.date }}</td>
+                        <td style="padding: 10px 14px; text-align: right; color: #10B981; font-weight: 600;">{{ row.receivables|currency }}</td>
+                        <td style="padding: 10px 14px; text-align: right; color: #EF4444; font-weight: 600;">{{ row.payables|currency }}</td>
+                        <td style="padding: 10px 14px; text-align: right; font-weight: 700; color: {% if row.net >= 0 %}#10B981{% else %}#EF4444{% endif %};">
+                            {{ row.net|currency }}
+                        </td>
+                        <td style="padding: 10px 14px; text-align: right; font-weight: 800; color: {% if row.accumulated >= 0 %}#1E293B{% else %}#EF4444{% endif %};">
+                            {{ row.accumulated|currency }}
+                        </td>
+                    </tr>
+                    {% endif %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- Chart.js Scripts -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const cfCtx = document.getElementById('cashFlowChart').getContext('2d');
+    const labels = {{ charts.labels|tojson }};
+    const receivables = {{ charts.receivables|tojson }};
+    const payables = {{ charts.payables|tojson }};
+    const accumulated = {{ charts.accumulated|tojson }};
+
+    new Chart(cfCtx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'A Receber (R$)',
+                    data: receivables,
+                    backgroundColor: '#10B981',
+                    borderRadius: 3
+                },
+                {
+                    label: 'A Pagar (R$)',
+                    data: payables,
+                    backgroundColor: '#EF4444',
+                    borderRadius: 3
+                },
+                {
+                    label: 'Saldo Acumulado (R$)',
+                    data: accumulated,
+                    type: 'line',
+                    borderColor: '#3B82F6',
+                    backgroundColor: '#3B82F6',
+                    borderWidth: 2,
+                    tension: 0.2,
+                    pointRadius: 2
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(c) {
+                            return c.dataset.label + ': R$ ' + c.parsed.y.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    ticks: {
+                        callback: function(v) { return 'R$ ' + v.toLocaleString('pt-BR'); }
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}
