@@ -6,15 +6,16 @@ from app.database import db
 
 @event.listens_for(Engine, "connect")
 def set_sqlite_pragma(dbapi_connection, connection_record):
-    """Ativa modo WAL e configurações de alta concorrência para o SQLite."""
-    try:
-        cursor = dbapi_connection.cursor()
-        cursor.execute("PRAGMA journal_mode=WAL")
-        cursor.execute("PRAGMA synchronous=NORMAL")
-        cursor.execute("PRAGMA busy_timeout=60000")
-        cursor.close()
-    except Exception:
-        pass
+    """Ativa modo WAL e configurações de alta concorrência apenas para o SQLite."""
+    if getattr(dbapi_connection, '__class__', None) and 'sqlite' in dbapi_connection.__class__.__module__.lower():
+        try:
+            cursor = dbapi_connection.cursor()
+            cursor.execute("PRAGMA journal_mode=WAL")
+            cursor.execute("PRAGMA synchronous=NORMAL")
+            cursor.execute("PRAGMA busy_timeout=60000")
+            cursor.close()
+        except Exception:
+            pass
 
 def format_currency(value):
     try:

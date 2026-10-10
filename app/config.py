@@ -8,15 +8,30 @@ from sqlalchemy.pool import NullPool
 
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY', 'bling-bi-secret-key-local-2026')
-    SQLALCHEMY_DATABASE_URI = os.environ.get(
+
+    _raw_db_url = os.environ.get(
         'DATABASE_URL', f"sqlite:///{os.path.join(DATA_DIR, 'bling_bi.db')}"
     )
+    # Suporte para URLs PostgreSQL do Render e Railway que usam postgres://
+    if _raw_db_url.startswith("postgres://"):
+        _raw_db_url = _raw_db_url.replace("postgres://", "postgresql://", 1)
+
+    SQLALCHEMY_DATABASE_URI = _raw_db_url
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SQLALCHEMY_ENGINE_OPTIONS = {
-        'poolclass': NullPool,
-        'connect_args': {
-            'timeout': 60,
-            'check_same_thread': False
+
+    # Configuração dinâmica de engine para SQLite vs PostgreSQL
+    if SQLALCHEMY_DATABASE_URI.startswith("sqlite"):
+        SQLALCHEMY_ENGINE_OPTIONS = {
+            'poolclass': NullPool,
+            'connect_args': {
+                'timeout': 60,
+                'check_same_thread': False
+            }
         }
-    }
+    else:
+        SQLALCHEMY_ENGINE_OPTIONS = {
+            'pool_pre_ping': True,
+            'pool_recycle': 300,
+        }
+
     BLING_API_BASE_URL = "https://api.bling.com.br/Api/v3"

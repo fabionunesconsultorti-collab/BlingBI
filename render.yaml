@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: bling-bi
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn wsgi:app --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 120
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.3
+      - key: FLASK_ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      # Descomente e preencha caso queira conectar suas credenciais Bling via ambiente
+      # - key: BLING_CLIENT_ID
+      #   sync: false
+      # - key: BLING_CLIENT_SECRET
+      #   sync: false

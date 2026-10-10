@@ -56,6 +56,15 @@ A URL pública gerada (ex: `https://xxxx.ngrok-free.app/integrations/webhook`) e
 
 ---
 
+## ☁️ Como Publicar na Nuvem Gratuitamente (Render / Railway / Docker)
+
+Deseja acessar seu BlingBI de qualquer lugar (navegador no celular, tablet, home office) e receber Webhooks do Bling com HTTPS nativo sem precisar do Ngrok ou do computador ligado?
+
+O projeto já inclui `wsgi.py`, `render.yaml`, `Procfile` e `Dockerfile` configurados para deploy em 1 clique!
+👉 Consulte o guia passo a passo em: **[DEPLOY.md](DEPLOY.md)**.
+
+---
+
 ### 1. Dashboard 360° (Visão Geral)
 - **KPIs Executivos**: Faturamento Total, Pedidos Atendidos, Ticket Médio, Contas a Receber (Previsão) e Contas a Pagar (Previsão).
 - **Evolução Temporal Diária**: Gráfico de linha interativo comparando Receita e Quantidade de Pedidos.
