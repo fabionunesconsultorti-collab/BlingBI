@@ -81,6 +81,27 @@ body {
   align-items: center;
   gap: 12px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  position: relative;
+}
+
+.sidebar-close-btn {
+  display: none;
+  background: rgba(255, 255, 255, 0.08);
+  border: none;
+  color: #cbd5e1;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  margin-left: auto;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.sidebar-close-btn:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
 }
 
 .brand-badge {
@@ -177,6 +198,23 @@ body {
   overflow-x: hidden;
 }
 
+/* Overlay / Backdrop para Mobile */
+.sidebar-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 1050;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.sidebar-backdrop.active {
+  display: block;
+  opacity: 1;
+}
+
 /* Barra Superior */
 .topbar {
   height: 64px;
@@ -187,12 +225,35 @@ body {
   align-items: center;
   justify-content: space-between;
   box-shadow: var(--shadow-sm);
+  position: relative;
+  z-index: 10;
 }
 
 .topbar-title {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.menu-toggle-btn {
+  display: none;
+  background: #f1f5f9;
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.menu-toggle-btn:hover {
+  background: #e2e8f0;
+  color: var(--bling-primary);
 }
 
 .page-title {
@@ -385,17 +446,30 @@ body {
 
 /* Tabelas Bling */
 .table-responsive {
+  width: 100%;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
-.bling-table {
+.table-responsive::-webkit-scrollbar {
+  height: 5px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.bling-table,
+.data-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
   text-align: left;
 }
 
-.bling-table th {
+.bling-table th,
+.data-table th {
   background: #f8fafc;
   color: #475569;
   font-weight: 600;
@@ -404,13 +478,15 @@ body {
   white-space: nowrap;
 }
 
-.bling-table td {
+.bling-table td,
+.data-table td {
   padding: 12px 14px;
   border-bottom: 1px solid var(--border-color);
   color: var(--text-main);
 }
 
-.bling-table tbody tr:hover {
+.bling-table tbody tr:hover,
+.data-table tbody tr:hover {
   background: #f8fafc;
 }
 
@@ -942,6 +1018,408 @@ body {
   transform: translateY(-1px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.18);
   color: #34d399;
+}
+
+/* ==========================================================================
+   Responsividade Completa para Smartphones e Tablets (BlingBI Mobile)
+   ========================================================================== */
+
+/* 1. Tablets e Telas Médias (<= 992px) */
+@media (max-width: 992px) {
+  /* Ativação dos botões de controle do menu */
+  .menu-toggle-btn {
+    display: inline-flex !important;
+  }
+
+  .sidebar-close-btn {
+    display: inline-flex !important;
+  }
+
+  /* Menu Lateral Off-Canvas deslizante */
+  .sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    bottom: 0 !important;
+    width: 280px !important;
+    max-width: 85vw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    z-index: 1100 !important;
+    transform: translateX(-100%) !important;
+    transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.3) !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .sidebar.active {
+    transform: translateX(0) !important;
+  }
+
+  body.sidebar-open {
+    overflow: hidden !important;
+  }
+
+  /* Ajuste de grids com múltiplas colunas */
+  .charts-grid,
+  .charts-grid[style*="grid-template-columns"],
+  [style*="grid-template-columns: 2fr 1fr"],
+  [style*="grid-template-columns: 1fr 1fr 1fr"],
+  [style*="grid-template-columns: 1fr 1fr"],
+  [style*="grid-template-columns: 360px 1fr"],
+  [style*="grid-template-columns: 320px 1fr"],
+  [style*="grid-template-columns*='repeat(auto-fit, minmax(360px'"],
+  [style*="grid-template-columns*='repeat(auto-fill, minmax(360px'"],
+  [style*="grid-template-columns*='repeat(auto-fill, minmax(320px'"] {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+}
+
+/* 2. Smartphones e Telas Pequenas (<= 768px) */
+@media (max-width: 768px) {
+  /* Layout e Container */
+  .app-container {
+    overflow-x: hidden;
+  }
+
+  .main-wrapper {
+    width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
+  }
+
+  /* Barra Superior Topbar */
+  .topbar {
+    height: auto !important;
+    min-height: 56px !important;
+    padding: 10px 12px !important;
+    flex-wrap: wrap !important;
+    gap: 10px !important;
+  }
+
+  .topbar-title {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    gap: 8px !important;
+  }
+
+  .page-title {
+    font-size: 15px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .topbar-actions {
+    width: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 8px !important;
+    flex-wrap: wrap !important;
+  }
+
+  /* Formulário de Período Global */
+  .date-filter-form {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding: 3px 6px !important;
+  }
+
+  .date-filter-form select {
+    width: 100% !important;
+    font-size: 12.5px !important;
+    padding: 3px 4px !important;
+  }
+
+  #customDateRange {
+    width: 100% !important;
+    flex-wrap: wrap !important;
+    margin-top: 6px !important;
+    gap: 4px !important;
+  }
+
+  #customDateRange input {
+    flex: 1 1 calc(50% - 14px) !important;
+    min-width: 100px !important;
+    font-size: 12px !important;
+  }
+
+  .btn-trigger-sync {
+    flex-shrink: 0 !important;
+    padding: 6px 10px !important;
+    font-size: 12px !important;
+  }
+
+  /* Área de Conteúdo */
+  .content-body {
+    padding: 12px 10px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+  }
+
+  /* Grid de KPIs - 2 Colunas Limpas no Smartphone */
+  .kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+    margin-bottom: 14px !important;
+  }
+
+  .kpi-card {
+    padding: 12px 12px !important;
+    border-radius: var(--radius-md) !important;
+  }
+
+  .kpi-header {
+    display: flex !important;
+    align-items: flex-start !important;
+    justify-content: space-between !important;
+    gap: 6px !important;
+  }
+
+  .kpi-title {
+    font-size: 11px !important;
+    line-height: 1.25 !important;
+    font-weight: 600 !important;
+  }
+
+  .kpi-value {
+    font-size: 17px !important;
+    font-weight: 800 !important;
+    line-height: 1.2 !important;
+    margin: 4px 0 2px 0 !important;
+    word-break: break-word !important;
+  }
+
+  .kpi-subtext {
+    font-size: 10px !important;
+    line-height: 1.2 !important;
+  }
+
+  .kpi-icon {
+    width: 26px !important;
+    height: 26px !important;
+    border-radius: 6px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .kpi-icon svg {
+    width: 14px !important;
+    height: 14px !important;
+  }
+
+  /* Cards e Gráficos */
+  .card {
+    margin-bottom: 14px !important;
+    border-radius: var(--radius-md) !important;
+    overflow: hidden !important;
+  }
+
+  .card-header {
+    padding: 10px 12px !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+
+  .card-title {
+    font-size: 13.5px !important;
+  }
+
+  .card-body {
+    padding: 12px 10px !important;
+    position: relative !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Alturas responsivas para gráficos Chart.js no Mobile */
+  .card-body[style*="height: 320px"],
+  .card-body[style*="height: 300px"],
+  .card-body[style*="height: 350px"],
+  .card-body[style*="height: 280px"],
+  .card-body[style*="height: 260px"] {
+    height: 240px !important;
+    min-height: 200px !important;
+    max-height: 260px !important;
+    overflow: hidden !important;
+  }
+
+  .card-body canvas {
+    max-width: 100% !important;
+  }
+
+  /* Setores & Abas de Navegação (Swipe Horizontal Fluido) */
+  .sector-header {
+    padding: 12px 12px 0 12px !important;
+    border-radius: var(--radius-md) !important;
+    margin-bottom: 12px !important;
+  }
+
+  .sector-header-top {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 8px !important;
+    margin-bottom: 10px !important;
+  }
+
+  .sector-title {
+    font-size: 16px !important;
+  }
+
+  .sector-subtitle {
+    font-size: 11.5px !important;
+  }
+
+  .sector-nav-tabs {
+    margin: 0 -12px !important;
+    padding: 0 12px !important;
+    gap: 4px !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    white-space: nowrap !important;
+  }
+
+  .sector-nav-tab {
+    padding: 8px 10px !important;
+    font-size: 12px !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* Tabelas Responsivas com rolagem por toque */
+  .table-responsive {
+    border-radius: var(--radius-sm) !important;
+    margin-bottom: 8px !important;
+  }
+
+  .bling-table,
+  .data-table {
+    min-width: 500px !important;
+    font-size: 12px !important;
+  }
+
+  .bling-table th,
+  .bling-table td,
+  .data-table th,
+  .data-table td {
+    padding: 8px 10px !important;
+  }
+
+  /* Filtros Secundários e Botões */
+  .btn {
+    padding: 6px 12px !important;
+    font-size: 12px !important;
+  }
+
+  .btn-sm {
+    padding: 5px 8px !important;
+    font-size: 11.5px !important;
+  }
+
+  /* Wrappers flexíveis em formulários e cards de ação */
+  div[style*="display: flex; align-items: center; justify-content: space-between"],
+  div[style*="display: flex; justify-content: space-between"],
+  form[style*="display: flex"] {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+
+  .form-control {
+    font-size: 14px !important; /* Previne zoom forçado no Safari/iOS */
+  }
+
+  /* Modais Responsivas no Mobile */
+  .order-modal-backdrop {
+    padding: 8px !important;
+  }
+
+  .order-modal-dialog {
+    width: 98% !important;
+    max-width: 98% !important;
+    max-height: 94vh !important;
+    border-radius: var(--radius-md) !important;
+    margin: 0 auto !important;
+  }
+
+  .order-modal-header {
+    padding: 10px 14px !important;
+  }
+
+  .order-modal-header h3 {
+    font-size: 15px !important;
+  }
+
+  .order-modal-body {
+    padding: 12px 10px !important;
+    gap: 12px !important;
+  }
+
+  .order-info-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+  }
+
+  .order-totals-box {
+    max-width: 100% !important;
+    width: 100% !important;
+    margin-left: 0 !important;
+    padding: 12px !important;
+  }
+
+  .order-modal-footer {
+    padding: 10px 12px !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+
+  .order-modal-footer .btn {
+    flex: 1 1 calc(50% - 4px) !important;
+  }
+
+  .sync-modal-card {
+    width: 95% !important;
+    padding: 18px 12px !important;
+  }
+
+  .sync-step-list {
+    padding: 10px 12px !important;
+    font-size: 12px !important;
+  }
+}
+
+/* 3. Smartphones Ultra Compactos (<= 420px) */
+@media (max-width: 420px) {
+  .kpi-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .order-info-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .order-modal-footer .btn {
+    flex: 1 1 100% !important;
+  }
+
+  .topbar-actions {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  .date-filter-form {
+    width: 100% !important;
+  }
+
+  .btn-trigger-sync {
+    width: 100% !important;
+    justify-content: center !important;
+  }
 }
 
 /* ==========================================================================

@@ -15,6 +15,55 @@ function setFinanceCheckboxes(val) {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
+    // 0. Controle do Menu Lateral Mobile (Sidebar Off-Canvas)
+    const menuToggleBtn = document.getElementById('menuToggleBtn');
+    const sidebarCloseBtn = document.getElementById('sidebarCloseBtn');
+    const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+    const appSidebar = document.getElementById('appSidebar');
+
+    function toggleMobileSidebar(open) {
+        if (!appSidebar) return;
+        const shouldOpen = open !== undefined ? open : !appSidebar.classList.contains('active');
+        appSidebar.classList.toggle('active', shouldOpen);
+        if (sidebarBackdrop) sidebarBackdrop.classList.toggle('active', shouldOpen);
+        document.body.classList.toggle('sidebar-open', shouldOpen);
+    }
+
+    if (menuToggleBtn) {
+        menuToggleBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            toggleMobileSidebar(true);
+        });
+    }
+
+    if (sidebarCloseBtn) {
+        sidebarCloseBtn.addEventListener('click', function() {
+            toggleMobileSidebar(false);
+        });
+    }
+
+    if (sidebarBackdrop) {
+        sidebarBackdrop.addEventListener('click', function() {
+            toggleMobileSidebar(false);
+        });
+    }
+
+    // Fechar sidebar ao clicar em um link no mobile
+    document.querySelectorAll('.sidebar-menu a').forEach(function(link) {
+        link.addEventListener('click', function() {
+            if (window.innerWidth <= 992) {
+                toggleMobileSidebar(false);
+            }
+        });
+    });
+
+    // Fechar com tecla Escape
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && appSidebar && appSidebar.classList.contains('active')) {
+            toggleMobileSidebar(false);
+        }
+    });
+
     // 1. Manipulação do Seletor de Período
     const periodSelect = document.getElementById('periodSelect');
     const customDateRange = document.getElementById('customDateRange');
