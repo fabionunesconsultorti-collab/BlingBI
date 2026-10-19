@@ -4,6 +4,7 @@ from app.models.product import Product
 from app.models.order import Order, OrderItem
 from app.models.financial import FinancialEntry
 from app.models.fashion import ConditionalBag, ProductReturn, SellerAttendance, CustomerSurvey
+from app.models.master import MasterUser, MasterSegment, PasswordResetToken
 
 __all__ = [
     'Setting',
@@ -15,5 +16,9 @@ __all__ = [
     'ConditionalBag',
     'ProductReturn',
     'SellerAttendance',
-    'CustomerSurvey'
+    'CustomerSurvey',
+    'MasterUser',
+    'MasterSegment',
+    'PasswordResetToken'
 ]
+

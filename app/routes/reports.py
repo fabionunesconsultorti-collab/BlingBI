@@ -17,6 +17,13 @@ def hub():
     """Catálogo unificado de relatórios estratégicos com auto-descoberta e gestão de módulos."""
     summary_data = StandardReportsEngine.get_hub_summary()
     all_reports = report_registry.get_all()
+
+    # Filtra relatórios pelo segmento da empresa (a menos que seja o admgeral fora de impersonate)
+    from flask import session
+    allowed_reports = session.get('allowed_reports')
+    if allowed_reports is not None and (not session.get('is_admin') or session.get('impersonate_user_id')):
+        all_reports = [r for r in all_reports if r.id in allowed_reports]
+
     categories = report_registry.get_categories()
     features_grouped = FeatureRegistry.get_catalog_grouped()
     all_features_list = FeatureRegistry.get_all_features()
@@ -56,6 +63,13 @@ def hub():
 @bp.route('/view/<report_id>')
 def view_report(report_id):
     """Visualizador dinâmico de qualquer relatório registrado."""
+    from flask import session
+    allowed_reports = session.get('allowed_reports')
+    if allowed_reports is not None and (not session.get('is_admin') or session.get('impersonate_user_id')):
+        if report_id not in allowed_reports:
+            flash("Este relatório não está disponível para o segmento cadastrado da sua empresa.", "warning")
+            return redirect(url_for('reports.hub'))
+
     module = report_registry.get(report_id)
     if not module:
         flash(f"Relatório '{report_id}' não encontrado no catálogo.", "warning")

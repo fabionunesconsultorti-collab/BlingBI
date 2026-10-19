@@ -12,8 +12,22 @@ services:
         value: production
       - key: SECRET_KEY
         generateValue: true
+      - key: ADMIN_DEFAULT_PASSWORD
+        value: admgeral2026
+      # Conexão opcional com PostgreSQL gerenciado do Render para o Master DB
+      # - key: DATABASE_URL
+      #   fromDatabase:
+      #     name: bling-bi-db
+      #     property: connectionString
       # Descomente e preencha caso queira conectar suas credenciais Bling via ambiente
       # - key: BLING_CLIENT_ID
       #   sync: false
       # - key: BLING_CLIENT_SECRET
       #   sync: false
+
+# Descomente o bloco abaixo para ativar banco PostgreSQL persistente gratuito no Render
+# databases:
+#   - name: bling-bi-db
+#     plan: free
+#     databaseName: bling_bi
+#     user: bling_admin

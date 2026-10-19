@@ -1,0 +1,172 @@
+{% extends 'base.html' %}
+
+{% block title %}Painel do Administrador Geral - BlingBI{% endblock %}
+{% block page_title %}Administração Geral do Sistema (admgeral){% endblock %}
+
+{% block content %}
+<div class="admin-dashboard-container" style="display: flex; flex-direction: column; gap: 24px;">
+
+    <!-- Top Action Banner -->
+    <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #ffffff; padding: 24px 28px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; box-shadow: 0 4px 14px rgba(0,0,0,0.15);">
+        <div>
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
+                <span style="background: #008b54; color: #fff; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 4px; text-transform: uppercase;">Super Admin</span>
+                <h2 style="margin: 0; font-size: 20px; font-weight: 800;">Central Multi-Empresas BlingBI</h2>
+            </div>
+            <p style="margin: 0; font-size: 13.5px; color: #94a3b8;">Gerencie seus clientes, isole bases de dados e defina permissões por segmento de atuação.</p>
+        </div>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <a href="{{ url_for('admin.client_create') }}" class="btn btn-primary" style="background: #008b54; border: none; height: 38px; display: inline-flex; align-items: center; gap: 8px; font-weight: 600; padding: 0 16px; border-radius: 6px; text-decoration: none; color: #fff;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                Cadastrar Novo Cliente
+            </a>
+            <a href="{{ url_for('admin.segments_list') }}" class="btn btn-outline" style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.2); color: #fff; height: 38px; display: inline-flex; align-items: center; gap: 8px; font-weight: 600; padding: 0 16px; border-radius: 6px; text-decoration: none;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 21v-7m0-4V3m8 18v-9m0-4V3m8 18v-5m0-4V3M1 14h6m2-6h6m2 8h6"></path></svg>
+                Gerenciar Segmentos & Telas
+            </a>
+        </div>
+    </div>
+
+    <!-- KPI Metric Cards -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
+        <div style="background: #fff; padding: 20px; border-radius: 10px; border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 16px;">
+            <div style="width: 48px; height: 48px; border-radius: 10px; background: #e0f2fe; color: #0284c7; display: flex; align-items: center; justify-content: center; font-size: 22px;">
+                🏢
+            </div>
+            <div>
+                <span style="font-size: 12px; color: #64748b; font-weight: 600; text-transform: uppercase;">Total de Empresas</span>
+                <h3 style="margin: 4px 0 0 0; font-size: 24px; font-weight: 800; color: #0f172a;">{{ total_clients }}</h3>
+            </div>
+        </div>
+
+        <div style="background: #fff; padding: 20px; border-radius: 10px; border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 16px;">
+            <div style="width: 48px; height: 48px; border-radius: 10px; background: #dcfce7; color: #16a34a; display: flex; align-items: center; justify-content: center; font-size: 22px;">
+                ✅
+            </div>
+            <div>
+                <span style="font-size: 12px; color: #64748b; font-weight: 600; text-transform: uppercase;">Bases Ativas</span>
+                <h3 style="margin: 4px 0 0 0; font-size: 24px; font-weight: 800; color: #16a34a;">{{ active_clients }}</h3>
+            </div>
+        </div>
+
+        <div style="background: #fff; padding: 20px; border-radius: 10px; border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 16px;">
+            <div style="width: 48px; height: 48px; border-radius: 10px; background: #fef3c7; color: #d97706; display: flex; align-items: center; justify-content: center; font-size: 22px;">
+                🧩
+            </div>
+            <div>
+                <span style="font-size: 12px; color: #64748b; font-weight: 600; text-transform: uppercase;">Segmentos Configurados</span>
+                <h3 style="margin: 4px 0 0 0; font-size: 24px; font-weight: 800; color: #d97706;">{{ total_segments }}</h3>
+            </div>
+        </div>
+
+        <div style="background: #fff; padding: 20px; border-radius: 10px; border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 16px;">
+            <div style="width: 48px; height: 48px; border-radius: 10px; background: #f1f5f9; color: #475569; display: flex; align-items: center; justify-content: center; font-size: 22px;">
+                🛡️
+            </div>
+            <div>
+                <span style="font-size: 12px; color: #64748b; font-weight: 600; text-transform: uppercase;">Multi-Tenancy</span>
+                <h3 style="margin: 4px 0 0 0; font-size: 15px; font-weight: 700; color: #008b54;">100% Isolado</h3>
+            </div>
+        </div>
+    </div>
+
+    <!-- Grid com Lista de Clientes Recentes e Segmentos -->
+    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px;">
+        
+        <!-- Clientes Recentes -->
+        <div style="background: #fff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden;">
+            <div style="padding: 16px 20px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: space-between;">
+                <h3 style="margin: 0; font-size: 15px; font-weight: 700; color: #0f172a;">Últimos Clientes Cadastrados</h3>
+                <a href="{{ url_for('admin.clients_list') }}" style="font-size: 12.5px; color: #008b54; text-decoration: none; font-weight: 600;">Ver todos ({{ total_clients }}) →</a>
+            </div>
+            
+            {% if recent_clients %}
+                <div style="overflow-x: auto;">
+                    <table class="data-table" style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                        <thead>
+                            <tr style="background: #f8fafc; text-align: left; color: #64748b; border-bottom: 1px solid #e2e8f0;">
+                                <th style="padding: 10px 16px;">Empresa / Usuário</th>
+                                <th style="padding: 10px 16px;">Segmento</th>
+                                <th style="padding: 10px 16px;">Base de Dados</th>
+                                <th style="padding: 10px 16px;">Status</th>
+                                <th style="padding: 10px 16px; text-align: right;">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for c in recent_clients %}
+                                <tr style="border-bottom: 1px solid #f1f5f9;">
+                                    <td style="padding: 12px 16px;">
+                                        <div style="font-weight: 600; color: #0f172a;">{{ c.company_name }}</div>
+                                        <div style="font-size: 11.5px; color: #64748b;">@{{ c.username }} • {{ c.email }}</div>
+                                    </td>
+                                    <td style="padding: 12px 16px;">
+                                        {% if c.segment %}
+                                            <span style="display: inline-flex; align-items: center; gap: 4px; background: #f1f5f9; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;">
+                                                <span>{{ c.segment.icon }}</span> {{ c.segment.name }}
+                                            </span>
+                                        {% else %}
+                                            <span style="color: #94a3b8;">Não atribuído</span>
+                                        {% endif %}
+                                    </td>
+                                    <td style="padding: 12px 16px;">
+                                        <span style="font-size: 11.5px; font-family: monospace; background: #f8fafc; padding: 2px 6px; border-radius: 4px; border: 1px solid #e2e8f0;">
+                                            {{ c.db_type | upper }}
+                                        </span>
+                                    </td>
+                                    <td style="padding: 12px 16px;">
+                                        {% if c.is_active %}
+                                            <span style="color: #16a34a; font-weight: 600; font-size: 12px;">● Ativo</span>
+                                        {% else %}
+                                            <span style="color: #dc2626; font-weight: 600; font-size: 12px;">● Inativo</span>
+                                        {% endif %}
+                                    </td>
+                                    <td style="padding: 12px 16px; text-align: right;">
+                                        <div style="display: inline-flex; gap: 6px;">
+                                            <a href="{{ url_for('admin.client_impersonate', client_id=c.id) }}" class="btn btn-sm" style="background: #e0f2fe; color: #0369a1; padding: 4px 10px; border-radius: 4px; font-size: 11.5px; font-weight: 600; text-decoration: none;" title="Auditar e ver o BI como este cliente">
+                                                Ver como Cliente
+                                            </a>
+                                            <a href="{{ url_for('admin.client_edit', client_id=c.id) }}" class="btn btn-sm btn-outline" style="padding: 4px 8px; border-radius: 4px; font-size: 11.5px; text-decoration: none;">
+                                                Editar
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div style="padding: 40px; text-align: center; color: #64748b;">
+                    <p style="font-size: 15px; margin-bottom: 12px;">Nenhum cliente cadastrado ainda.</p>
+                    <a href="{{ url_for('admin.client_create') }}" class="btn btn-primary btn-sm" style="background: #008b54; text-decoration: none; color: #fff;">Cadastrar Primeiro Cliente</a>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Segmentos Configurados -->
+        <div style="background: #fff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; height: fit-content;">
+            <div style="padding: 16px 20px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: space-between;">
+                <h3 style="margin: 0; font-size: 15px; font-weight: 700; color: #0f172a;">Segmentos de Negócio</h3>
+                <a href="{{ url_for('admin.segment_create') }}" style="font-size: 12.5px; color: #008b54; text-decoration: none; font-weight: 600;">+ Novo</a>
+            </div>
+            <div style="padding: 12px;">
+                {% for seg in segments %}
+                    <div style="padding: 10px 12px; border-radius: 8px; margin-bottom: 8px; background: #f8fafc; border: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: space-between;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="font-size: 20px;">{{ seg.icon }}</span>
+                            <div>
+                                <div style="font-size: 13px; font-weight: 600; color: #1e293b;">{{ seg.name }}</div>
+                                <div style="font-size: 11px; color: #64748b;">{{ seg.allowed_screens|length }} telas • {{ seg.allowed_reports|length }} relatórios</div>
+                            </div>
+                        </div>
+                        <a href="{{ url_for('admin.segment_edit', segment_id=seg.id) }}" style="font-size: 12px; color: #64748b; text-decoration: none;" title="Configurar Telas">
+                            ⚙️
+                        </a>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

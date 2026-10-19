@@ -61,6 +61,19 @@ Ainda na tela de configuração (ou na aba **Environment** do serviço):
 1. **`PYTHON_VERSION`**: `3.12.3`
 2. **`FLASK_ENV`**: `production`
 3. **`SECRET_KEY`**: Clique em *Generate* para gerar uma chave aleatória segura.
+4. **`ADMIN_DEFAULT_PASSWORD`**: `admgeral2026` (senha inicial do Super Administrador; você pode alterá-la na interface ou definir uma senha segura aqui).
+
+### 🔑 Primeiro Acesso e Painel do Administrador Geral:
+Ao concluir o deploy e acessar a URL da sua aplicação no Render:
+- Acesse a tela de login: `https://sua-url.onrender.com/login`
+- **Usuário:** `admgeral`
+- **Senha Inicial:** `admgeral2026` (ou o valor definido na variável `ADMIN_DEFAULT_PASSWORD`)
+- No painel administrativo (`/admin`), você pode:
+  1. Alterar a senha do administrador a qualquer momento.
+  2. Cadastrar novos clientes com suas respectivas bases de dados dedicadas.
+  3. Criar ou personalizar os segmentos de negócio, escolhendo quais telas e relatórios cada segmento terá acesso.
+  4. Auditar qualquer cliente em tempo real via botão *"Acessar como Empresa"*.
+
 
 *(Opcional)* Se desejar pré-configurar o Bling via ambiente em vez de preencher na tela:
 - `BLING_CLIENT_ID`: Seu Client ID do aplicativo Bling

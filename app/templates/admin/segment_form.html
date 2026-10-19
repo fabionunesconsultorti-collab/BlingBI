@@ -1,0 +1,129 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if segment %}Configurar Telas: {{ segment.name }}{% else %}Criar Novo Segmento{% endif %} - BlingBI{% endblock %}
+{% block page_title %}{% if segment %}Configurar Telas: {{ segment.name }}{% else %}Criar Novo Segmento{% endif %}{% endblock %}
+
+{% block content %}
+<div style="max-width: 860px; margin: 10px auto 40px auto;">
+    <div style="background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 14px rgba(0,0,0,0.04);">
+        
+        <div style="padding: 20px 24px; border-bottom: 1px solid #f1f5f9; background: #f8fafc; display: flex; align-items: center; justify-content: space-between;">
+            <div>
+                <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: #0f172a;">
+                    {% if segment %}Mapeamento de Telas & Relatórios: {{ segment.name }}{% else %}Novo Segmento de Atuação{% endif %}
+                </h3>
+                <p style="margin: 3px 0 0 0; font-size: 12.5px; color: #64748b;">
+                    Selecione com precisão cirúrgica quais menus e relatórios estarão disponíveis para este segmento.
+                </p>
+            </div>
+            <a href="{{ url_for('admin.segments_list') }}" class="btn btn-outline" style="height: 36px; padding: 0 14px; border-radius: 6px; text-decoration: none; font-size: 13px; display: inline-flex; align-items: center;">
+                ← Voltar aos Segmentos
+            </a>
+        </div>
+
+        <form method="POST" style="padding: 28px;">
+            
+            <!-- Dados Básicos -->
+            <div style="margin-bottom: 28px;">
+                <h4 style="font-size: 13.5px; text-transform: uppercase; color: #008b54; font-weight: 700; margin-bottom: 16px; letter-spacing: 0.5px;">1. Identificação do Segmento</h4>
+                
+                <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                    <div>
+                        <label class="form-label" style="display: block; font-size: 13px; font-weight: 600; color: #334155; margin-bottom: 6px;">Nome do Segmento *</label>
+                        <input type="text" name="name" value="{{ segment.name if segment else '' }}" class="form-control" placeholder="ex: Óticas & Joalherias" required style="width: 100%; height: 42px; border-radius: 8px; border: 1.5px solid #cbd5e1; padding: 8px 12px;">
+                    </div>
+                    <div>
+                        <label class="form-label" style="display: block; font-size: 13px; font-weight: 600; color: #334155; margin-bottom: 6px;">Slug (Identificador) *</label>
+                        <input type="text" name="slug" value="{{ segment.slug if segment else '' }}" {% if segment and segment.is_system_default %}readonly style="background: #f1f5f9; cursor: not-allowed;"{% endif %} class="form-control" placeholder="ex: opticas" required style="width: 100%; height: 42px; border-radius: 8px; border: 1.5px solid #cbd5e1; padding: 8px 12px; font-family: monospace;">
+                    </div>
+                    <div>
+                        <label class="form-label" style="display: block; font-size: 13px; font-weight: 600; color: #334155; margin-bottom: 6px;">Ícone (Emoji)</label>
+                        <input type="text" name="icon" value="{{ segment.icon if segment else '📊' }}" class="form-control" placeholder="🕶️" style="width: 100%; height: 42px; border-radius: 8px; border: 1.5px solid #cbd5e1; padding: 8px 12px; text-align: center; font-size: 20px;">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="form-label" style="display: block; font-size: 13px; font-weight: 600; color: #334155; margin-bottom: 6px;">Descrição / Perfil de Negócio</label>
+                    <textarea name="description" rows="2" class="form-control" placeholder="Breve resumo dos tipos de produtos e operações atendidos por este segmento..." style="width: 100%; border-radius: 8px; border: 1.5px solid #cbd5e1; padding: 8px 12px;">{{ segment.description if segment else '' }}</textarea>
+                </div>
+            </div>
+
+            <!-- Seleção de Telas & Setores -->
+            <div style="margin-bottom: 28px; padding-top: 20px; border-top: 1px solid #f1f5f9;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
+                    <h4 style="font-size: 13.5px; text-transform: uppercase; color: #008b54; font-weight: 700; margin: 0; letter-spacing: 0.5px;">
+                        2. Telas e Módulos do Menu Lateral
+                    </h4>
+                    <div style="display: flex; gap: 8px;">
+                        <button type="button" class="btn btn-sm btn-outline" onclick="toggleAll('screen-cb', true)">Marcar Todos</button>
+                        <button type="button" class="btn btn-sm btn-outline" onclick="toggleAll('screen-cb', false)">Desmarcar</button>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px;">
+                    {% set cur_screens = segment.allowed_screens if segment else ['dashboard', 'sales', 'products', 'customers', 'finance', 'reports', 'integrations'] %}
+                    {% for scr in all_screens %}
+                        <label style="display: flex; align-items: flex-start; gap: 10px; background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; cursor: pointer;">
+                            <input type="checkbox" name="screens" value="{{ scr.id }}" class="screen-cb" {% if scr.id in cur_screens %}checked{% endif %} style="margin-top: 3px;">
+                            <div>
+                                <div style="font-size: 13.5px; font-weight: 600; color: #1e293b; display: flex; align-items: center; gap: 6px;">
+                                    <span>{{ scr.icon }}</span> {{ scr.name }}
+                                </div>
+                                <div style="font-size: 11.5px; color: #64748b; margin-top: 3px; line-height: 1.35;">
+                                    {{ scr.desc }}
+                                </div>
+                            </div>
+                        </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Seleção de Relatórios da Central -->
+            <div style="margin-bottom: 28px; padding-top: 20px; border-top: 1px solid #f1f5f9;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
+                    <h4 style="font-size: 13.5px; text-transform: uppercase; color: #008b54; font-weight: 700; margin: 0; letter-spacing: 0.5px;">
+                        3. Relatórios Habilitados na Central (/reports)
+                    </h4>
+                    <div style="display: flex; gap: 8px;">
+                        <button type="button" class="btn btn-sm btn-outline" onclick="toggleAll('report-cb', true)">Marcar Todos</button>
+                        <button type="button" class="btn btn-sm btn-outline" onclick="toggleAll('report-cb', false)">Desmarcar</button>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px;">
+                    {% set cur_reports = segment.allowed_reports if segment else ['dre', 'cash_flow', 'rfm', 'stock_coverage', 'multichannel', 'fashion_bi'] %}
+                    {% for rep in all_reports %}
+                        <label style="display: flex; align-items: flex-start; gap: 10px; background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; cursor: pointer;">
+                            <input type="checkbox" name="reports" value="{{ rep.id }}" class="report-cb" {% if rep.id in cur_reports %}checked{% endif %} style="margin-top: 3px;">
+                            <div>
+                                <div style="font-size: 13.5px; font-weight: 600; color: #1e293b;">
+                                    {{ rep.name }}
+                                </div>
+                                <div style="font-size: 11.5px; color: #64748b; margin-top: 3px; line-height: 1.35;">
+                                    {{ rep.description }}
+                                </div>
+                            </div>
+                        </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Botões -->
+            <div style="display: flex; gap: 12px; justify-content: flex-end; padding-top: 16px; border-top: 1px solid #f1f5f9;">
+                <a href="{{ url_for('admin.segments_list') }}" class="btn btn-outline" style="height: 42px; padding: 0 20px; display: inline-flex; align-items: center; border-radius: 6px; text-decoration: none;">Cancelar</a>
+                <button type="submit" class="btn btn-primary" style="background: #008b54; height: 42px; padding: 0 24px; border-radius: 6px; font-weight: 600; border: none; color: #fff; cursor: pointer;">
+                    {% if segment %}Salvar Configurações do Segmento{% else %}Criar Segmento{% endif %}
+                </button>
+            </div>
+
+        </form>
+
+    </div>
+</div>
+
+<script>
+function toggleAll(className, check) {
+    document.querySelectorAll('.' + className).forEach(cb => cb.checked = check);
+}
+</script>
+{% endblock %}

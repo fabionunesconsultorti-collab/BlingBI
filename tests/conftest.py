@@ -20,7 +20,16 @@ def app():
 
 @pytest.fixture
 def client(app):
-    return app.test_client()
+    test_client = app.test_client()
+    with test_client.session_transaction() as sess:
+        sess['user_id'] = 1
+        sess['username'] = 'admgeral'
+        sess['role'] = 'admin'
+        sess['is_admin'] = True
+        sess['company_name'] = 'Administração Central'
+        sess['allowed_screens'] = ['dashboard', 'sales', 'products', 'customers', 'finance', 'fashion', 'reports', 'integrations']
+        sess['allowed_reports'] = ['dre', 'cash_flow', 'rfm', 'stock_coverage', 'multichannel', 'fashion_bi']
+    return test_client
 
 @pytest.fixture
 def runner(app):

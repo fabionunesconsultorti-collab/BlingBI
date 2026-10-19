@@ -28,59 +28,101 @@
                 </button>
             </div>
             <ul class="sidebar-menu">
-                <li class="menu-category">Estratégico</li>
-                <li class="menu-item {% if request.endpoint == 'dashboard.index' %}active{% endif %}">
-                    <a href="{{ url_for('dashboard.index') }}">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-                        Dashboard 360°
-                    </a>
-                </li>
-                <li class="menu-item {% if request.endpoint and request.endpoint.startswith('reports.') %}active{% endif %}">
-                    <a href="{{ url_for('reports.hub') }}">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                        Central de Relatórios
-                    </a>
-                </li>
+                {% if is_screen_allowed('dashboard') or is_screen_allowed('reports') %}
+                    <li class="menu-category">Estratégico</li>
+                    {% if is_screen_allowed('dashboard') %}
+                        <li class="menu-item {% if request.endpoint == 'dashboard.index' %}active{% endif %}">
+                            <a href="{{ url_for('dashboard.index') }}">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                Dashboard 360°
+                            </a>
+                        </li>
+                    {% endif %}
+                    {% if is_screen_allowed('reports') %}
+                        <li class="menu-item {% if request.endpoint and request.endpoint.startswith('reports.') %}active{% endif %}">
+                            <a href="{{ url_for('reports.hub') }}">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                                Central de Relatórios
+                            </a>
+                        </li>
+                    {% endif %}
+                {% endif %}
 
-                <li class="menu-category">Setores de Inteligência & Decisão</li>
-                <li class="menu-item {% if request.endpoint and request.endpoint.startswith('sales.') %}active{% endif %}">
-                    <a href="{{ url_for('sales.index') }}">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
-                        Vendas e Pedidos
-                    </a>
-                </li>
-                <li class="menu-item {% if request.endpoint and request.endpoint.startswith('products.') %}active{% endif %}">
-                    <a href="{{ url_for('products.index') }}">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
-                        Produtos e Curva ABC
-                    </a>
-                </li>
-                <li class="menu-item {% if request.endpoint and request.endpoint.startswith('customers.') %}active{% endif %}">
-                    <a href="{{ url_for('customers.index') }}">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-                        Clientes e CRM
-                    </a>
-                </li>
-                <li class="menu-item {% if request.endpoint and request.endpoint.startswith('finance.') %}active{% endif %}">
-                    <a href="{{ url_for('finance.index') }}">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
-                        Financeiro e DRE
-                    </a>
-                </li>
-                <li class="menu-item {% if request.endpoint and request.endpoint.startswith('fashion.') %}active{% endif %}">
-                    <a href="{{ url_for('fashion.index') }}">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
-                        Moda & Vestuário
-                    </a>
-                </li>
+                {% if is_screen_allowed('sales') or is_screen_allowed('products') or is_screen_allowed('customers') or is_screen_allowed('finance') or is_screen_allowed('fashion') %}
+                    <li class="menu-category">Setores de Inteligência</li>
+                    {% if is_screen_allowed('sales') %}
+                        <li class="menu-item {% if request.endpoint and request.endpoint.startswith('sales.') %}active{% endif %}">
+                            <a href="{{ url_for('sales.index') }}">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
+                                Vendas e Pedidos
+                            </a>
+                        </li>
+                    {% endif %}
+                    {% if is_screen_allowed('products') %}
+                        <li class="menu-item {% if request.endpoint and request.endpoint.startswith('products.') %}active{% endif %}">
+                            <a href="{{ url_for('products.index') }}">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                                Produtos e Curva ABC
+                            </a>
+                        </li>
+                    {% endif %}
+                    {% if is_screen_allowed('customers') %}
+                        <li class="menu-item {% if request.endpoint and request.endpoint.startswith('customers.') %}active{% endif %}">
+                            <a href="{{ url_for('customers.index') }}">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                                Clientes e CRM
+                            </a>
+                        </li>
+                    {% endif %}
+                    {% if is_screen_allowed('finance') %}
+                        <li class="menu-item {% if request.endpoint and request.endpoint.startswith('finance.') %}active{% endif %}">
+                            <a href="{{ url_for('finance.index') }}">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                                Financeiro e DRE
+                            </a>
+                        </li>
+                    {% endif %}
+                    {% if is_screen_allowed('fashion') %}
+                        <li class="menu-item {% if request.endpoint and request.endpoint.startswith('fashion.') %}active{% endif %}">
+                            <a href="{{ url_for('fashion.index') }}">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
+                                Moda & Vestuário
+                            </a>
+                        </li>
+                    {% endif %}
+                {% endif %}
 
-                <li class="menu-category">Sistema</li>
-                <li class="menu-item {% if request.endpoint == 'integrations.index' %}active{% endif %}">
-                    <a href="{{ url_for('integrations.index') }}">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-                        Configurar API & Bling
-                    </a>
-                </li>
+                {% if is_screen_allowed('integrations') %}
+                    <li class="menu-category">Sistema</li>
+                    <li class="menu-item {% if request.endpoint == 'integrations.index' %}active{% endif %}">
+                        <a href="{{ url_for('integrations.index') }}">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                            Configurar API & Bling
+                        </a>
+                    </li>
+                {% endif %}
+
+                {% if session.get('is_admin') %}
+                    <li class="menu-category" style="color: #6ee7b7;">Administração Geral</li>
+                    <li class="menu-item {% if request.endpoint == 'admin.index' %}active{% endif %}">
+                        <a href="{{ url_for('admin.index') }}" style="color: #d1fae5;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>
+                            Painel Admin
+                        </a>
+                    </li>
+                    <li class="menu-item {% if request.endpoint and request.endpoint.startswith('admin.client') %}active{% endif %}">
+                        <a href="{{ url_for('admin.clients_list') }}" style="color: #d1fae5;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                            Gerenciar Clientes
+                        </a>
+                    </li>
+                    <li class="menu-item {% if request.endpoint and request.endpoint.startswith('admin.segment') %}active{% endif %}">
+                        <a href="{{ url_for('admin.segments_list') }}" style="color: #d1fae5;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 21v-7m0-4V3m8 18v-9m0-4V3m8 18v-5m0-4V3M1 14h6m2-6h6m2 8h6"></path></svg>
+                            Segmentos & Telas
+                        </a>
+                    </li>
+                {% endif %}
             </ul>
             <div class="sidebar-footer">
                 <span>Versão 1.0 Local</span>
@@ -93,6 +135,19 @@
 
         <!-- Wrapper de Conteúdo -->
         <div class="main-wrapper">
+            <!-- Banner de Modo Auditoria (Impersonate) -->
+            {% if session.get('impersonate_user_id') %}
+                <div style="background: linear-gradient(90deg, #fef3c7 0%, #fde68a 100%); border-bottom: 2px solid #f59e0b; padding: 10px 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; font-size: 13px; color: #92400e;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 18px;">🔍</span>
+                        <strong>Modo Auditoria Ativo:</strong> Você está visualizando o BI como <strong>{{ session.get('impersonate_company_name') }}</strong> (Segmento: {{ session.get('impersonate_segment_name', 'Geral') }}).
+                    </div>
+                    <a href="{{ url_for('admin.impersonate_exit') }}" class="btn btn-sm" style="background: #b45309; color: #fff; font-weight: 600; padding: 5px 14px; border-radius: 6px; text-decoration: none;">
+                        Sair do Modo Cliente
+                    </a>
+                </div>
+            {% endif %}
+
             <!-- Barra Superior Topbar -->
             <header class="topbar">
                 <div class="topbar-title">
@@ -126,6 +181,26 @@
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
                         Sincronizar
                     </button>
+
+                    <!-- Informações do Usuário e Empresa Logada -->
+                    {% if session.get('user_id') %}
+                        <div class="user-pill" style="display: flex; align-items: center; gap: 8px; background: #f8fafc; border: 1px solid #e2e8f0; padding: 4px 10px; border-radius: 20px; font-size: 12.5px;">
+                            {% if session.get('is_admin') and not session.get('impersonate_user_id') %}
+                                <span style="background: #10b981; color: #fff; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700;">A</span>
+                                <span style="font-weight: 600; color: #0f172a;">admgeral</span>
+                            {% else %}
+                                <span style="font-size: 14px;">{{ session.get('segment_icon', '🏢') }}</span>
+                                <span style="font-weight: 600; color: #0f172a; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ session.get('company_name', 'Empresa') }}</span>
+                            {% endif %}
+                            
+                            <a href="{{ url_for('auth.change_password') }}" title="Alterar Senha" style="color: #64748b; text-decoration: none; padding: 2px 4px;">
+                                🔑
+                            </a>
+                            <a href="{{ url_for('auth.logout') }}" title="Sair da Conta" style="color: #ef4444; text-decoration: none; padding: 2px 4px; font-weight: 700;">
+                                ✕
+                            </a>
+                        </div>
+                    {% endif %}
                 </div>
             </header>
 

@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+
+{% block title %}Segmentos de Negócio & Telas - BlingBI{% endblock %}
+{% block page_title %}Catálogo de Segmentos de Atuação{% endblock %}
+
+{% block content %}
+<div style="display: flex; flex-direction: column; gap: 20px;">
+
+    <!-- Top Action Bar -->
+    <div style="background: #ffffff; padding: 18px 24px; border-radius: 10px; border: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;">
+        <div>
+            <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: #0f172a;">Segmentação Inteligente do BI</h3>
+            <p style="margin: 3px 0 0 0; font-size: 13px; color: #64748b;">
+                Cada segmento carrega seu respectivo conjunto de telas, menus e relatórios para os clientes associados.
+            </p>
+        </div>
+        <a href="{{ url_for('admin.segment_create') }}" class="btn btn-primary" style="background: #008b54; border: none; height: 38px; display: inline-flex; align-items: center; gap: 8px; font-weight: 600; padding: 0 18px; border-radius: 6px; text-decoration: none; color: #fff;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            Criar Novo Segmento
+        </a>
+    </div>
+
+    <!-- Cards Grid de Segmentos -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 20px;">
+        {% for seg in segments %}
+            <div style="background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 2px 8px rgba(0,0,0,0.03);">
+                
+                <div style="padding: 20px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <span style="font-size: 28px; background: #f8fafc; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; border-radius: 10px; border: 1px solid #e2e8f0;">{{ seg.icon }}</span>
+                            <div>
+                                <h4 style="margin: 0; font-size: 16px; font-weight: 700; color: #0f172a;">{{ seg.name }}</h4>
+                                <span style="font-size: 11.5px; font-family: monospace; color: #64748b;">slug: {{ seg.slug }}</span>
+                            </div>
+                        </div>
+                        {% if seg.is_system_default %}
+                            <span style="background: #e0f2fe; color: #0369a1; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 4px;">Padrão</span>
+                        {% endif %}
+                    </div>
+
+                    <p style="font-size: 13px; color: #475569; margin: 0 0 16px 0; line-height: 1.45;">
+                        {{ seg.description or 'Sem descrição detalhada.' }}
+                    </p>
+
+                    <!-- Telas Liberadas Tags -->
+                    <div style="margin-bottom: 14px;">
+                        <span style="display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #64748b; margin-bottom: 6px;">Telas Liberadas ({{ seg.allowed_screens|length }}):</span>
+                        <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+                            {% for screen in seg.allowed_screens %}
+                                <span style="background: #f1f5f9; color: #334155; font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 500;">
+                                    {{ screen|capitalize }}
+                                </span>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Relatórios Liberados Tags -->
+                    <div>
+                        <span style="display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #64748b; margin-bottom: 6px;">Relatórios da Central ({{ seg.allowed_reports|length }}):</span>
+                        <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+                            {% for rep in seg.allowed_reports %}
+                                <span style="background: #ecfdf5; color: #065f46; font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 500;">
+                                    {{ rep|upper }}
+                                </span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer do Card -->
+                <div style="padding: 12px 20px; background: #f8fafc; border-top: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: space-between;">
+                    <span style="font-size: 12px; color: #64748b;">
+                        👥 <strong>{{ seg.users.count() }}</strong> empresa(s)
+                    </span>
+                    <a href="{{ url_for('admin.segment_edit', segment_id=seg.id) }}" class="btn btn-sm btn-outline" style="padding: 5px 12px; font-size: 12px; font-weight: 600; text-decoration: none; border-radius: 6px;">
+                        Configurar Telas →
+                    </a>
+                </div>
+
+            </div>
+        {% endfor %}
+    </div>
+
+</div>
+{% endblock %}

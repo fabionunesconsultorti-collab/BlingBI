@@ -1,18 +1,59 @@
-# 🟢 BlingBI - Business Intelligence & Painel de Decisão para Bling ERP
+# 🟢 BlingBI - Business Intelligence Multi-Empresas & Painel de Decisão para Bling ERP
 
-Um sistema completo de **Business Intelligence (BI) e Painel Executivo** desenvolvido em **Python Flask**, projetado para rodar localmente no seu computador e abrir diretamente no navegador com a identidade visual moderna e limpa do **Bling ERP**.
+Um sistema completo de **Business Intelligence (BI) e Painel Executivo SaaS Multi-Empresas** desenvolvido em **Python Flask**, com suporte a **Multi-Tenancy por Base de Dados (dados 100% isolados por cliente)**, autenticação centralizada, gestão dinâmica de segmentos de mercado e interface inspirada na identidade moderna do **Bling ERP**.
+
+---
+
+## 🔑 Acesso Rápido & Credenciais Padrão
+
+O sistema possui controle de acesso com perfil de **Super Administrador Geral** e **Empresas Clientes**:
+
+- **URL de Acesso:** `http://localhost:5000/login` (ou na sua URL em nuvem no Render)
+- **Usuário Administrador:** `admgeral`
+- **Senha Inicial:** `admgeral2026`
+- **Painel Administrativo:** `/admin`
+- **Recursos de Segurança:**
+  - Troca de senha autenticada em `/change-password`
+  - Recuperação de senha por token com expiração em `/forgot-password`
+  - Redefinição instantânea de senha de qualquer cliente pelo `admgeral`
+
+---
+
+## 🏢 Arquitetura Multi-Tenancy & Isolamento de Dados
+
+- **Master Database**:
+  - Armazena as entidades do sistema: Usuários (`master_users`), Segmentos (`master_segments`) e Tokens temporários (`master_password_resets`).
+- **Tenant Database (Bases Isoladas)**:
+  - Cada cliente cadastrado pelo `admgeral` opera em sua respectiva base de dados:
+    - **Base Própria SQLite Dedicada (Automática)**: Criada em `data/tenants/{username}.db`, com modo WAL de alta performance.
+    - **String de Conexão Externa (PostgreSQL / MySQL)**: Suporte para clientes corporativos com bancos próprios na nuvem.
+- **Roteamento Transparente**:
+  - O motor de conexões chaveia o banco de dados dinamicamente no contexto da requisição: os dados operacionais (pedidos, clientes, produtos e financeiro) são rigorosamente isolados.
+
+---
+
+## 🧩 Gestão Dinâmica de Segmentos & Telas
+
+O `admgeral` pode cadastrar e editar **Segmentos de Mercado**, definindo quais menus e quais relatórios cada segmento terá acesso:
+
+- **Segmentos Nativos Pré-Configurados**:
+  - 👗 **Moda & Vestuário**: Módulo completo com malas condicionais, grade de cores/tamanhos e trocas.
+  - 🛋️ **Movelaria & Eletrodomésticos**: Foco em ticket médio alto e canais de showroom.
+  - 🍔 **Lanchonete, Bar & Restaurante**: Vendas rápidas, salão, balcão e delivery.
+  - 🏠 **Utilidades Domésticas & Variedades**: Cesta com múltiplos itens e curva ABC.
+  - 🧸 **Loja de Brinquedos & Lazer**: Sazonalidade, presentes e aniversariantes.
+  - 🏬 **Varejo Geral Comercial**: Multicanal completo (E-commerce + Loja Física).
+  - 💼 **Serviços & B2B**: Contratos recorrentes e CRM.
+- **Carregamento Dinâmico**: Ao logar, o BI renderiza **apenas as telas e relatórios do segmento da empresa**.
+- **Modo Auditoria ("Acessar como Empresa / Impersonate")**: O `admgeral` pode navegar pelo BI exatamente como qualquer cliente, visualizando suas telas e seus dados isolados com 1 clique.
 
 ---
 
 ## 🚀 Como Iniciar com 1 Clique
 
-O BlingBI conta com inicializadores automáticos que preparam o ambiente (se necessário), sobem o servidor e abrem a tela do BI no seu navegador:
-
 ### 🪟 No Windows:
 Dê um **duplo clique** no arquivo:
 👉 **`iniciar.bat`**
-
-*(Ou execute `iniciar.bat` no Prompt de Comando/PowerShell)*
 
 ---
 
@@ -24,7 +65,7 @@ Abra o terminal na pasta e execute:
 
 ---
 
-### 💻 Execução Manual (Opcional):
+### 💻 Execução Manual:
 ```bash
 source venv/bin/activate
 python run.py
@@ -33,106 +74,81 @@ python run.py
 O sistema abrirá automaticamente no seu navegador em:
 👉 **`http://127.0.0.1:5000`**
 
-*(Se o banco estiver vazio na primeira execução, o sistema carrega automaticamente dados demonstrativos realistas para que você explore todos os relatórios e gráficos imediatamente!)*
-
 ---
 
 ## 🌐 Como Ativar o Túnel HTTPS (Webhook do Bling)
 
-Como o Bling ERP exige obrigatoriamente **HTTPS** para envio de Webhooks em tempo real, criamos scripts automatizados que configuram o **Ngrok gratuito** para você em 1 passo:
+Para sincronização em tempo real via Webhook em ambiente de desenvolvimento:
 
 ### 🪟 No Windows:
-Dê um **duplo clique** em:
-👉 **`tunnel_ngrok.bat`**
+Dê um **duplo clique** em **`tunnel_ngrok.bat`**.
 
 ### 🐧 No Linux / macOS:
-No terminal, execute:
-```bash
-./tunnel_ngrok.sh
-```
-
-O script baixa o Ngrok automaticamente (se necessário), configura seu token e inicia o túnel para a porta 5000.
-A URL pública gerada (ex: `https://xxxx.ngrok-free.app/integrations/webhook`) estará pronta para você cadastrar no Bling ERP em **Preferências > Notificações/Webhooks**!
+Execute **`./tunnel_ngrok.sh`**.
 
 ---
 
-## ☁️ Como Publicar na Nuvem Gratuitamente (Render / Railway / Docker)
-
-Deseja acessar seu BlingBI de qualquer lugar (navegador no celular, tablet, home office) e receber Webhooks do Bling com HTTPS nativo sem precisar do Ngrok ou do computador ligado?
+## ☁️ Como Publicar na Nuvem (Render / Railway / Docker)
 
 O projeto já inclui `wsgi.py`, `render.yaml`, `Procfile` e `Dockerfile` configurados para deploy em 1 clique!
-👉 Consulte o guia passo a passo em: **[DEPLOY.md](DEPLOY.md)**.
+Consulte o guia completo em: **[DEPLOY.md](DEPLOY.md)**.
 
 ---
 
+## 📊 Módulos e Telas do BlingBI
+
 ### 1. Dashboard 360° (Visão Geral)
-- **KPIs Executivos**: Faturamento Total, Pedidos Atendidos, Ticket Médio, Contas a Receber (Previsão) e Contas a Pagar (Previsão).
-- **Evolução Temporal Diária**: Gráfico de linha interativo comparando Receita e Quantidade de Pedidos.
-- **Vendas por Canal**: Gráfico de rosca detalhando vendas por Marketplace (Mercado Livre, Shopee, Amazon, Site Próprio, Loja Física).
-- **Top 5 Produtos Mais Faturados** e **Pedidos Recentes**.
+- **KPIs Executivos**: Faturamento Total, Pedidos Atendidos, Ticket Médio, Previsão A Receber e A Pagar.
+- **Evolução Temporal Diária**: Gráficos comparando receita e pedidos.
+- **Vendas por Canal**: Mercado Livre, Shopee, Site, Loja Física e WhatsApp VIP.
+- **Top 5 Produtos Mais Faturados** e **Últimos Pedidos**.
 
 ### 2. Vendas & Pedidos
-- Filtros por Período (Hoje, 7 dias, 30 dias, Mês Atual, Personalizado).
-- Filtros refinados por **Canal de Venda** e **Status do Pedido** (Atendido, Em aberto, Cancelado).
-- Detalhamento de descontos e fretes cobrados.
-- **Exportação Multiformato**:
-  - 📥 **Exportar Planilha Excel (.xlsx)** formatada com cores do Bling, cabeçalho e totais.
-  - 📄 **Exportar Relatório em PDF** corporativo e formatado.
+- Filtros por período, canal de venda e status do pedido.
+- Impressão térmica 78mm de pedidos e detalhamento de margem.
+- Exportação multiformato em **Excel (.xlsx)** e **PDF**.
 
 ### 3. Produtos & Curva ABC (Pareto)
-- Classificação de produtos em **Classe A (80% da receita)**, **Classe B (15%)** e **Classe C (5%)**.
-- Cálculo de **Margem Líquida** e percentual de margem por item.
-- Alerta de **Estoque Crítico / Baixo**.
-- Exportação da Curva ABC completa para Excel.
+- Classificação Classe A (80%), Classe B (15%) e Classe C (5%).
+- Margem Líquida por SKU e alertas de cobertura/dias de estoque.
 
 ### 4. Clientes & CRM
-- Análise de base de clientes cadastrados x clientes ativos no período.
-- **Taxa de Recompra (Fidelização)** de compradores recorrentes.
-- Ranking de **Top Clientes por Faturamento**.
-- Concentração geográfica de clientes por Estado (UF).
+- Base geral de clientes e taxa de recompra (fidelização).
+- Segmentação RFM de Clientes (Campeões, Fiéis, Em Risco, Hibernando).
+- Top clientes por faturamento e aniversariantes do mês.
 
 ### 5. Gestão Financeira & DRE Gerencial
-- Balanço de **Contas a Receber** vs **Contas a Pagar** (Quitado, Pendente e Atrasado).
-- **Índice de Inadimplência** em tempo real.
-- **DRE Sintético**:
-  - (+) Receita Bruta de Vendas
-  - (-) Deduções & Cancelamentos
-  - (=) Receita Operacional Líquida
-  - (-) Custo das Mercadorias Vendidas (CPV Médio)
-  - (=) Lucro Bruto / Margem de Contribuição
-  - (-) Despesas Fixas e Operacionais
-  - (=) Resultado Líquido do Período & Margem Líquida.
+- Contas a Pagar e Receber (Quitado, Aberto, Atrasado).
+- Índice de inadimplência e aging list.
+- **DRE Sintético Gerencial por Competência** e Projeção de Fluxo de Caixa.
 
-### 6. Integração com Bling API v3 & Webhooks
+### 6. Central de Relatórios Estratégicos (`/reports`)
+- Catálogo de relatórios dinâmicos habilitados pelo segmento da empresa.
+- Exportações sob demanda em planilhas Excel formatadas e relatórios em PDF.
+
+### 7. Integração com Bling API v3 & Webhooks
 - Suporte nativo à **API v3 do Bling** (OAuth2 com renovação automática de Refresh Token).
-- Botão **Testar Conexão** em tempo real.
-- Sincronização sob demanda com 1 clique (Clientes, Produtos, Pedidos e Contas).
-- Endpoint para Webhook do Bling (`/integrations/webhook`).
-- Botão para recarregar **Dados de Demonstração** quando desejar.
-
-### 7. BI Varejo de Moda & Customer Success (4 Blocos Estratégicos com Polars)
-- 👗 **Motor Polars de Alta Performance**: Processamento em memória ultrarrápido com Apache Arrow e lazy execution.
-- 👤 **Bloco 1 - Perfil & Comportamento**: Curva ABC de Clientes (Regra 80/20), Moda Estatística (Tamanho, Cor e Estilo preferidos) e Aniversariantes do Mês com contagem de dias.
-- 🛍️ **Bloco 2 - Movimentação & Moda**: Taxa de Conversão de Malas Condicionais (peças faturadas vs retiradas), Ranking por Categoria (Window Rank) e Relatório de Trocas & Devoluções por SKU e Motivo.
-- 🎯 **Bloco 3 - Desempenho do Atendimento**: P.A. (Peças por Atendimento) médio por vendedora, Ticket Médio e Taxa de Conversão comercial.
-- 💎 **Bloco 4 - Relacionamento & CRM**: Relatório de Inatividade e Faixas de Recência (<60d, 60-90d, 91-180d, >180d Churn) com atalho para WhatsApp, Matriz Cohort de Recompra e Pesquisas NPS/CSAT com feedbacks.
-- 📥 **Exportações Dedicadas em Excel**: Curva ABC de clientes, lista de inativos para WhatsApp e relatório de malas condicionais.
+- Botão **Testar Conexão** em tempo real e sincronização de 1 clique.
+- Endpoint de Webhook em tempo real (`/integrations/webhook`).
 
 ---
 
 ## 🛠️ Tecnologias Utilizadas
 
-- **Backend**: Python 3.12, Flask, Flask-SQLAlchemy, SQLite (banco local analítico de alta velocidade).
-- **Frontend**: Jinja2 Templates, Vanilla CSS com Design System inspirado no Bling ERP, Chart.js.
-- **Exportação**: OpenPyXL (Excel `.xlsx`) e ReportLab (Documentos `.pdf`).
-- **Testes**: Pytest (suíte de testes automatizados completa).
+- **Backend**: Python 3.12, Flask 3.x, Flask-SQLAlchemy 3.x com `MultiTenantSession`.
+- **Banco de Dados**: SQLite Multi-Bases (WAL mode) / PostgreSQL gerenciado para nuvem.
+- **Frontend**: Jinja2 Templates, Vanilla CSS Bling ERP Theme, Chart.js.
+- **Exportação & Analytics**: Polars, OpenPyXL e ReportLab.
+- **Testes**: Pytest (suíte de testes automatizados completa para multi-tenancy e relatórios).
 
 ---
 
 ## 🧪 Executando os Testes Automatizados
 
-Para rodar a suíte de testes:
-
 ```bash
+# Testes da arquitetura Multi-Usuários, Autenticação e Multi-Tenancy:
+PYTHONPATH=. ./venv/bin/pytest tests/test_auth_multitenant.py -v
+
+# Todos os testes do sistema:
 PYTHONPATH=. ./venv/bin/pytest tests/ -v
 ```
