@@ -61,13 +61,14 @@ Ainda na tela de configuração (ou na aba **Environment** do serviço):
 1. **`PYTHON_VERSION`**: `3.12.3`
 2. **`FLASK_ENV`**: `production`
 3. **`SECRET_KEY`**: Clique em *Generate* para gerar uma chave aleatória segura.
-4. **`ADMIN_DEFAULT_PASSWORD`**: `admgeral2026` (senha inicial do Super Administrador; você pode alterá-la na interface ou definir uma senha segura aqui).
+4. **`ADMIN_DEFAULT_PASSWORD`**: Defina uma senha forte e secreta para o Super Administrador geral (ou deixe o Render gerar um valor seguro).
+5. **`CLEAR_DATABASE_PASSWORD`**: *(Opcional)* Defina uma senha de segurança para operações de limpeza/carga de dados.
 
 ### 🔑 Primeiro Acesso e Painel do Administrador Geral:
 Ao concluir o deploy e acessar a URL da sua aplicação no Render:
 - Acesse a tela de login: `https://sua-url.onrender.com/login`
 - **Usuário:** `admgeral`
-- **Senha Inicial:** `admgeral2026` (ou o valor definido na variável `ADMIN_DEFAULT_PASSWORD`)
+- **Senha:** A senha secreta que você configurou na variável de ambiente `ADMIN_DEFAULT_PASSWORD`
 - No painel administrativo (`/admin`), você pode:
   1. Alterar a senha do administrador a qualquer momento.
   2. Cadastrar novos clientes com suas respectivas bases de dados dedicadas.

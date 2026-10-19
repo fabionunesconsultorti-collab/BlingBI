@@ -389,7 +389,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const password = seedDbPasswordInput ? seedDbPasswordInput.value.trim() : '';
             if (!password) {
                 if (seedDbErrorMsg) {
-                    seedDbErrorMsg.innerText = 'Por favor, informe a senha de segurança (c4nib4l).';
+                    seedDbErrorMsg.innerText = 'Por favor, informe a senha de segurança de administrador.';
                     seedDbErrorMsg.style.display = 'block';
                 }
                 if (seedDbPasswordInput) seedDbPasswordInput.focus();

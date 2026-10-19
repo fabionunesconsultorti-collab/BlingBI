@@ -10,7 +10,7 @@ O sistema possui controle de acesso com perfil de **Super Administrador Geral** 
 
 - **URL de Acesso:** `http://localhost:5000/login` (ou na sua URL em nuvem no Render)
 - **Usuário Administrador:** `admgeral`
-- **Senha Inicial:** `admgeral2026`
+- **Senha Inicial:** Definida de forma secreta via variável de ambiente `ADMIN_DEFAULT_PASSWORD` (ou na criação inicial da instância)
 - **Painel Administrativo:** `/admin`
 - **Recursos de Segurança:**
   - Troca de senha autenticada em `/change-password`

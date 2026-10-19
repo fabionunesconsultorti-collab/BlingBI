@@ -13,7 +13,9 @@ services:
       - key: SECRET_KEY
         generateValue: true
       - key: ADMIN_DEFAULT_PASSWORD
-        value: admgeral2026
+        sync: false
+      - key: CLEAR_DATABASE_PASSWORD
+        sync: false
       # Conexão opcional com PostgreSQL gerenciado do Render para o Master DB
       # - key: DATABASE_URL
       #   fromDatabase:

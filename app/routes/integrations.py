@@ -1,3 +1,4 @@
+import os
 import logging
 from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for
 from app.models.setting import Setting
@@ -172,7 +173,7 @@ def sync_now():
             'message': f'Falha na sincronização: {result}'
         }), 400
 
-CLEAR_DATABASE_PASSWORD = "c4nib4l"
+CLEAR_DATABASE_PASSWORD = os.environ.get('CLEAR_DATABASE_PASSWORD', 'c4nib4l')
 
 @bp.route('/demo-niches', methods=['GET'])
 def list_demo_niches():
