@@ -13,9 +13,25 @@ O sistema possui controle de acesso com perfil de **Super Administrador Geral** 
 - **Senha Inicial:** Definida de forma secreta via variável de ambiente `ADMIN_DEFAULT_PASSWORD` (ou na criação inicial da instância)
 - **Painel Administrativo:** `/admin`
 - **Recursos de Segurança:**
+  - Nenhuma senha em texto claro é exibida em telas ou mantida no repositório.
   - Troca de senha autenticada em `/change-password`
   - Recuperação de senha por token com expiração em `/forgot-password`
   - Redefinição instantânea de senha de qualquer cliente pelo `admgeral`
+
+---
+
+## 🔐 Segurança e Variáveis de Ambiente
+
+As credenciais do sistema são protegidas e podem ser definidas de forma confidencial através de variáveis de ambiente no servidor (Render, Railway, Docker ou local):
+
+| Variável | Finalidade | Configuração Recomendada |
+|---|---|---|
+| `ADMIN_DEFAULT_PASSWORD` | Senha do Super Administrador (`admgeral`) | Definir senha forte no dashboard do servidor |
+| `CLEAR_DATABASE_PASSWORD` | Senha de segurança para comandos de limpeza e carga demo | Definir senha administrativa no dashboard |
+| `SECRET_KEY` | Chave criptográfica de sessão Flask | Chave aleatória gerada automaticamente |
+| `DATABASE_URL` | Conexão do banco Master (PostgreSQL opcional) | Fornecido pelo banco gerenciado do Render |
+| `BLING_CLIENT_ID` | Client ID da API v3 do Bling ERP (opcional) | Configurado na tela `/integrations/` ou ambiente |
+| `BLING_CLIENT_SECRET` | Client Secret da API v3 do Bling ERP (opcional) | Configurado na tela `/integrations/` ou ambiente |
 
 ---
 
