@@ -15,6 +15,8 @@ app = create_app()
 # Inicialização automática de dados caso o banco esteja novo/vazio
 with app.app_context():
     try:
+        from app.database import db
+        db.create_all()
         if Order.query.count() == 0 and Setting.get('demo_cleared') != '1':
             print("📦 Base de dados inicializada! Populando dados de demonstração para visualização imediata...")
             seed_demo_data()
@@ -22,7 +24,7 @@ with app.app_context():
         elif Setting.get('demo_cleared') != '1' and Order.query.filter(Order.payment_method == 'Consignado').count() == 0:
             seed_fashion_demo_data()
     except Exception as e:
-        print(f"ℹ️ Verificação de seed inicial concluída ({e})")
+        print(f"ℹ️ Verificação de seed inicial concluída: {e}")
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

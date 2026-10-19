@@ -81,13 +81,8 @@ def init_master_database():
     try:
         from app.core.tenant_manager import TenantManager
         with TenantManager.master_scope():
-            # 1. Garante que as tabelas master existam
-            master_tables = [
-                table for name, table in db.metadata.tables.items()
-                if name.startswith('master_')
-            ]
-            if master_tables:
-                db.metadata.create_all(bind=db.engine, tables=master_tables)
+            # 1. Garante que as tabelas master e operacionais padrão existam
+            db.create_all()
 
             # 2. Inicializa os segmentos padrão
             for seg_data in DEFAULT_SEGMENTS:
