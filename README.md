@@ -124,9 +124,21 @@ Consulte o guia completo em: **[DEPLOY.md](DEPLOY.md)**.
 - Impressão térmica 78mm de pedidos e detalhamento de margem.
 - Exportação multiformato em **Excel (.xlsx)** e **PDF**.
 
-### 3. Produtos & Curva ABC (Pareto)
-- Classificação Classe A (80%), Classe B (15%) e Classe C (5%).
-- Margem Líquida por SKU e alertas de cobertura/dias de estoque.
+### 3. Produtos, Estoque & Inteligência de Preços
+- **Inventário & Catálogo Unificado**: Busca geral por tamanho, cor, SKU e saldos em estoque.
+- **Curva ABC (Pareto)**: Classificação 80/15/5 dos itens com maior impacto no faturamento.
+- **Dias de Cobertura & Ruptura**: Previsão de dias de estoque e alertas de desabastecimento.
+- **Análise de Estoque & Gestão de Preços por Canal (`/products/stock-analysis`)**:
+  - Filtros cruzados por categoria, status de estoque (Ruptura/Zerado, Crítico, Equilibrado, Excesso), curva ABC, canal e faixas de preço/margem.
+  - Comparativo de **Preço Base de Venda** vs **Preços por Canal** (Mercado Livre, Shopee, Amazon, Site Próprio, Loja Física).
+  - Controle de **Custo Base** e **Valor Pago na Aquisição** com **edição inline direta (AJAX)** na tabela.
+  - Exportação e importação em lote via planilha **Excel (.xlsx)** para atualização em massa.
+- **Precificação Automática em Marketplaces (`/products/pricing`)**:
+  - Motor de **Markup Reverso** parametrizável com 8 regras padrão de mercado (ML Clássico, ML Premium, Shopee, Amazon, Magalu, etc.).
+  - Tratamento inteligente da **regra dos R$ 79,00** (taxas fixas por item para produtos abaixo de R$ 79 e frete grátis obrigatório do seller para produtos a partir de R$ 79).
+  - **Simulador Interativo com DRE Unitário**: Cálculo em tempo real de Preço Sugerido, Impostos DAS, Comissão da Plataforma, Taxa Fixa, Frete Seller e Lucro Líquido Real (R$ e %).
+  - Aplicação de preços calculados com 1 clique (individual ou em lote para múltiplos produtos selecionados).
+- **Trocas & Devoluções por SKU**: Rastreamento de motivos de trocas e índice de retorno.
 
 ### 4. Clientes & CRM
 - Base geral de clientes e taxa de recompra (fidelização).
@@ -164,6 +176,9 @@ Consulte o guia completo em: **[DEPLOY.md](DEPLOY.md)**.
 ```bash
 # Testes da arquitetura Multi-Usuários, Autenticação e Multi-Tenancy:
 PYTHONPATH=. ./venv/bin/pytest tests/test_auth_multitenant.py -v
+
+# Testes da Análise de Estoque e Precificação Automática:
+PYTHONPATH=. ./venv/bin/pytest tests/test_stock_and_pricing.py -v
 
 # Todos os testes do sistema:
 PYTHONPATH=. ./venv/bin/pytest tests/ -v
