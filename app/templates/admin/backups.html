@@ -1,0 +1,458 @@
+{% extends 'base.html' %}
+
+{% block title %}Backup & Contingência Geral - BlingBI{% endblock %}
+{% block page_title %}Central de Contingência & Backup Geral (admgeral){% endblock %}
+
+{% block content %}
+<div class="admin-backups-container" style="display: flex; flex-direction: column; gap: 24px;">
+
+    <!-- Top Action Banner -->
+    <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #ffffff; padding: 24px 28px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; box-shadow: 0 4px 14px rgba(0,0,0,0.15);">
+        <div>
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
+                <span style="background: #008b54; color: #fff; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 4px; text-transform: uppercase;">Contingência & Resiliência</span>
+                <h2 style="margin: 0; font-size: 20px; font-weight: 800;">Central de Backup Geral & Restauração</h2>
+            </div>
+            <p style="margin: 0; font-size: 13.5px; color: #94a3b8;">Gere snapshots compactados de todas as bases e clientes, programe rotinas automáticas e restaure contingências em 1 clique.</p>
+        </div>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button type="button" onclick="openModal('createBackupModal')" class="btn" style="background: #008b54; color: #fff; border: none; height: 38px; display: inline-flex; align-items: center; gap: 8px; font-weight: 600; padding: 0 16px; border-radius: 6px; cursor: pointer; transition: all 0.2s;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                Gerar Backup Agora
+            </button>
+            <button type="button" onclick="openModal('uploadBackupModal')" class="btn" style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.2); color: #fff; height: 38px; display: inline-flex; align-items: center; gap: 8px; font-weight: 600; padding: 0 16px; border-radius: 6px; cursor: pointer; transition: all 0.2s;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                Restaurar por Upload (.zip)
+            </button>
+        </div>
+    </div>
+
+    <!-- KPI Metric Cards -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
+        <div style="background: #fff; padding: 20px; border-radius: 10px; border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 16px;">
+            <div style="width: 48px; height: 48px; border-radius: 10px; background: #e0f2fe; color: #0284c7; display: flex; align-items: center; justify-content: center; font-size: 22px;">
+                📦
+            </div>
+            <div>
+                <span style="font-size: 12px; color: #64748b; font-weight: 600; text-transform: uppercase;">Backups Salvos</span>
+                <h3 style="margin: 4px 0 0 0; font-size: 24px; font-weight: 800; color: #0f172a;">{{ total_backups }} <span style="font-size: 13px; font-weight: 500; color: #64748b;">({{ total_size_formatted }})</span></h3>
+            </div>
+        </div>
+
+        <div style="background: #fff; padding: 20px; border-radius: 10px; border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 16px;">
+            <div style="width: 48px; height: 48px; border-radius: 10px; background: #dcfce7; color: #16a34a; display: flex; align-items: center; justify-content: center; font-size: 22px;">
+                🕒
+            </div>
+            <div>
+                <span style="font-size: 12px; color: #64748b; font-weight: 600; text-transform: uppercase;">Último Backup</span>
+                <h3 style="margin: 4px 0 0 0; font-size: 16px; font-weight: 700; color: #16a34a;">
+                    {% if config.last_backup_at %}
+                        {{ config.last_backup_at.strftime('%d/%m/%Y %H:%M') }}
+                    {% else %}
+                        Nenhum ainda
+                    {% endif %}
+                </h3>
+            </div>
+        </div>
+
+        <div style="background: #fff; padding: 20px; border-radius: 10px; border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 16px;">
+            <div style="width: 48px; height: 48px; border-radius: 10px; background: #fef3c7; color: #d97706; display: flex; align-items: center; justify-content: center; font-size: 22px;">
+                ⏰
+            </div>
+            <div>
+                <span style="font-size: 12px; color: #64748b; font-weight: 600; text-transform: uppercase;">Próximo Agendado</span>
+                <h3 style="margin: 4px 0 0 0; font-size: 16px; font-weight: 700; color: #b45309;">
+                    {% if config.auto_backup_enabled and config.next_backup_at %}
+                        {{ config.next_backup_at.strftime('%d/%m/%Y %H:%M') }}
+                    {% elif not config.auto_backup_enabled %}
+                        Desativado
+                    {% else %}
+                        Aguardando ciclo
+                    {% endif %}
+                </h3>
+            </div>
+        </div>
+
+        <div style="background: #fff; padding: 20px; border-radius: 10px; border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 16px;">
+            <div style="width: 48px; height: 48px; border-radius: 10px; background: #f3e8ff; color: #7e22ce; display: flex; align-items: center; justify-content: center; font-size: 22px;">
+                🛡️
+            </div>
+            <div>
+                <span style="font-size: 12px; color: #64748b; font-weight: 600; text-transform: uppercase;">Integridade & Hash</span>
+                <h3 style="margin: 4px 0 0 0; font-size: 16px; font-weight: 700; color: #7e22ce;">SHA-256 Ativo</h3>
+            </div>
+        </div>
+    </div>
+
+    <!-- Layout Grid: Configuração Programada + Histórico -->
+    <div style="display: grid; grid-template-columns: 360px 1fr; gap: 24px; align-items: start;">
+
+        <!-- Coluna da Esquerda: Configuração da Rotina Automática -->
+        <div style="background: #fff; border-radius: 10px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); overflow: hidden;">
+            <div style="padding: 16px 20px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 18px;">⚙️</span>
+                <h3 style="margin: 0; font-size: 15px; font-weight: 700; color: #1e293b;">Rotina Automática & Retenção</h3>
+            </div>
+            
+            <form method="POST" action="{{ url_for('admin.backup_save_config') }}" style="padding: 20px; display: flex; flex-direction: column; gap: 16px;">
+                <!-- Toggle Ativar -->
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+                    <div>
+                        <strong style="font-size: 13.5px; color: #1e293b; display: block;">Backup Automático</strong>
+                        <span style="font-size: 12px; color: #64748b;">Executar rotina programada</span>
+                    </div>
+                    <label style="position: relative; display: inline-block; width: 44px; height: 24px; margin: 0; cursor: pointer;">
+                        <input type="checkbox" name="auto_backup_enabled" value="1" {% if config.auto_backup_enabled %}checked{% endif %} style="opacity: 0; width: 0; height: 0;" id="toggleAutoBackup">
+                        <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: {% if config.auto_backup_enabled %}#008b54{% else %}#cbd5e1{% endif %}; transition: .3s; border-radius: 24px;" id="sliderAutoBackup"></span>
+                        <span style="position: absolute; content: ''; height: 18px; width: 18px; left: {% if config.auto_backup_enabled %}23px{% else %}3px{% endif %}; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%;" id="knobAutoBackup"></span>
+                    </label>
+                </div>
+
+                <!-- Frequência -->
+                <div>
+                    <label style="font-size: 13px; font-weight: 600; color: #334155; margin-bottom: 6px; display: block;">Frequência de Execução</label>
+                    <select name="frequency" id="frequencySelect" style="width: 100%; height: 38px; border-radius: 6px; border: 1.5px solid #cbd5e1; padding: 0 10px; font-size: 13.5px; outline: none; background: #fff;">
+                        <option value="daily" {% if config.frequency == 'daily' %}selected{% endif %}>Diariamente</option>
+                        <option value="weekly" {% if config.frequency == 'weekly' %}selected{% endif %}>Semanalmente (Domingos)</option>
+                        <option value="monthly" {% if config.frequency == 'monthly' %}selected{% endif %}>Mensalmente (Dia 1º)</option>
+                        <option value="interval_hours" {% if config.frequency == 'interval_hours' %}selected{% endif %}>Intervalo Personalizado (Horas)</option>
+                    </select>
+                </div>
+
+                <!-- Horário Preferencial -->
+                <div id="preferredHourGroup">
+                    <label style="font-size: 13px; font-weight: 600; color: #334155; margin-bottom: 6px; display: block;">Horário de Disparo (Madrugada)</label>
+                    <select name="preferred_hour" style="width: 100%; height: 38px; border-radius: 6px; border: 1.5px solid #cbd5e1; padding: 0 10px; font-size: 13.5px; outline: none; background: #fff;">
+                        {% for h in range(0, 24) %}
+                            <option value="{{ h }}" {% if config.preferred_hour == h %}selected{% endif %}>{{ "%02d:00"|format(h) }} UTC</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Intervalo em Horas (condicional) -->
+                <div id="intervalHoursGroup" style="display: none;">
+                    <label style="font-size: 13px; font-weight: 600; color: #334155; margin-bottom: 6px; display: block;">Intervalo entre Backups (Horas)</label>
+                    <input type="number" name="interval_hours" value="{{ config.interval_hours or 24 }}" min="1" max="168" style="width: 100%; height: 38px; border-radius: 6px; border: 1.5px solid #cbd5e1; padding: 0 10px; font-size: 13.5px; outline: none;">
+                </div>
+
+                <!-- Retenção Máxima -->
+                <div>
+                    <label style="font-size: 13px; font-weight: 600; color: #334155; margin-bottom: 6px; display: block;">Retenção Máxima de Arquivos (Rotação)</label>
+                    <input type="number" name="max_backups_to_keep" value="{{ config.max_backups_to_keep or 10 }}" min="1" max="50" style="width: 100%; height: 38px; border-radius: 6px; border: 1.5px solid #cbd5e1; padding: 0 10px; font-size: 13.5px; outline: none;">
+                    <small style="color: #64748b; font-size: 11.5px; margin-top: 4px; display: block;">Os backups mais antigos além desta quantidade serão rotacionados automaticamente.</small>
+                </div>
+
+                <!-- Itens Inclusos -->
+                <div>
+                    <label style="font-size: 13px; font-weight: 600; color: #334155; margin-bottom: 8px; display: block;">Componentes a Incluir</label>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #334155; cursor: pointer;">
+                            <input type="checkbox" name="include_master" value="1" {% if config.include_master %}checked{% endif %}>
+                            <span>Banco Master (Usuários, Clientes e Segmentos)</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #334155; cursor: pointer;">
+                            <input type="checkbox" name="include_tenants" value="1" {% if config.include_tenants %}checked{% endif %}>
+                            <span>Bases Dedicadas de Clientes (Tenants)</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #334155; cursor: pointer;">
+                            <input type="checkbox" name="include_settings" value="1" {% if config.include_settings %}checked{% endif %}>
+                            <span>Configurações e Parâmetros Operacionais</span>
+                        </label>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn" style="background: #008b54; color: #fff; height: 40px; border: none; border-radius: 6px; font-weight: 600; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 8px;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    Salvar Configurações
+                </button>
+            </form>
+        </div>
+
+        <!-- Coluna da Direita: Histórico de Backups Disponíveis -->
+        <div style="background: #fff; border-radius: 10px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); overflow: hidden;">
+            <div style="padding: 16px 20px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; display: flex; align-items: center; justify-content: space-between;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 18px;">📋</span>
+                    <h3 style="margin: 0; font-size: 15px; font-weight: 700; color: #1e293b;">Histórico de Snapshots de Contingência</h3>
+                </div>
+                <span style="font-size: 12px; color: #64748b; font-weight: 600;">{{ total_backups }} arquivo(s) registrado(s)</span>
+            </div>
+
+            <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
+                    <thead>
+                        <tr style="background: #f1f5f9; border-bottom: 1px solid #e2e8f0; color: #475569; font-weight: 600;">
+                            <th style="padding: 12px 16px;">Arquivo / Tipo</th>
+                            <th style="padding: 12px 16px;">Tamanho</th>
+                            <th style="padding: 12px 16px;">Data de Geração</th>
+                            <th style="padding: 12px 16px;">Integridade (SHA-256)</th>
+                            <th style="padding: 12px 16px; text-align: right;">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if records %}
+                            {% for rec in records %}
+                                <tr style="border-bottom: 1px solid #f1f5f9; transition: background 0.15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">
+                                    <td style="padding: 14px 16px;">
+                                        <div style="display: flex; align-items: center; gap: 10px;">
+                                            <div style="width: 34px; height: 34px; border-radius: 6px; background: #e0f2fe; color: #0369a1; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0;">
+                                                📦
+                                            </div>
+                                            <div>
+                                                <strong style="color: #0f172a; font-size: 13.5px; display: block;">{{ rec.filename }}</strong>
+                                                <div style="display: flex; align-items: center; gap: 6px; margin-top: 3px;">
+                                                    {% if rec.backup_type == 'manual' %}
+                                                        <span style="background: #dbeafe; color: #1d4ed8; font-size: 10.5px; font-weight: 700; padding: 1px 6px; border-radius: 4px;">MANUAL</span>
+                                                    {% elif rec.backup_type == 'scheduled' %}
+                                                        <span style="background: #dcfce7; color: #15803d; font-size: 10.5px; font-weight: 700; padding: 1px 6px; border-radius: 4px;">PROGRAMADO</span>
+                                                    {% else %}
+                                                        <span style="background: #fef3c7; color: #b45309; font-size: 10.5px; font-weight: 700; padding: 1px 6px; border-radius: 4px;">UPLOAD</span>
+                                                    {% endif %}
+                                                    {% if rec.notes %}
+                                                        <span style="color: #64748b; font-size: 11.5px;">{{ rec.notes }}</span>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td style="padding: 14px 16px; color: #334155; font-weight: 600;">
+                                        {{ rec.filesize_formatted }}
+                                    </td>
+                                    <td style="padding: 14px 16px; color: #475569;">
+                                        {{ rec.created_at.strftime('%d/%m/%Y %H:%M:%S') if rec.created_at else '' }}
+                                    </td>
+                                    <td style="padding: 14px 16px;">
+                                        {% if rec.sha256 %}
+                                            <span style="font-family: monospace; font-size: 11px; background: #f1f5f9; padding: 3px 6px; border-radius: 4px; color: #475569; display: inline-flex; align-items: center; gap: 4px;" title="{{ rec.sha256 }}">
+                                                {{ rec.sha256[:12] }}...
+                                                <button type="button" onclick="navigator.clipboard.writeText('{{ rec.sha256 }}'); alert('Hash SHA-256 copiado!');" style="background: none; border: none; cursor: pointer; color: #0284c7; padding: 0;" title="Copiar hash completo">📋</button>
+                                            </span>
+                                        {% else %}
+                                            <span style="color: #94a3b8; font-size: 11px;">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td style="padding: 14px 16px; text-align: right;">
+                                        <div style="display: inline-flex; align-items: center; gap: 6px;">
+                                            <!-- Baixar -->
+                                            <a href="{{ url_for('admin.backup_download', filename=rec.filename) }}" class="btn-action" style="background: #f1f5f9; color: #0f172a; padding: 6px 10px; border-radius: 6px; text-decoration: none; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;" title="Baixar Arquivo">
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                                                Baixar
+                                            </a>
+
+                                            <!-- Restaurar -->
+                                            <button type="button" onclick="openRestoreModal('{{ rec.filename }}')" class="btn-action" style="background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; padding: 6px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="Restaurar este backup">
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"></polyline><polyline points="23 20 23 14 17 14"></polyline><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path></svg>
+                                                Restaurar
+                                            </button>
+
+                                            <!-- Excluir -->
+                                            <form method="POST" action="{{ url_for('admin.backup_delete', filename=rec.filename) }}" style="margin: 0; display: inline;" onsubmit="return confirm('Deseja realmente excluir permanentemente este arquivo de backup?');">
+                                                <button type="submit" style="background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; padding: 6px 8px; border-radius: 6px; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center;" title="Excluir Backup">
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="5" style="padding: 48px 16px; text-align: center; color: #64748b;">
+                                    <div style="font-size: 36px; margin-bottom: 12px;">💾</div>
+                                    <strong style="font-size: 15px; color: #1e293b; display: block; margin-bottom: 4px;">Nenhum backup gerado até o momento</strong>
+                                    <p style="margin: 0; font-size: 13px;">Clique no botão "Gerar Backup Agora" acima para criar seu primeiro snapshot completo de contingência.</p>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<!-- Modal 1: Criar Backup Manual -->
+<div id="createBackupModal" class="modal-backdrop" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center; backdrop-filter: blur(2px);">
+    <div style="background: #fff; width: 100%; max-width: 480px; border-radius: 12px; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2);">
+        <div style="padding: 18px 24px; background: #0f172a; color: #fff; display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 20px;">💾</span>
+                <h3 style="margin: 0; font-size: 16px; font-weight: 700;">Gerar Backup Manual</h3>
+            </div>
+            <button type="button" onclick="closeModal('createBackupModal')" style="background: none; border: none; color: #94a3b8; font-size: 20px; cursor: pointer;">&times;</button>
+        </div>
+        <form method="POST" action="{{ url_for('admin.backup_create') }}" style="padding: 24px; display: flex; flex-direction: column; gap: 16px;">
+            <p style="margin: 0; font-size: 13.5px; color: #475569;">
+                Será gerado um arquivo compactado <strong>.zip</strong> contendo todos os dados do banco Master, bases dedicadas dos clientes e configurações do sistema.
+            </p>
+            <div>
+                <label style="font-size: 13px; font-weight: 600; color: #334155; margin-bottom: 6px; display: block;">Nota / Observação do Backup (opcional)</label>
+                <input type="text" name="notes" placeholder="ex: Antes da sincronização em massa" style="width: 100%; height: 40px; border-radius: 6px; border: 1.5px solid #cbd5e1; padding: 0 12px; font-size: 13.5px; outline: none;">
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px;">
+                <button type="button" onclick="closeModal('createBackupModal')" style="padding: 9px 16px; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; color: #475569; font-weight: 600; cursor: pointer;">Cancelar</button>
+                <button type="submit" style="padding: 9px 18px; border-radius: 6px; border: none; background: #008b54; color: #fff; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    Iniciar Backup Agora
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal 2: Upload de Backup Externo -->
+<div id="uploadBackupModal" class="modal-backdrop" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center; backdrop-filter: blur(2px);">
+    <div style="background: #fff; width: 100%; max-width: 520px; border-radius: 12px; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2);">
+        <div style="padding: 18px 24px; background: #0f172a; color: #fff; display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 20px;">📤</span>
+                <h3 style="margin: 0; font-size: 16px; font-weight: 700;">Restaurar por Upload de Arquivo (.zip)</h3>
+            </div>
+            <button type="button" onclick="closeModal('uploadBackupModal')" style="background: none; border: none; color: #94a3b8; font-size: 20px; cursor: pointer;">&times;</button>
+        </div>
+        <form method="POST" action="{{ url_for('admin.backup_upload_restore') }}" enctype="multipart/form-data" style="padding: 24px; display: flex; flex-direction: column; gap: 16px;">
+            <div style="padding: 12px 14px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; font-size: 13px; color: #991b1b;">
+                ⚠️ <strong>Atenção Crítica:</strong> A restauração irá sobrescrever as bases e configurações existentes pelos dados presentes no arquivo ZIP selecionado.
+            </div>
+
+            <div>
+                <label style="font-size: 13px; font-weight: 600; color: #334155; margin-bottom: 6px; display: block;">Selecione o arquivo de backup (.zip)</label>
+                <input type="file" name="backup_file" accept=".zip" required style="width: 100%; padding: 8px; border: 1.5px dashed #cbd5e1; border-radius: 6px; background: #f8fafc; font-size: 13px;">
+            </div>
+
+            <div>
+                <label style="font-size: 13px; font-weight: 600; color: #334155; margin-bottom: 6px; display: block;">Modo de Restauração</label>
+                <select name="restore_mode" style="width: 100%; height: 38px; border-radius: 6px; border: 1.5px solid #cbd5e1; padding: 0 10px; font-size: 13.5px; outline: none;">
+                    <option value="full">Restauração Total (Master + Todos os Clientes + Configurações)</option>
+                    <option value="tenants_only">Apenas Bases de Clientes (Tenants)</option>
+                    <option value="settings_only">Apenas Configurações e Segmentos</option>
+                </select>
+            </div>
+
+            <div>
+                <label style="font-size: 13px; font-weight: 600; color: #991b1b; margin-bottom: 6px; display: block;">Confirmação de Segurança</label>
+                <input type="text" name="confirmation" placeholder="Digite exatamente RESTAURAR" required style="width: 100%; height: 38px; border-radius: 6px; border: 1.5px solid #fca5a5; padding: 0 12px; font-size: 13.5px; outline: none; text-transform: uppercase;">
+                <small style="color: #64748b; font-size: 11.5px; margin-top: 4px; display: block;">Digite a palavra <strong>RESTAURAR</strong> em maiúsculas para prosseguir.</small>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px;">
+                <button type="button" onclick="closeModal('uploadBackupModal')" style="padding: 9px 16px; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; color: #475569; font-weight: 600; cursor: pointer;">Cancelar</button>
+                <button type="submit" style="padding: 9px 18px; border-radius: 6px; border: none; background: #b91c1c; color: #fff; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    Confirmar e Restaurar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal 3: Restaurar Backup do Histórico -->
+<div id="restoreBackupModal" class="modal-backdrop" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center; backdrop-filter: blur(2px);">
+    <div style="background: #fff; width: 100%; max-width: 500px; border-radius: 12px; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2);">
+        <div style="padding: 18px 24px; background: #0f172a; color: #fff; display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 20px;">🔄</span>
+                <h3 style="margin: 0; font-size: 16px; font-weight: 700;">Restaurar Snapshot de Contingência</h3>
+            </div>
+            <button type="button" onclick="closeModal('restoreBackupModal')" style="background: none; border: none; color: #94a3b8; font-size: 20px; cursor: pointer;">&times;</button>
+        </div>
+        <form id="restoreHistoryForm" method="POST" action="" style="padding: 24px; display: flex; flex-direction: column; gap: 16px;">
+            <div style="padding: 12px 14px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; font-size: 13px; color: #991b1b;">
+                ⚠️ <strong>Atenção:</strong> Você está prestes a restaurar o arquivo <strong id="restoreModalFilename"></strong>. Os dados atuais serão substituídos pelos dados contidos neste snapshot.
+            </div>
+
+            <div>
+                <label style="font-size: 13px; font-weight: 600; color: #334155; margin-bottom: 6px; display: block;">Modo de Restauração</label>
+                <select name="restore_mode" style="width: 100%; height: 38px; border-radius: 6px; border: 1.5px solid #cbd5e1; padding: 0 10px; font-size: 13.5px; outline: none;">
+                    <option value="full">Restauração Total (Master + Clientes + Configurações)</option>
+                    <option value="tenants_only">Apenas Bases de Clientes (Tenants)</option>
+                    <option value="settings_only">Apenas Configurações e Segmentos</option>
+                </select>
+            </div>
+
+            <div>
+                <label style="font-size: 13px; font-weight: 600; color: #991b1b; margin-bottom: 6px; display: block;">Confirmação de Segurança</label>
+                <input type="text" name="confirmation" placeholder="Digite exatamente RESTAURAR" required style="width: 100%; height: 38px; border-radius: 6px; border: 1.5px solid #fca5a5; padding: 0 12px; font-size: 13.5px; outline: none; text-transform: uppercase;">
+                <small style="color: #64748b; font-size: 11.5px; margin-top: 4px; display: block;">Digite a palavra <strong>RESTAURAR</strong> em maiúsculas para confirmar.</small>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px;">
+                <button type="button" onclick="closeModal('restoreBackupModal')" style="padding: 9px 16px; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; color: #475569; font-weight: 600; cursor: pointer;">Cancelar</button>
+                <button type="submit" style="padding: 9px 18px; border-radius: 6px; border: none; background: #b91c1c; color: #fff; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    Confirmar Restauração
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openModal(id) {
+    var modal = document.getElementById(id);
+    if (modal) {
+        modal.style.display = 'flex';
+    }
+}
+
+function closeModal(id) {
+    var modal = document.getElementById(id);
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+function openRestoreModal(filename) {
+    document.getElementById('restoreModalFilename').innerText = filename;
+    var form = document.getElementById('restoreHistoryForm');
+    form.action = "{{ url_for('admin.backup_restore', filename='__FILENAME__') }}".replace('__FILENAME__', encodeURIComponent(filename));
+    openModal('restoreBackupModal');
+}
+
+// Toggle visual do switch
+var toggle = document.getElementById('toggleAutoBackup');
+var slider = document.getElementById('sliderAutoBackup');
+var knob = document.getElementById('knobAutoBackup');
+if (toggle && slider && knob) {
+    toggle.addEventListener('change', function() {
+        if (this.checked) {
+            slider.style.backgroundColor = '#008b54';
+            knob.style.left = '23px';
+        } else {
+            slider.style.backgroundColor = '#cbd5e1';
+            knob.style.left = '3px';
+        }
+    });
+}
+
+// Condicional de exibição do intervalo
+var freqSelect = document.getElementById('frequencySelect');
+var intervalGroup = document.getElementById('intervalHoursGroup');
+var hourGroup = document.getElementById('preferredHourGroup');
+
+function updateFreqFields() {
+    if (!freqSelect) return;
+    if (freqSelect.value === 'interval_hours') {
+        if (intervalGroup) intervalGroup.style.display = 'block';
+        if (hourGroup) hourGroup.style.display = 'none';
+    } else {
+        if (intervalGroup) intervalGroup.style.display = 'none';
+        if (hourGroup) hourGroup.style.display = 'block';
+    }
+}
+
+if (freqSelect) {
+    freqSelect.addEventListener('change', updateFreqFields);
+    updateFreqFields();
+}
+
+// Fecha modais ao clicar no fundo
+window.addEventListener('click', function(e) {
+    if (e.target.classList.contains('modal-backdrop')) {
+        e.target.style.display = 'none';
+    }
+});
+</script>
+{% endblock %}

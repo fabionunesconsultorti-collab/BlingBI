@@ -16,20 +16,21 @@ services:
         sync: false
       - key: CLEAR_DATABASE_PASSWORD
         sync: false
-      # Conexão opcional com PostgreSQL gerenciado do Render para o Master DB
-      # - key: DATABASE_URL
-      #   fromDatabase:
-      #     name: bling-bi-db
-      #     property: connectionString
-      # Descomente e preencha caso queira conectar suas credenciais Bling via ambiente
+      # Conexão com PostgreSQL gerenciado persistente do Render para o Master DB
+      - key: DATABASE_URL
+        fromDatabase:
+          name: bling-bi-db
+          property: connectionString
+      # Credenciais Bling opcionais via ambiente
       # - key: BLING_CLIENT_ID
       #   sync: false
       # - key: BLING_CLIENT_SECRET
       #   sync: false
 
-# Descomente o bloco abaixo para ativar banco PostgreSQL persistente gratuito no Render
-# databases:
-#   - name: bling-bi-db
-#     plan: free
-#     databaseName: bling_bi
-#     user: bling_admin
+# Banco de dados PostgreSQL gerenciado persistente gratuito no Render
+databases:
+  - name: bling-bi-db
+    plan: free
+    databaseName: bling_bi
+    user: bling_admin
+

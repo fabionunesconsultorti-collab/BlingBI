@@ -39,6 +39,8 @@ data/*.db-shm
 data/*.sqlite
 data/*.sqlite3
 data/tenants/
+data/backups/
+*.zip
 *.db
 *.db-wal
 *.db-shm

@@ -170,3 +170,95 @@ class PasswordResetToken(db.Model):
 
     def is_valid(self):
         return not self.used and datetime.utcnow() <= self.expires_at
+
+
+class MasterBackupRecord(db.Model):
+    """
+    Registro histórico de backups gerados no sistema.
+    """
+    __tablename__ = 'master_backup_records'
+
+    id = db.Column(db.Integer, primary_key=True)
+    filename = db.Column(db.String(255), unique=True, nullable=False)
+    filepath = db.Column(db.Text, nullable=False)
+    filesize_bytes = db.Column(db.BigInteger, default=0)
+    backup_type = db.Column(db.String(50), default='manual')  # 'manual', 'scheduled', 'uploaded'
+    status = db.Column(db.String(50), default='success')       # 'success', 'failed'
+    sha256 = db.Column(db.String(64), nullable=True)
+    manifest_json = db.Column(db.Text, default='{}')
+    notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    @property
+    def manifest(self):
+        try:
+            return json.loads(self.manifest_json or '{}')
+        except Exception:
+            return {}
+
+    @manifest.setter
+    def manifest(self, val):
+        self.manifest_json = json.dumps(val or {})
+
+    @property
+    def filesize_formatted(self):
+        bytes_val = self.filesize_bytes or 0
+        if bytes_val < 1024:
+            return f"{bytes_val} B"
+        elif bytes_val < 1024 * 1024:
+            return f"{bytes_val / 1024:.1f} KB"
+        else:
+            return f"{bytes_val / (1024 * 1024):.2f} MB"
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'filename': self.filename,
+            'filesize_bytes': self.filesize_bytes,
+            'filesize_formatted': self.filesize_formatted,
+            'backup_type': self.backup_type,
+            'status': self.status,
+            'sha256': self.sha256,
+            'manifest': self.manifest,
+            'notes': self.notes,
+            'created_at': self.created_at.strftime('%d/%m/%Y %H:%M:%S') if self.created_at else ''
+        }
+
+
+class MasterBackupConfig(db.Model):
+    """
+    Configurações centralizadas de rotina e automação de backups.
+    """
+    __tablename__ = 'master_backup_config'
+
+    id = db.Column(db.Integer, primary_key=True)
+    auto_backup_enabled = db.Column(db.Boolean, default=True)
+    frequency = db.Column(db.String(30), default='daily')  # 'daily', 'weekly', 'monthly', 'interval_hours'
+    interval_hours = db.Column(db.Integer, default=24)
+    preferred_hour = db.Column(db.Integer, default=3)  # 03:00 da madrugada
+    max_backups_to_keep = db.Column(db.Integer, default=10)
+    include_master = db.Column(db.Boolean, default=True)
+    include_tenants = db.Column(db.Boolean, default=True)
+    include_settings = db.Column(db.Boolean, default=True)
+    last_backup_at = db.Column(db.DateTime, nullable=True)
+    next_backup_at = db.Column(db.DateTime, nullable=True)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    @classmethod
+    def get_or_create(cls):
+        cfg = cls.query.first()
+        if not cfg:
+            cfg = cls(
+                auto_backup_enabled=True,
+                frequency='daily',
+                interval_hours=24,
+                preferred_hour=3,
+                max_backups_to_keep=10,
+                include_master=True,
+                include_tenants=True,
+                include_settings=True
+            )
+            db.session.add(cfg)
+            db.session.commit()
+        return cfg
+

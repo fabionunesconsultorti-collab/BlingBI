@@ -159,6 +159,16 @@ Consulte o guia completo em: **[DEPLOY.md](DEPLOY.md)**.
 - Botão **Testar Conexão** em tempo real e sincronização de 1 clique.
 - Endpoint de Webhook em tempo real (`/integrations/webhook`).
 
+### 8. Central de Contingência & Backup Geral (`/admin/backups`)
+- **Persistência Garantida em Nuvem**: Ativação transparente do banco gerenciado persistente PostgreSQL no Render (`render.yaml`), mantendo todos os clientes, segmentos e configurações salvos mesmo após reinicializações e novos deploys de contêineres.
+- **Backup Completo em 1 Clique**: Gera pacotes compactados `.zip` estruturados com banco Master, bases dedicadas de todos os clientes (`data/tenants/*.db`), configurações operacionais e manifesto de integridade com hash SHA-256.
+- **Rotina Programável & Rotação Automática**: Política de agendamento configurável (diário, semanal, mensal ou por intervalo de horas), horário preferencial e limite de retenção com rotação automática dos arquivos mais antigos.
+- **Painel de Restauração Integrado**:
+  - Restauração a partir do histórico local com verificação de segurança (digitação obrigatória da palavra `RESTAURAR`).
+  - Restauração por **Upload de arquivo `.zip`** externo.
+  - Modos de restauração: Total, Apenas Bases de Clientes ou Apenas Configurações e Segmentos.
+  - Download individual dos backups para contingência externa.
+
 ---
 
 ## 🛠️ Tecnologias Utilizadas

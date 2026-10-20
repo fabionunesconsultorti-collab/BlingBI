@@ -1,12 +1,14 @@
 import os
 import logging
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify, send_file
+from werkzeug.utils import secure_filename
 from app.database import db
-from app.models.master import MasterUser, MasterSegment
+from app.models.master import MasterUser, MasterSegment, MasterBackupRecord, MasterBackupConfig
 from app.routes.auth import admin_required
 from app.core.tenant_manager import TenantManager
 from app.core.feature_registry import FEATURES_CATALOG
 from app.reports.registry import report_registry
+from app.services.backup_service import BackupService
 
 logger = logging.getLogger(__name__)
 
@@ -365,3 +367,189 @@ def segment_edit(segment_id):
             return redirect(url_for('admin.segments_list'))
 
     return render_template('admin/segment_form.html', segment=segment, all_screens=ALL_SCREENS, all_reports=all_reports)
+
+
+# ==============================================================================
+# GESTÃO DE CONTINGÊNCIA, BACKUP GERAL E RESTAURAÇÃO
+# ==============================================================================
+
+@bp.route('/backups')
+@admin_required
+def backups_index():
+    """Painel principal de contingência, gerenciamento de backups e restauração."""
+    BackupService.check_and_run_scheduled_backup()
+
+    with TenantManager.master_scope():
+        config = MasterBackupConfig.get_or_create()
+        records = MasterBackupRecord.query.order_by(MasterBackupRecord.created_at.desc()).all()
+        
+        total_backups = len(records)
+        total_size_bytes = sum(r.filesize_bytes or 0 for r in records)
+        
+        if total_size_bytes < 1024 * 1024:
+            total_size_formatted = f"{total_size_bytes / 1024:.1f} KB"
+        else:
+            total_size_formatted = f"{total_size_bytes / (1024 * 1024):.2f} MB"
+
+    return render_template(
+        'admin/backups.html',
+        records=records,
+        config=config,
+        total_backups=total_backups,
+        total_size_formatted=total_size_formatted
+    )
+
+
+@bp.route('/backups/create', methods=['POST'])
+@admin_required
+def backup_create():
+    """Dispara a geração manual e imediata de um backup geral compactado em ZIP."""
+    notes = request.form.get('notes', '').strip() or 'Backup manual disparado pelo painel'
+    try:
+        record = BackupService.create_backup(backup_type='manual', notes=notes)
+        flash(f"🎉 Backup '{record.filename}' ({record.filesize_formatted}) gerado com sucesso!", 'success')
+    except Exception as e:
+        logger.error(f"Erro ao gerar backup manual: {e}", exc_info=True)
+        flash(f"Erro ao gerar backup: {str(e)}", 'danger')
+
+    return redirect(url_for('admin.backups_index'))
+
+
+@bp.route('/backups/config', methods=['POST'])
+@admin_required
+def backup_save_config():
+    """Atualiza a política de agendamento automático, retenção e componentes de backup."""
+    with TenantManager.master_scope():
+        config = MasterBackupConfig.get_or_create()
+        
+        config.auto_backup_enabled = bool(request.form.get('auto_backup_enabled'))
+        config.frequency = request.form.get('frequency', 'daily')
+        config.preferred_hour = int(request.form.get('preferred_hour', 3))
+        config.interval_hours = int(request.form.get('interval_hours', 24))
+        config.max_backups_to_keep = max(1, min(100, int(request.form.get('max_backups_to_keep', 10))))
+        
+        config.include_master = bool(request.form.get('include_master'))
+        config.include_tenants = bool(request.form.get('include_tenants'))
+        config.include_settings = bool(request.form.get('include_settings'))
+        
+        config.next_backup_at = BackupService.calculate_next_run(config)
+        db.session.commit()
+
+    flash("Configurações de rotina de backup salvas com sucesso!", 'success')
+    return redirect(url_for('admin.backups_index'))
+
+
+@bp.route('/backups/download/<filename>')
+@admin_required
+def backup_download(filename):
+    """Download do arquivo .zip de backup."""
+    safe_name = secure_filename(filename)
+    filepath = os.path.join(BackupService.get_backups_dir(), safe_name)
+    if not os.path.isfile(filepath):
+        flash('Arquivo de backup não encontrado no servidor.', 'danger')
+        return redirect(url_for('admin.backups_index'))
+
+    return send_file(
+        filepath,
+        mimetype='application/zip',
+        as_attachment=True,
+        download_name=safe_name
+    )
+
+
+@bp.route('/backups/restore/<filename>', methods=['POST'])
+@admin_required
+def backup_restore(filename):
+    """Restaura o sistema a partir de um arquivo de backup existente no servidor."""
+    safe_name = secure_filename(filename)
+    filepath = os.path.join(BackupService.get_backups_dir(), safe_name)
+    restore_mode = request.form.get('restore_mode', 'full')
+
+    confirmation = request.form.get('confirmation', '').strip().upper()
+    if confirmation != 'RESTAURAR':
+        flash("Para confirmar a restauração, digite 'RESTAURAR' no campo de verificação.", 'warning')
+        return redirect(url_for('admin.backups_index'))
+
+    success, msg, stats = BackupService.restore_backup(filepath, restore_mode=restore_mode)
+    if success:
+        flash(f"🎉 {msg}", 'success')
+    else:
+        flash(f"❌ {msg}", 'danger')
+
+    return redirect(url_for('admin.backups_index'))
+
+
+@bp.route('/backups/upload-restore', methods=['POST'])
+@admin_required
+def backup_upload_restore():
+    """Permite fazer upload de um arquivo .zip de backup externo e restaurar imediatamente."""
+    file = request.files.get('backup_file')
+    if not file or not file.filename:
+        flash('Nenhum arquivo de backup selecionado.', 'warning')
+        return redirect(url_for('admin.backups_index'))
+
+    safe_name = secure_filename(file.filename)
+    if not safe_name.lower().endswith('.zip'):
+        flash('Formato inválido. Selecione um arquivo compactado (.zip).', 'danger')
+        return redirect(url_for('admin.backups_index'))
+
+    confirmation = request.form.get('confirmation', '').strip().upper()
+    if confirmation != 'RESTAURAR':
+        flash("Para confirmar a restauração por upload, digite 'RESTAURAR' no campo de verificação.", 'warning')
+        return redirect(url_for('admin.backups_index'))
+
+    restore_mode = request.form.get('restore_mode', 'full')
+    dest_path = os.path.join(BackupService.get_backups_dir(), f"uploaded_{safe_name}")
+    file.save(dest_path)
+
+    try:
+        filesize = os.path.getsize(dest_path)
+        sha256 = BackupService.calculate_file_sha256(dest_path)
+        with TenantManager.master_scope():
+            rec = MasterBackupRecord(
+                filename=f"uploaded_{safe_name}",
+                filepath=dest_path,
+                filesize_bytes=filesize,
+                backup_type='uploaded',
+                status='success',
+                sha256=sha256,
+                notes='Backup importado via upload pelo Administrador Geral'
+            )
+            db.session.add(rec)
+            db.session.commit()
+    except Exception as e:
+        logger.warning(f"Erro ao registrar backup importado: {e}")
+
+    success, msg, stats = BackupService.restore_backup(dest_path, restore_mode=restore_mode)
+    if success:
+        flash(f"🎉 {msg}", 'success')
+    else:
+        flash(f"❌ {msg}", 'danger')
+
+    return redirect(url_for('admin.backups_index'))
+
+
+@bp.route('/backups/delete/<filename>', methods=['POST'])
+@admin_required
+def backup_delete(filename):
+    """Exclui um arquivo de backup do servidor e do histórico."""
+    safe_name = secure_filename(filename)
+    filepath = os.path.join(BackupService.get_backups_dir(), safe_name)
+
+    try:
+        if os.path.isfile(filepath):
+            os.remove(filepath)
+
+        with TenantManager.master_scope():
+            rec = MasterBackupRecord.query.filter_by(filename=safe_name).first()
+            if rec:
+                db.session.delete(rec)
+                db.session.commit()
+
+        flash(f"Backup '{safe_name}' excluído com sucesso.", 'info')
+    except Exception as e:
+        logger.error(f"Erro ao excluir backup: {e}")
+        flash(f"Erro ao excluir backup: {str(e)}", 'danger')
+
+    return redirect(url_for('admin.backups_index'))
+
