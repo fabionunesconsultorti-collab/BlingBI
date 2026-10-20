@@ -33,6 +33,14 @@ def check_and_apply_migrations():
                     conn.execute(text("ALTER TABLE products ADD COLUMN color VARCHAR(50);"))
                 if 'style' not in prod_cols:
                     conn.execute(text("ALTER TABLE products ADD COLUMN style VARCHAR(50);"))
+                if 'purchase_cost' not in prod_cols:
+                    conn.execute(text("ALTER TABLE products ADD COLUMN purchase_cost FLOAT DEFAULT 0.0;"))
+                if 'min_stock' not in prod_cols:
+                    conn.execute(text("ALTER TABLE products ADD COLUMN min_stock FLOAT DEFAULT 5.0;"))
+                if 'lead_time_days' not in prod_cols:
+                    conn.execute(text("ALTER TABLE products ADD COLUMN lead_time_days INTEGER DEFAULT 7;"))
+                if 'weight_kg' not in prod_cols:
+                    conn.execute(text("ALTER TABLE products ADD COLUMN weight_kg FLOAT DEFAULT 0.3;"))
 
             # 3. Colunas na tabela orders
             if 'orders' in tables:
@@ -59,6 +67,14 @@ def check_and_apply_migrations():
                 bag_cols = [row[1] for row in conn.execute(text("PRAGMA table_info(conditional_bags);")).fetchall()]
                 if 'notes' not in bag_cols:
                     conn.execute(text("ALTER TABLE conditional_bags ADD COLUMN notes TEXT;"))
+
+            # 6. Tabelas product_channel_prices e marketplace_rules se não existirem
+            from app.models.marketplace_rule import MarketplaceRule
+            from app.models.product import ProductChannelPrice
+            db.metadata.create_all(bind=engine, tables=[
+                db.metadata.tables['product_channel_prices'],
+                db.metadata.tables['marketplace_rules']
+            ])
 
             conn.commit()
     except Exception as e:

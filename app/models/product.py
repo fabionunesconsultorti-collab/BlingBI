@@ -10,7 +10,11 @@ class Product(db.Model):
     name = db.Column(db.String(255), nullable=False, index=True)
     price = db.Column(db.Float, default=0.0)
     cost = db.Column(db.Float, default=0.0)
+    purchase_cost = db.Column(db.Float, default=0.0) # Valor pago na aquisição / compra
     stock = db.Column(db.Float, default=0.0)
+    min_stock = db.Column(db.Float, default=5.0) # Estoque mínimo de segurança
+    lead_time_days = db.Column(db.Integer, default=7) # Prazo de reposição em dias
+    weight_kg = db.Column(db.Float, default=0.3) # Peso estimado para cálculo de frete
     category = db.Column(db.String(100), nullable=True, index=True)
     size = db.Column(db.String(20), nullable=True, index=True)
     color = db.Column(db.String(50), nullable=True, index=True)
@@ -20,8 +24,9 @@ class Product(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    # Relacionamento com itens de pedido
+    # Relacionamento com itens de pedido e preços por canal
     order_items = db.relationship('OrderItem', backref='product', lazy='dynamic')
+    channel_prices = db.relationship('ProductChannelPrice', backref='product', cascade='all, delete-orphan', lazy='joined')
 
     def to_dict(self):
         return {
@@ -31,10 +36,42 @@ class Product(db.Model):
             'name': self.name,
             'price': self.price,
             'cost': self.cost,
+            'purchase_cost': self.purchase_cost,
             'stock': self.stock,
+            'min_stock': self.min_stock,
             'category': self.category or 'Geral',
             'size': self.size or '',
             'color': self.color or '',
             'style': self.style or '',
-            'status': self.status
+            'status': self.status,
+            'channel_prices': {cp.channel: cp.price for cp in self.channel_prices} if self.channel_prices else {}
+        }
+
+
+class ProductChannelPrice(db.Model):
+    """
+    Armazena o preço específico de venda praticado para cada produto em cada canal/marketplace.
+    Ex: 'Mercado Livre', 'Shopee', 'Amazon', 'Site Próprio', 'Loja Física', etc.
+    """
+    __tablename__ = 'product_channel_prices'
+
+    id = db.Column(db.Integer, primary_key=True)
+    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False, index=True)
+    channel = db.Column(db.String(100), nullable=False, index=True)
+    price = db.Column(db.Float, default=0.0)
+    markup = db.Column(db.Float, default=0.0) # Markup % em relação ao custo
+    margin_percent = db.Column(db.Float, default=0.0) # Margem líquida estimada
+    is_active = db.Column(db.Boolean, default=True)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'product_id': self.product_id,
+            'channel': self.channel,
+            'price': self.price,
+            'markup': self.markup,
+            'margin_percent': self.margin_percent,
+            'is_active': self.is_active,
+            'updated_at': self.updated_at.strftime('%Y-%m-%d %H:%M:%S') if self.updated_at else None
         }

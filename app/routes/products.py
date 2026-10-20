@@ -1,9 +1,14 @@
 from datetime import datetime
-from flask import Blueprint, render_template, request, send_file, redirect, url_for
+from flask import Blueprint, render_template, request, send_file, redirect, url_for, jsonify, flash
+from app.database import db
+from app.models.product import Product, ProductChannelPrice
+from app.models.marketplace_rule import MarketplaceRule
 from app.services.bi_analytics import BiAnalytics
 from app.services.standard_reports import StandardReportsEngine
 from app.services.fashion_bi import FashionBiEngine
 from app.services.exporter import BiExporter
+from app.services.stock_analysis_service import StockAnalysisService
+from app.services.pricing_engine import PricingEngine
 from app.services.product_attributes import (
     search_catalog_products,
     get_catalog_filter_options,
@@ -276,5 +281,232 @@ def export_search_excel():
 @bp.route('/search/pdf')
 def export_search_pdf():
     return redirect(url_for('products.export_abc_pdf', **request.args))
+
+
+# -----------------------------------------------------------------------------
+# 2.5 ANÁLISE DE ESTOQUE & GESTÃO DE PREÇOS POR CANAL
+# -----------------------------------------------------------------------------
+@bp.route('/stock-analysis')
+@requires_feature('products.stock_analysis', fallback_endpoint='products.index')
+def stock_analysis():
+    """Tela de Análise Aprofundada de Estoque, Valores por Canal e Edição de Custos/Preços."""
+    enrich_products_attributes_if_needed()
+    data = StockAnalysisService.get_stock_analysis(request.args)
+
+    return render_template(
+        'products/stock_analysis.html',
+        products=data['products'],
+        summary=data['summary'],
+        channels=data['channels'],
+        categories=data['categories'],
+        active_tab='stock_analysis',
+        filters=request.args
+    )
+
+
+@bp.route('/stock-analysis/update-inline', methods=['POST'])
+def stock_analysis_update_inline():
+    """Atualiza Custo, Valor Pago, Preço Base ou Preço por Canal inline via AJAX."""
+    try:
+        payload = request.get_json(silent=True) or request.form
+        product_id = payload.get('product_id', type=int) if hasattr(payload, 'get') else None
+        field = payload.get('field', '').strip()
+        value = payload.get('value')
+        channel = payload.get('channel', '').strip() or None
+
+        if not product_id or not field:
+            return jsonify({'success': False, 'message': 'Parâmetros inválidos.'}), 400
+
+        result = StockAnalysisService.update_product_inline(
+            product_id=product_id,
+            field=field,
+            value=value,
+            channel=channel
+        )
+        status_code = 200 if result.get('success') else 400
+        return jsonify(result), status_code
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@bp.route('/stock-analysis/export-excel')
+def stock_analysis_export_excel():
+    """Exporta planilha completa para auditoria e preenchimento de custos/preços."""
+    data = StockAnalysisService.get_stock_analysis(request.args)
+    excel_stream = StockAnalysisService.export_excel(data['products'])
+    filename = f"BlingBI_Analise_Estoque_Precos_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.xlsx"
+
+    return send_file(
+        excel_stream,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True,
+        download_name=filename
+    )
+
+
+@bp.route('/stock-analysis/import-excel', methods=['POST'])
+def stock_analysis_import_excel():
+    """Importa planilha Excel preenchida para atualizar custos e preços em lote."""
+    if 'file' not in request.files:
+        flash('Nenhum arquivo enviado para importação.', 'warning')
+        return redirect(url_for('products.stock_analysis'))
+
+    file = request.files['file']
+    if not file or file.filename == '':
+        flash('Selecione uma planilha válida (.xlsx).', 'warning')
+        return redirect(url_for('products.stock_analysis'))
+
+    result = StockAnalysisService.import_excel(file.stream)
+    if result.get('success'):
+        flash(result['message'], 'success')
+    else:
+        flash(result['message'], 'danger')
+
+    return redirect(url_for('products.stock_analysis'))
+
+
+# -----------------------------------------------------------------------------
+# 2.6 PRECIFICAÇÃO AUTOMÁTICA EM MARKETPLACES (MARKUP REVERSO & DRE UNITÁRIO)
+# -----------------------------------------------------------------------------
+@bp.route('/pricing')
+@requires_feature('products.pricing', fallback_endpoint='products.index')
+def pricing():
+    """Tela de Precificação Inteligente de Marketplaces com DRE Unitário e aplicação em lote."""
+    rules = PricingEngine.get_all_rules()
+    selected_channel = request.args.get('channel', rules[0].channel if rules else 'Mercado Livre Clássico')
+    active_rule = PricingEngine.get_rule_by_channel(selected_channel) or (rules[0] if rules else None)
+
+    q = request.args.get('q', '').strip()
+    category = request.args.get('category', 'all')
+    custom_margin = request.args.get('custom_margin', type=float)
+
+    query = Product.query
+    if q:
+        query = query.filter(or_(Product.name.ilike(f"%{q}%"), Product.sku.ilike(f"%{q}%")))
+    if category != 'all':
+        query = query.filter(Product.category == category)
+
+    raw_prods = query.order_by(Product.name.asc()).limit(150).all()
+
+    # Simula para cada produto o preço ideal no canal ativo
+    simulated_products = []
+    if active_rule:
+        for p in raw_prods:
+            calc = PricingEngine.calculate_product_channel_pricing(
+                p, active_rule, custom_target_margin=custom_margin
+            )
+            simulated_products.append(calc)
+
+    all_categories = sorted(list(set(p.category for p in Product.query.with_entities(Product.category).all() if p.category)))
+
+    return render_template(
+        'products/marketplace_pricing.html',
+        rules=rules,
+        active_rule=active_rule,
+        selected_channel=selected_channel,
+        products=simulated_products,
+        categories=all_categories,
+        selected_category=category,
+        custom_margin=custom_margin,
+        q=q,
+        active_tab='pricing'
+    )
+
+
+@bp.route('/pricing/rules', methods=['GET', 'POST'])
+def pricing_rules():
+    """Consulta ou edita os parâmetros e taxas de um marketplace."""
+    if request.method == 'GET':
+        rules = PricingEngine.get_all_rules()
+        return jsonify({'success': True, 'rules': [r.to_dict() for r in rules]})
+
+    try:
+        data = request.get_json(silent=True) or request.form
+        rule_id = data.get('rule_id', type=int)
+        rule = MarketplaceRule.query.get(rule_id)
+        if not rule:
+            return jsonify({'success': False, 'message': 'Regra de canal não encontrada.'}), 404
+
+        rule.commission_percent = float(data.get('commission_percent', rule.commission_percent))
+        rule.fixed_fee = float(data.get('fixed_fee', rule.fixed_fee))
+        rule.fixed_fee_threshold = float(data.get('fixed_fee_threshold', rule.fixed_fee_threshold))
+        rule.free_shipping_threshold = float(data.get('free_shipping_threshold', rule.free_shipping_threshold))
+        rule.default_shipping_cost = float(data.get('default_shipping_cost', rule.default_shipping_cost))
+        rule.tax_percent = float(data.get('tax_percent', rule.tax_percent))
+        rule.operational_cost_percent = float(data.get('operational_cost_percent', rule.operational_cost_percent))
+        rule.target_margin_percent = float(data.get('target_margin_percent', rule.target_margin_percent))
+        rule.updated_at = datetime.utcnow()
+
+        db.session.commit()
+        return jsonify({
+            'success': True,
+            'message': f"Regras do canal '{rule.channel}' atualizadas com sucesso!",
+            'rule': rule.to_dict()
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@bp.route('/pricing/simulate', methods=['POST'])
+def pricing_simulate():
+    """Calculadora interativa: simula em tempo real o preço e DRE unitário de um produto."""
+    try:
+        data = request.get_json(silent=True) or request.form
+        cost = float(data.get('cost', 10.0))
+        commission_percent = float(data.get('commission_percent', 14.0))
+        tax_percent = float(data.get('tax_percent', 6.0))
+        operational_percent = float(data.get('operational_percent', 3.0))
+        target_margin_percent = float(data.get('target_margin_percent', 20.0))
+        fixed_fee = float(data.get('fixed_fee', 0.0))
+        fixed_fee_threshold = float(data.get('fixed_fee_threshold', 79.0))
+        free_shipping_threshold = float(data.get('free_shipping_threshold', 79.0))
+        shipping_cost = float(data.get('shipping_cost', 0.0))
+
+        calc = PricingEngine.calculate_price_for_cost(
+            cost=cost,
+            commission_percent=commission_percent,
+            tax_percent=tax_percent,
+            operational_percent=operational_percent,
+            target_margin_percent=target_margin_percent,
+            fixed_fee=fixed_fee,
+            fixed_fee_threshold=fixed_fee_threshold,
+            free_shipping_threshold=free_shipping_threshold,
+            shipping_cost=shipping_cost
+        )
+        return jsonify({'success': True, 'calculation': calc})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@bp.route('/pricing/apply', methods=['POST'])
+def pricing_apply():
+    """Aplica preços calculados a um único produto ou a uma lista em lote."""
+    try:
+        data = request.get_json(silent=True) or request.form
+        product_ids = data.get('product_ids', [])
+        channel = data.get('channel', '').strip()
+        custom_target_margin = data.get('custom_target_margin')
+        if custom_target_margin is not None:
+            try: custom_target_margin = float(custom_target_margin)
+            except (ValueError, TypeError): custom_target_margin = None
+
+        if isinstance(product_ids, str):
+            product_ids = [int(p.strip()) for p in product_ids.split(',') if p.strip()]
+        elif isinstance(product_ids, int):
+            product_ids = [product_ids]
+
+        if not product_ids or not channel:
+            return jsonify({'success': False, 'message': 'Produtos ou canal não informados.'}), 400
+
+        result = PricingEngine.apply_prices_in_batch(
+            product_ids=product_ids,
+            channel=channel,
+            custom_target_margin=custom_target_margin
+        )
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 
 

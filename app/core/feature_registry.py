@@ -135,6 +135,26 @@ FEATURES_CATALOG: List[Dict[str, Any]] = [
         'default': True
     },
     {
+        'key': 'products.stock_analysis',
+        'sector': 'products',
+        'sector_name': 'Produtos & Estoque',
+        'name': 'Aba Análise de Estoque & Preços por Canal',
+        'type': 'tab',
+        'description': 'Visão aprofundada de estoque com múltiplos filtros, valores por canal e edição de custos.',
+        'url': '/products/stock-analysis',
+        'default': True
+    },
+    {
+        'key': 'products.pricing',
+        'sector': 'products',
+        'sector_name': 'Produtos & Estoque',
+        'name': 'Aba Precificação Automática Marketplaces',
+        'type': 'tab',
+        'description': 'Formação inteligente de preço de venda e margens com regras de comissão e frete por canal.',
+        'url': '/products/pricing',
+        'default': True
+    },
+    {
         'key': 'products.returns',
         'sector': 'products',
         'sector_name': 'Produtos & Estoque',

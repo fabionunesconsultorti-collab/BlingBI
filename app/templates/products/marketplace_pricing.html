@@ -1,0 +1,455 @@
+{% extends 'base.html' %}
+
+{% block title %}Precificação Automática em Marketplaces - BlingBI{% endblock %}
+{% block page_title %}Precificação Inteligente de Marketplaces{% endblock %}
+
+{% block content %}
+<div class="pricing-container" style="display: flex; flex-direction: column; gap: 20px;">
+
+    {% include 'products/nav_header.html' %}
+
+    <!-- Channel Selector Tabs -->
+    <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 18px; display: flex; align-items: center; gap: 10px; overflow-x: auto; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+        <span style="font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; white-space: nowrap; margin-right: 6px;">Canal / Regra:</span>
+        {% for r in rules %}
+        <a href="{{ url_for('products.pricing', channel=r.channel, category=selected_category, q=q) }}" 
+           style="text-decoration: none; padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; transition: all 0.15s ease; {% if selected_channel == r.channel %}background: #0f172a; color: #fff; box-shadow: 0 2px 6px rgba(15,23,42,0.25);{% else %}background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0;{% endif %}">
+            <span>{{ r.icon }}</span>
+            <span>{{ r.channel_display_name or r.channel }}</span>
+        </a>
+        {% endfor %}
+    </div>
+
+    <!-- Active Channel Rule & Parameters Card -->
+    {% if active_rule %}
+    <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: #fff; border-radius: 12px; padding: 22px 26px; box-shadow: 0 4px 14px rgba(0,0,0,0.12); display: flex; flex-direction: column; gap: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <span style="font-size: 28px;">{{ active_rule.icon }}</span>
+                <div>
+                    <h3 style="margin: 0; font-size: 18px; font-weight: 800; color: #fff;">Regras Ativas: {{ active_rule.channel_display_name or active_rule.channel }}</h3>
+                    <p style="margin: 2px 0 0 0; font-size: 12.5px; color: #94a3b8;">Parâmetros fiscais, taxas de plataforma e custos de envio aplicados na formação de preço.</p>
+                </div>
+            </div>
+            <div>
+                <button type="button" class="btn btn-outline" onclick="openRuleConfigModal()" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 7px 14px; font-size: 12.5px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
+                    ⚙️ Ajustar Regras & Taxas do Canal
+                </button>
+            </div>
+        </div>
+
+        <!-- Metric badges of the rule -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.1);">
+            <div style="background: rgba(255,255,255,0.06); padding: 10px 14px; border-radius: 8px;">
+                <span style="font-size: 11px; color: #94a3b8; display: block;">Comissão do Canal</span>
+                <strong style="font-size: 17px; color: #38bdf8;">{{ active_rule.commission_percent }}%</strong>
+            </div>
+            <div style="background: rgba(255,255,255,0.06); padding: 10px 14px; border-radius: 8px;">
+                <span style="font-size: 11px; color: #94a3b8; display: block;">Taxa Fixa (&lt; R$ {{ active_rule.fixed_fee_threshold | int }})</span>
+                <strong style="font-size: 17px; color: #fbbf24;">R$ {{ '%.2f' | format(active_rule.fixed_fee) }}</strong>
+            </div>
+            <div style="background: rgba(255,255,255,0.06); padding: 10px 14px; border-radius: 8px;">
+                <span style="font-size: 11px; color: #94a3b8; display: block;">Frete Seller (&ge; R$ {{ active_rule.free_shipping_threshold | int }})</span>
+                <strong style="font-size: 17px; color: #f472b6;">R$ {{ '%.2f' | format(active_rule.default_shipping_cost) }}</strong>
+            </div>
+            <div style="background: rgba(255,255,255,0.06); padding: 10px 14px; border-radius: 8px;">
+                <span style="font-size: 11px; color: #94a3b8; display: block;">Imposto DAS</span>
+                <strong style="font-size: 17px; color: #a78bfa;">{{ active_rule.tax_percent }}%</strong>
+            </div>
+            <div style="background: rgba(255,255,255,0.06); padding: 10px 14px; border-radius: 8px;">
+                <span style="font-size: 11px; color: #94a3b8; display: block;">Despesas Operacionais</span>
+                <strong style="font-size: 17px; color: #cbd5e1;">{{ active_rule.operational_cost_percent }}%</strong>
+            </div>
+            <div style="background: rgba(255,255,255,0.06); padding: 10px 14px; border-radius: 8px;">
+                <span style="font-size: 11px; color: #94a3b8; display: block;">Margem Líquida Alvo</span>
+                <strong style="font-size: 17px; color: #34d399;">{{ active_rule.target_margin_percent }}%</strong>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Interactive Simulator & DRE Unitário -->
+    <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px 24px;">
+        <h4 style="margin: 0 0 14px 0; font-size: 15px; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+            <span>🧮</span> Simulador Rápido de Preço & DRE Unitário
+        </h4>
+        <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 24px; align-items: start;">
+            
+            <!-- Input Form for Simulation -->
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px; display: flex; flex-direction: column; gap: 12px;">
+                <div>
+                    <label style="display: block; font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 4px;">Custo de Aquisição / Valor Pago (R$):</label>
+                    <input type="number" step="0.01" min="0" id="simCostInput" value="35.00" class="form-control" style="font-size: 14px; font-weight: 700; height: 38px; border: 1px solid #cbd5e1; border-radius: 6px;" oninput="runSimulation()">
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div>
+                        <label style="display: block; font-size: 11.5px; font-weight: 600; color: #64748b; margin-bottom: 4px;">Comissão (%):</label>
+                        <input type="number" step="0.1" id="simCommInput" value="{{ active_rule.commission_percent if active_rule else 14.0 }}" class="form-control" style="font-size: 13px; height: 34px; border: 1px solid #cbd5e1; border-radius: 6px;" oninput="runSimulation()">
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 11.5px; font-weight: 600; color: #64748b; margin-bottom: 4px;">Margem Alvo (%):</label>
+                        <input type="number" step="0.1" id="simMarginInput" value="{{ active_rule.target_margin_percent if active_rule else 20.0 }}" class="form-control" style="font-size: 13px; height: 34px; border: 1px solid #cbd5e1; border-radius: 6px;" oninput="runSimulation()">
+                    </div>
+                </div>
+                <div style="font-size: 11.5px; color: #64748b; margin-top: 4px;">
+                    O cálculo considera a regra de transição automática de frete e taxa fixa do canal ativo.
+                </div>
+            </div>
+
+            <!-- DRE Unitário Output Box -->
+            <div id="dreOutputBox" style="background: #fdfefe; border: 1px solid #cbd5e1; border-radius: 10px; padding: 18px 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid #e2e8f0;">
+                    <div>
+                        <span style="font-size: 11.5px; color: #64748b; font-weight: 700; text-transform: uppercase;">Preço de Venda Sugerido</span>
+                        <h2 id="simSuggestedPrice" style="margin: 2px 0 0 0; font-size: 26px; font-weight: 900; color: #008b54;">R$ 0,00</h2>
+                    </div>
+                    <div style="text-align: right;">
+                        <span style="font-size: 11.5px; color: #64748b; font-weight: 700; text-transform: uppercase;">Lucro Líquido Real</span>
+                        <h2 id="simNetProfit" style="margin: 2px 0 0 0; font-size: 22px; font-weight: 900; color: #0f172a;">R$ 0,00 <span id="simRealMargin" style="font-size: 14px; font-weight: 700; color: #16a34a;">(0.0%)</span></h2>
+                    </div>
+                </div>
+
+                <!-- DRE Breakdown Line Items -->
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; font-size: 12px;">
+                    <div style="padding: 6px 10px; background: #f8fafc; border-radius: 6px;">
+                        <span style="color: #64748b; display: block;">(-) Custo do Produto:</span>
+                        <strong id="simCostRs" style="color: #0f172a;">R$ 0,00</strong>
+                    </div>
+                    <div style="padding: 6px 10px; background: #f8fafc; border-radius: 6px;">
+                        <span style="color: #64748b; display: block;">(-) Comissão Canal:</span>
+                        <strong id="simCommRs" style="color: #dc2626;">R$ 0,00</strong>
+                    </div>
+                    <div style="padding: 6px 10px; background: #f8fafc; border-radius: 6px;">
+                        <span style="color: #64748b; display: block;">(-) Imposto DAS:</span>
+                        <strong id="simTaxRs" style="color: #dc2626;">R$ 0,00</strong>
+                    </div>
+                    <div style="padding: 6px 10px; background: #f8fafc; border-radius: 6px;">
+                        <span style="color: #64748b; display: block;">(-) Taxa Fixa por Item:</span>
+                        <strong id="simFixedRs" style="color: #dc2626;">R$ 0,00</strong>
+                    </div>
+                    <div style="padding: 6px 10px; background: #f8fafc; border-radius: 6px;">
+                        <span style="color: #64748b; display: block;">(-) Frete Grátis Seller:</span>
+                        <strong id="simShippingRs" style="color: #dc2626;">R$ 0,00</strong>
+                    </div>
+                    <div style="padding: 6px 10px; background: #f8fafc; border-radius: 6px;">
+                        <span style="color: #64748b; display: block;">Markup Multiplicador:</span>
+                        <strong id="simMarkupMult" style="color: #2563eb;">0.00x</strong>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Filter and Batch Actions Bar -->
+    <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+        <form method="GET" action="{{ url_for('products.pricing') }}" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <input type="hidden" name="channel" value="{{ selected_channel }}">
+            <input type="text" name="q" value="{{ q }}" placeholder="Buscar por SKU ou Nome..." style="height: 36px; padding: 0 12px; font-size: 13px; border: 1px solid #cbd5e1; border-radius: 6px; width: 220px;">
+            <select name="category" onchange="this.form.submit()" style="height: 36px; padding: 0 10px; font-size: 13px; border: 1px solid #cbd5e1; border-radius: 6px;">
+                <option value="all">Todas as Categorias</option>
+                {% for c in categories %}
+                <option value="{{ c }}" {% if selected_category == c %}selected{% endif %}>{{ c }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-outline" style="height: 36px; padding: 0 14px; font-size: 13px; font-weight: 600;">Filtrar</button>
+        </form>
+
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <button type="button" class="btn btn-primary" onclick="applyBatchSelected()" style="height: 36px; padding: 0 16px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; background: #008b54; border-color: #008b54;">
+                <span>🚀</span> Aplicar Preços aos Selecionados (<span id="selectedCount">0</span>)
+            </button>
+        </div>
+    </div>
+
+    <!-- Products Pricing Table -->
+    <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+        <div style="overflow-x: auto;">
+            <table class="table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
+                <thead>
+                    <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0; color: #475569; font-size: 11.5px; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">
+                        <th style="padding: 12px 14px; width: 36px; text-align: center;">
+                            <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll(this)" style="cursor: pointer;">
+                        </th>
+                        <th style="padding: 14px 14px;">Produto / SKU</th>
+                        <th style="padding: 14px 12px; text-align: right;">Custo Base</th>
+                        <th style="padding: 14px 12px; text-align: right;">Preço Base</th>
+                        <th style="padding: 14px 12px; text-align: right;">Preço Atual no Canal</th>
+                        <th style="padding: 14px 12px; text-align: right; background: #ecfdf5; color: #065f46;">Preço Sugerido</th>
+                        <th style="padding: 14px 12px; text-align: right;">Lucro Líquido</th>
+                        <th style="padding: 14px 12px; text-align: center;">Margem %</th>
+                        <th style="padding: 14px 16px; text-align: center;">Ação</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in products %}
+                    <tr style="border-bottom: 1px solid #f1f5f9; transition: background 0.15s ease;" onmouseover="this.style.background='#fbfcfe'" onmouseout="this.style.background='transparent'">
+                        <td style="padding: 12px 14px; text-align: center;">
+                            <input type="checkbox" class="prod-checkbox" value="{{ p.product_id }}" onchange="updateSelectedCount()" style="cursor: pointer;">
+                        </td>
+
+                        <td style="padding: 12px 14px; max-width: 280px;">
+                            <div style="font-weight: 700; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ p.product_name }}">
+                                {{ p.product_name }}
+                            </div>
+                            <div style="font-size: 11px; color: #64748b; font-family: monospace;">
+                                {{ p.sku }}
+                            </div>
+                        </td>
+
+                        <td style="padding: 12px; text-align: right; font-weight: 600; color: #475569;">
+                            {{ p.cost | currency }}
+                        </td>
+
+                        <td style="padding: 12px; text-align: right; font-weight: 600; color: #64748b;">
+                            {{ p.base_price | currency }}
+                        </td>
+
+                        <td style="padding: 12px; text-align: right; font-weight: 700; color: #0f172a;">
+                            {% if p.current_channel_price %}
+                            {{ p.current_channel_price | currency }}
+                            {% else %}
+                            <span style="color: #94a3b8; font-weight: 400; font-style: italic;">Não cadastrado</span>
+                            {% endif %}
+                        </td>
+
+                        <td style="padding: 12px; text-align: right; background: #f0fdf4; font-weight: 900; font-size: 14.5px; color: #047857;">
+                            {{ p.suggested_price | currency }}
+                        </td>
+
+                        <td style="padding: 12px; text-align: right; font-weight: 700; color: #0f172a;">
+                            {{ p.net_profit_rs | currency }}
+                        </td>
+
+                        <td style="padding: 12px; text-align: center;">
+                            <span style="background: #dcfce7; color: #166534; padding: 3px 8px; border-radius: 6px; font-weight: 800; font-size: 11.5px;">
+                                {{ p.margin_percent }}%
+                            </span>
+                        </td>
+
+                        <td style="padding: 12px 16px; text-align: center;">
+                            <button type="button" class="btn btn-outline" 
+                                    onclick="applySinglePrice({{ p.product_id }}, '{{ selected_channel }}', {{ p.suggested_price }}, {{ p.margin_percent }}, this)"
+                                    style="padding: 5px 10px; font-size: 12px; font-weight: 700; color: #008b54; border-color: #008b54; display: inline-flex; align-items: center; gap: 4px;">
+                                <span>✓</span> Aplicar
+                            </button>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="9" style="text-align: center; padding: 40px; color: #94a3b8;">
+                            Nenhum produto encontrado para precificação.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- Modal Configurar Regras do Canal -->
+{% if active_rule %}
+<div id="ruleConfigModal" class="modal-backdrop" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center;">
+    <div style="background: #fff; width: 100%; max-width: 540px; border-radius: 12px; padding: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.2);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid #f1f5f9; padding-bottom: 12px;">
+            <h3 style="margin: 0; font-size: 17px; font-weight: 800; color: #0f172a;">Configurar Parâmetros: {{ active_rule.channel }}</h3>
+            <button type="button" onclick="closeRuleConfigModal()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #64748b;">✕</button>
+        </div>
+
+        <form id="ruleConfigForm" onsubmit="saveRuleConfig(event)">
+            <input type="hidden" name="rule_id" value="{{ active_rule.id }}">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px;">
+                <div>
+                    <label style="display: block; font-size: 12px; font-weight: 700; color: #475569; margin-bottom: 4px;">Comissão do Canal (%):</label>
+                    <input type="number" step="0.1" name="commission_percent" value="{{ active_rule.commission_percent }}" class="form-control" style="font-size: 13.5px; height: 36px; border: 1px solid #cbd5e1; border-radius: 6px; width: 100%;" required>
+                </div>
+                <div>
+                    <label style="display: block; font-size: 12px; font-weight: 700; color: #475569; margin-bottom: 4px;">Taxa Fixa por Item (R$):</label>
+                    <input type="number" step="0.01" name="fixed_fee" value="{{ active_rule.fixed_fee }}" class="form-control" style="font-size: 13.5px; height: 36px; border: 1px solid #cbd5e1; border-radius: 6px; width: 100%;" required>
+                </div>
+                <div>
+                    <label style="display: block; font-size: 12px; font-weight: 700; color: #475569; margin-bottom: 4px;">Frete Grátis Seller (R$):</label>
+                    <input type="number" step="0.01" name="default_shipping_cost" value="{{ active_rule.default_shipping_cost }}" class="form-control" style="font-size: 13.5px; height: 36px; border: 1px solid #cbd5e1; border-radius: 6px; width: 100%;" required>
+                </div>
+                <div>
+                    <label style="display: block; font-size: 12px; font-weight: 700; color: #475569; margin-bottom: 4px;">Limiar Frete Grátis (R$):</label>
+                    <input type="number" step="0.01" name="free_shipping_threshold" value="{{ active_rule.free_shipping_threshold }}" class="form-control" style="font-size: 13.5px; height: 36px; border: 1px solid #cbd5e1; border-radius: 6px; width: 100%;" required>
+                </div>
+                <div>
+                    <label style="display: block; font-size: 12px; font-weight: 700; color: #475569; margin-bottom: 4px;">Alíquota de Imposto (%):</label>
+                    <input type="number" step="0.1" name="tax_percent" value="{{ active_rule.tax_percent }}" class="form-control" style="font-size: 13.5px; height: 36px; border: 1px solid #cbd5e1; border-radius: 6px; width: 100%;" required>
+                </div>
+                <div>
+                    <label style="display: block; font-size: 12px; font-weight: 700; color: #475569; margin-bottom: 4px;">Margem Líquida Alvo (%):</label>
+                    <input type="number" step="0.1" name="target_margin_percent" value="{{ active_rule.target_margin_percent }}" class="form-control" style="font-size: 13.5px; height: 36px; border: 1px solid #cbd5e1; border-radius: 6px; width: 100%;" required>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                <button type="button" onclick="closeRuleConfigModal()" class="btn btn-outline" style="padding: 8px 16px;">Cancelar</button>
+                <button type="submit" class="btn btn-primary" style="padding: 8px 20px; font-weight: 600;">Salvar Regras do Canal</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<script>
+    function openRuleConfigModal() {
+        const m = document.getElementById('ruleConfigModal');
+        if (m) m.style.display = 'flex';
+    }
+
+    function closeRuleConfigModal() {
+        const m = document.getElementById('ruleConfigModal');
+        if (m) m.style.display = 'none';
+    }
+
+    async function saveRuleConfig(e) {
+        e.preventDefault();
+        const form = document.getElementById('ruleConfigForm');
+        const formData = new FormData(form);
+        const data = Object.fromEntries(formData.entries());
+
+        try {
+            const res = await fetch("{{ url_for('products.pricing_rules') }}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            const result = await res.json();
+            if (result.success) {
+                alert('Regras do canal atualizadas com sucesso!');
+                window.location.reload();
+            } else {
+                alert('Erro ao atualizar: ' + result.message);
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Falha na comunicação com o servidor.');
+        }
+    }
+
+    // Seleção de produtos
+    function toggleSelectAll(masterCheckbox) {
+        const checkboxes = document.querySelectorAll('.prod-checkbox');
+        checkboxes.forEach(cb => cb.checked = masterCheckbox.checked);
+        updateSelectedCount();
+    }
+
+    function updateSelectedCount() {
+        const count = document.querySelectorAll('.prod-checkbox:checked').length;
+        const span = document.getElementById('selectedCount');
+        if (span) span.innerText = count;
+    }
+
+    // Aplica preço individual
+    async function applySinglePrice(productId, channel, price, margin, btnElement) {
+        btnElement.disabled = true;
+        btnElement.innerText = 'Salvando...';
+
+        try {
+            const res = await fetch("{{ url_for('products.pricing_apply') }}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    product_ids: [productId],
+                    channel: channel
+                })
+            });
+            const result = await res.json();
+            if (result.success) {
+                btnElement.innerText = '✓ Aplicado!';
+                btnElement.style.background = '#dcfce7';
+                btnElement.style.color = '#15803d';
+                btnElement.style.borderColor = '#86efac';
+            } else {
+                btnElement.disabled = false;
+                btnElement.innerText = 'Erro';
+                alert('Erro ao aplicar: ' + result.message);
+            }
+        } catch (err) {
+            btnElement.disabled = false;
+            btnElement.innerText = 'Falha';
+            console.error(err);
+        }
+    }
+
+    // Aplica preço em lote para os selecionados
+    async function applyBatchSelected() {
+        const selected = Array.from(document.querySelectorAll('.prod-checkbox:checked')).map(cb => parseInt(cb.value));
+        if (selected.length === 0) {
+            alert('Por favor, selecione ao menos um produto na tabela.');
+            return;
+        }
+
+        if (!confirm(`Confirma aplicar a precificação automática calculada para ${selected.length} produto(s) no canal {{ selected_channel }}?`)) {
+            return;
+        }
+
+        try {
+            const res = await fetch("{{ url_for('products.pricing_apply') }}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    product_ids: selected,
+                    channel: '{{ selected_channel }}'
+                })
+            });
+            const result = await res.json();
+            if (result.success) {
+                alert(result.message);
+                window.location.reload();
+            } else {
+                alert('Erro: ' + result.message);
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Erro de comunicação ao aplicar preços.');
+        }
+    }
+
+    // Simulador em tempo real
+    async function runSimulation() {
+        const cost = parseFloat(document.getElementById('simCostInput').value) || 0.01;
+        const comm = parseFloat(document.getElementById('simCommInput').value) || 14.0;
+        const margin = parseFloat(document.getElementById('simMarginInput').value) || 20.0;
+
+        try {
+            const res = await fetch("{{ url_for('products.pricing_simulate') }}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    cost: cost,
+                    commission_percent: comm,
+                    target_margin_percent: margin,
+                    fixed_fee: {{ active_rule.fixed_fee if active_rule else 0.0 }},
+                    fixed_fee_threshold: {{ active_rule.fixed_fee_threshold if active_rule else 79.0 }},
+                    free_shipping_threshold: {{ active_rule.free_shipping_threshold if active_rule else 79.0 }},
+                    shipping_cost: {{ active_rule.default_shipping_cost if active_rule else 0.0 }},
+                    tax_percent: {{ active_rule.tax_percent if active_rule else 6.0 }},
+                    operational_percent: {{ active_rule.operational_cost_percent if active_rule else 3.0 }}
+                })
+            });
+            const data = await res.json();
+            if (data.success && data.calculation) {
+                const c = data.calculation;
+                document.getElementById('simSuggestedPrice').innerText = 'R$ ' + c.suggested_price.toFixed(2).replace('.', ',');
+                document.getElementById('simNetProfit').innerHTML = 'R$ ' + c.net_profit_rs.toFixed(2).replace('.', ',') + ` <span style="font-size: 14px; font-weight: 700; color: #16a34a;">(${c.margin_percent.toFixed(1)}%)</span>`;
+                document.getElementById('simCostRs').innerText = 'R$ ' + c.cost.toFixed(2).replace('.', ',');
+                document.getElementById('simCommRs').innerText = 'R$ ' + c.commission_rs.toFixed(2).replace('.', ',');
+                document.getElementById('simTaxRs').innerText = 'R$ ' + c.tax_rs.toFixed(2).replace('.', ',');
+                document.getElementById('simFixedRs').innerText = 'R$ ' + c.fixed_fee_rs.toFixed(2).replace('.', ',');
+                document.getElementById('simShippingRs').innerText = 'R$ ' + c.shipping_rs.toFixed(2).replace('.', ',');
+                document.getElementById('simMarkupMult').innerText = c.markup_multiplier.toFixed(2) + 'x';
+            }
+        } catch (err) {
+            console.error('Erro na simulação:', err);
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', runSimulation);
+</script>
+{% endblock %}

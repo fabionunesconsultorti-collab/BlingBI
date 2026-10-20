@@ -1,0 +1,420 @@
+{% extends 'base.html' %}
+
+{% block title %}Análise de Estoque & Preços por Canal - BlingBI{% endblock %}
+{% block page_title %}Análise de Estoque & Gestão de Preços{% endblock %}
+
+{% block content %}
+<div class="products-container" style="display: flex; flex-direction: column; gap: 20px;">
+
+    {% include 'products/nav_header.html' %}
+
+    <!-- Top KPI Metric Cards -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px;">
+        <div style="background: #fff; padding: 18px 20px; border-radius: 10px; border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 14px;">
+            <div style="width: 44px; height: 44px; border-radius: 10px; background: #e0f2fe; color: #0284c7; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+                📦
+            </div>
+            <div>
+                <span style="font-size: 11.5px; color: #64748b; font-weight: 600; text-transform: uppercase;">SKUs Filtrados</span>
+                <h3 style="margin: 3px 0 0 0; font-size: 22px; font-weight: 800; color: #0f172a;">{{ summary.filtered_count }} <span style="font-size: 13px; font-weight: 500; color: #94a3b8;">/ {{ summary.total_skus }}</span></h3>
+            </div>
+        </div>
+
+        <div style="background: #fff; padding: 18px 20px; border-radius: 10px; border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 14px;">
+            <div style="width: 44px; height: 44px; border-radius: 10px; background: #fee2e2; color: #dc2626; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+                ⚠️
+            </div>
+            <div>
+                <span style="font-size: 11.5px; color: #64748b; font-weight: 600; text-transform: uppercase;">Em Ruptura (Zerado)</span>
+                <h3 style="margin: 3px 0 0 0; font-size: 22px; font-weight: 800; color: #dc2626;">{{ summary.out_of_stock_count }}</h3>
+            </div>
+        </div>
+
+        <div style="background: #fff; padding: 18px 20px; border-radius: 10px; border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 14px;">
+            <div style="width: 44px; height: 44px; border-radius: 10px; background: #fef3c7; color: #d97706; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+                ⚡
+            </div>
+            <div>
+                <span style="font-size: 11.5px; color: #64748b; font-weight: 600; text-transform: uppercase;">Estoque Crítico</span>
+                <h3 style="margin: 3px 0 0 0; font-size: 22px; font-weight: 800; color: #d97706;">{{ summary.critical_count }}</h3>
+            </div>
+        </div>
+
+        <div style="background: #fff; padding: 18px 20px; border-radius: 10px; border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 14px;">
+            <div style="width: 44px; height: 44px; border-radius: 10px; background: #f1f5f9; color: #475569; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+                💰
+            </div>
+            <div>
+                <span style="font-size: 11.5px; color: #64748b; font-weight: 600; text-transform: uppercase;">Capital Imobilizado</span>
+                <h3 style="margin: 3px 0 0 0; font-size: 20px; font-weight: 800; color: #0f172a;">{{ summary.total_capital_cost | currency }}</h3>
+            </div>
+        </div>
+
+        <div style="background: #fff; padding: 18px 20px; border-radius: 10px; border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 14px;">
+            <div style="width: 44px; height: 44px; border-radius: 10px; background: #ecfdf5; color: #059669; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+                📈
+            </div>
+            <div>
+                <span style="font-size: 11.5px; color: #64748b; font-weight: 600; text-transform: uppercase;">Potencial de Venda</span>
+                <h3 style="margin: 3px 0 0 0; font-size: 20px; font-weight: 800; color: #059669;">{{ summary.total_potential_sales | currency }}</h3>
+            </div>
+        </div>
+
+        <div style="background: #fff; padding: 18px 20px; border-radius: 10px; border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 14px;">
+            <div style="width: 44px; height: 44px; border-radius: 10px; background: #f3e8ff; color: #7c3aed; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+                🎯
+            </div>
+            <div>
+                <span style="font-size: 11.5px; color: #64748b; font-weight: 600; text-transform: uppercase;">Margem Média Geral</span>
+                <h3 style="margin: 3px 0 0 0; font-size: 22px; font-weight: 800; color: #7c3aed;">{{ summary.avg_margin }}%</h3>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Card & Action Bar -->
+    <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px 20px;">
+        <form method="GET" action="{{ url_for('products.stock_analysis') }}" id="filterForm">
+            <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;">
+                
+                <!-- Search text -->
+                <div style="flex: 2; min-width: 220px;">
+                    <label style="display: block; font-size: 12px; font-weight: 700; color: #475569; margin-bottom: 5px;">Buscar SKU / Produto:</label>
+                    <div style="position: relative;">
+                        <input type="text" name="q" value="{{ filters.get('q', '') }}" placeholder="Digite nome, SKU ou categoria..." class="form-control" style="padding-left: 36px; height: 38px; font-size: 13.5px; border: 1px solid #cbd5e1; border-radius: 6px; width: 100%;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" style="position: absolute; left: 12px; top: 11px;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    </div>
+                </div>
+
+                <!-- Category -->
+                <div style="flex: 1; min-width: 150px;">
+                    <label style="display: block; font-size: 12px; font-weight: 700; color: #475569; margin-bottom: 5px;">Categoria:</label>
+                    <select name="category" onchange="this.form.submit()" class="form-control" style="height: 38px; font-size: 13px; border: 1px solid #cbd5e1; border-radius: 6px;">
+                        <option value="all">Todas as Categorias</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat }}" {% if filters.get('category') == cat %}selected{% endif %}>{{ cat }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Stock Status -->
+                <div style="flex: 1; min-width: 150px;">
+                    <label style="display: block; font-size: 12px; font-weight: 700; color: #475569; margin-bottom: 5px;">Status de Estoque:</label>
+                    <select name="stock_status" onchange="this.form.submit()" class="form-control" style="height: 38px; font-size: 13px; border: 1px solid #cbd5e1; border-radius: 6px;">
+                        <option value="all">Todos os Status</option>
+                        <option value="out_of_stock" {% if filters.get('stock_status') == 'out_of_stock' %}selected{% endif %}>🔴 Ruptura (Zerado)</option>
+                        <option value="critical" {% if filters.get('stock_status') == 'critical' %}selected{% endif %}>🟡 Estoque Crítico</option>
+                        <option value="normal" {% if filters.get('stock_status') == 'normal' %}selected{% endif %}>🟢 Equilibrado</option>
+                        <option value="excess" {% if filters.get('stock_status') == 'excess' %}selected{% endif %}>🔵 Excesso / Sobra</option>
+                    </select>
+                </div>
+
+                <!-- ABC Class -->
+                <div style="flex: 1; min-width: 110px;">
+                    <label style="display: block; font-size: 12px; font-weight: 700; color: #475569; margin-bottom: 5px;">Curva ABC:</label>
+                    <select name="abc_class" onchange="this.form.submit()" class="form-control" style="height: 38px; font-size: 13px; border: 1px solid #cbd5e1; border-radius: 6px;">
+                        <option value="all">Todas</option>
+                        <option value="A" {% if filters.get('abc_class') == 'A' %}selected{% endif %}>Classe A (80%)</option>
+                        <option value="B" {% if filters.get('abc_class') == 'B' %}selected{% endif %}>Classe B (15%)</option>
+                        <option value="C" {% if filters.get('abc_class') == 'C' %}selected{% endif %}>Classe C (5%)</option>
+                    </select>
+                </div>
+
+                <!-- Sort -->
+                <div style="flex: 1; min-width: 140px;">
+                    <label style="display: block; font-size: 12px; font-weight: 700; color: #475569; margin-bottom: 5px;">Ordenar por:</label>
+                    <select name="sort" onchange="this.form.submit()" class="form-control" style="height: 38px; font-size: 13px; border: 1px solid #cbd5e1; border-radius: 6px;">
+                        <option value="stock_desc" {% if filters.get('sort') == 'stock_desc' %}selected{% endif %}>Maior Estoque</option>
+                        <option value="stock_asc" {% if filters.get('sort') == 'stock_asc' %}selected{% endif %}>Menor Estoque</option>
+                        <option value="revenue_desc" {% if filters.get('sort') == 'revenue_desc' %}selected{% endif %}>Maior Potencial (R$)</option>
+                        <option value="margin_desc" {% if filters.get('sort') == 'margin_desc' %}selected{% endif %}>Maior Margem (%)</option>
+                        <option value="cost_desc" {% if filters.get('sort') == 'cost_desc' %}selected{% endif %}>Maior Custo (R$)</option>
+                        <option value="name_asc" {% if filters.get('sort') == 'name_asc' %}selected{% endif %}>Nome A-Z</option>
+                    </select>
+                </div>
+
+                <!-- Submit & Clear -->
+                <div style="display: flex; gap: 8px;">
+                    <button type="submit" class="btn btn-primary" style="height: 38px; padding: 0 16px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
+                        Filtrar
+                    </button>
+                    {% if filters %}
+                    <a href="{{ url_for('products.stock_analysis') }}" class="btn btn-outline" style="height: 38px; padding: 0 14px; font-weight: 600; display: inline-flex; align-items: center; color: #64748b;">
+                        Limpar
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </form>
+
+        <!-- Secondary Action Bar (Excel Export / Import / Precificador) -->
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 16px; padding-top: 14px; border-top: 1px solid #f1f5f9;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 12.5px; color: #64748b; font-weight: 600;">
+                    💡 Dica: Dê dois cliques em qualquer campo de custo ou preço na tabela para editar diretamente e salvar.
+                </span>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <button type="button" class="btn btn-outline" onclick="openImportModal()" style="height: 36px; padding: 0 14px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; border: 1px solid #cbd5e1;">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                    Subir Custos via Planilha Excel
+                </button>
+                <a href="{{ url_for('products.stock_analysis_export_excel', **filters) }}" class="btn btn-outline" style="height: 36px; padding: 0 14px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; border: 1px solid #cbd5e1;">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    Baixar Planilha de Estoque & Preços (.xlsx)
+                </a>
+                <a href="{{ url_for('products.pricing') }}" class="btn btn-primary" style="height: 36px; padding: 0 16px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; background: #0f172a; border-color: #0f172a;">
+                    <span>⚡</span> Abrir Precificador Automático
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stock and Multi-Channel Pricing Table -->
+    <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+        <div style="overflow-x: auto;">
+            <table class="table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
+                <thead>
+                    <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0; color: #475569; font-size: 11.5px; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">
+                        <th style="padding: 14px 16px;">Produto / SKU</th>
+                        <th style="padding: 14px 12px; text-align: center;">Status</th>
+                        <th style="padding: 14px 12px; text-align: right;">Estoque</th>
+                        <th style="padding: 14px 12px; text-align: right; background: #fdf2f8;">Custo Atual (R$)</th>
+                        <th style="padding: 14px 12px; text-align: right; background: #fdf2f8;">Valor Pago (R$)</th>
+                        <th style="padding: 14px 12px; text-align: right; background: #f0fdf4;">Preço Base (R$)</th>
+                        <th style="padding: 14px 12px; text-align: center;">Margem %</th>
+                        <th style="padding: 14px 12px; text-align: right; background: #fefce8;">🟡 Mercado Livre</th>
+                        <th style="padding: 14px 12px; text-align: right; background: #fff7ed;">🟠 Shopee</th>
+                        <th style="padding: 14px 12px; text-align: right; background: #f8fafc;">🌐 Site Próprio</th>
+                        <th style="padding: 14px 16px; text-align: center;">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in products %}
+                    <tr style="border-bottom: 1px solid #f1f5f9; transition: background 0.15s ease;" onmouseover="this.style.background='#fbfcfe'" onmouseout="this.style.background='transparent'">
+                        
+                        <!-- Name, SKU, Category -->
+                        <td style="padding: 12px 16px; max-width: 260px;">
+                            <div style="font-weight: 700; color: #0f172a; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ p.name }}">
+                                {{ p.name }}
+                            </div>
+                            <div style="display: flex; gap: 8px; font-size: 11px; color: #64748b; align-items: center;">
+                                <span style="font-family: monospace; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; color: #334155; font-weight: 600;">{{ p.sku }}</span>
+                                <span>{{ p.category }}</span>
+                                <span style="background: #e2e8f0; color: #1e293b; padding: 1px 5px; border-radius: 3px; font-weight: 700; font-size: 10px;">{{ p.abc_class }}</span>
+                            </div>
+                        </td>
+
+                        <!-- Stock Status Badge -->
+                        <td style="padding: 12px; text-align: center;">
+                            {% if p.stock_status == 'out_of_stock' %}
+                            <span style="background: #fee2e2; color: #991b1b; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 700;">Ruptura</span>
+                            {% elif p.stock_status == 'critical' %}
+                            <span style="background: #fef3c7; color: #92400e; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 700;">Crítico</span>
+                            {% elif p.stock_status == 'excess' %}
+                            <span style="background: #e0f2fe; color: #0369a1; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 700;">Excesso</span>
+                            {% else %}
+                            <span style="background: #dcfce7; color: #15803d; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 700;">Equilibrado</span>
+                            {% endif %}
+                        </td>
+
+                        <!-- Stock saldo & min -->
+                        <td style="padding: 12px; text-align: right;">
+                            <div style="font-weight: 800; font-size: 14px; color: {% if p.stock <= 0 %}#dc2626{% elif p.stock <= p.min_stock %}#d97706{% else %}#0f172a{% endif %};">
+                                {{ p.stock | number }} un
+                            </div>
+                            <div style="font-size: 11px; color: #94a3b8;">mín: {{ p.min_stock | number }}</div>
+                        </td>
+
+                        <!-- Custo Base (Editable) -->
+                        <td style="padding: 8px 12px; text-align: right; background: #fffafb;">
+                            <div class="inline-edit-wrapper" style="display: flex; align-items: center; justify-content: flex-end; gap: 4px;">
+                                <input type="number" step="0.01" min="0" value="{{ '%.2f' | format(p.cost) }}" 
+                                       class="inline-input"
+                                       data-product-id="{{ p.id }}"
+                                       data-field="cost"
+                                       onchange="saveInline(this)"
+                                       style="width: 84px; height: 32px; text-align: right; padding: 4px 8px; font-size: 12.5px; font-weight: 600; border: 1px solid #e2e8f0; border-radius: 6px; outline: none; background: #fff;">
+                                <span class="save-status" style="display: none; font-size: 12px;">✅</span>
+                            </div>
+                        </td>
+
+                        <!-- Valor Pago / Aquisição (Editable) -->
+                        <td style="padding: 8px 12px; text-align: right; background: #fffafb;">
+                            <div class="inline-edit-wrapper" style="display: flex; align-items: center; justify-content: flex-end; gap: 4px;">
+                                <input type="number" step="0.01" min="0" value="{{ '%.2f' | format(p.purchase_cost) }}" 
+                                       class="inline-input"
+                                       data-product-id="{{ p.id }}"
+                                       data-field="purchase_cost"
+                                       onchange="saveInline(this)"
+                                       placeholder="0.00"
+                                       style="width: 84px; height: 32px; text-align: right; padding: 4px 8px; font-size: 12.5px; font-weight: 600; border: 1px solid #e2e8f0; border-radius: 6px; outline: none; background: #fff;">
+                                <span class="save-status" style="display: none; font-size: 12px;">✅</span>
+                            </div>
+                        </td>
+
+                        <!-- Preço Base (Editable) -->
+                        <td style="padding: 8px 12px; text-align: right; background: #f7fee7;">
+                            <div class="inline-edit-wrapper" style="display: flex; align-items: center; justify-content: flex-end; gap: 4px;">
+                                <input type="number" step="0.01" min="0" value="{{ '%.2f' | format(p.price) }}" 
+                                       class="inline-input"
+                                       data-product-id="{{ p.id }}"
+                                       data-field="price"
+                                       onchange="saveInline(this)"
+                                       style="width: 88px; height: 32px; text-align: right; padding: 4px 8px; font-size: 13px; font-weight: 700; color: #047857; border: 1px solid #bbf7d0; border-radius: 6px; outline: none; background: #fff;">
+                                <span class="save-status" style="display: none; font-size: 12px;">✅</span>
+                            </div>
+                        </td>
+
+                        <!-- Margem % -->
+                        <td style="padding: 12px; text-align: center;">
+                            <span style="font-weight: 700; font-size: 12.5px; color: {% if p.margin_pct >= 30 %}#16a34a{% elif p.margin_pct >= 15 %}#d97706{% else %}#dc2626{% endif %};">
+                                {{ p.margin_pct }}%
+                            </span>
+                        </td>
+
+                        <!-- Preço Mercado Livre (Editable) -->
+                        <td style="padding: 8px 12px; text-align: right; background: #fefce8;">
+                            <div class="inline-edit-wrapper" style="display: flex; align-items: center; justify-content: flex-end; gap: 4px;">
+                                <input type="number" step="0.01" min="0" value="{{ '%.2f' | format(p.channel_prices.get('Mercado Livre', p.price)) }}" 
+                                       class="inline-input"
+                                       data-product-id="{{ p.id }}"
+                                       data-field="channel_price"
+                                       data-channel="Mercado Livre"
+                                       onchange="saveInline(this)"
+                                       style="width: 86px; height: 32px; text-align: right; padding: 4px 8px; font-size: 12.5px; font-weight: 700; border: 1px solid #fef08a; border-radius: 6px; outline: none; background: #fff;">
+                                <span class="save-status" style="display: none; font-size: 12px;">✅</span>
+                            </div>
+                        </td>
+
+                        <!-- Preço Shopee (Editable) -->
+                        <td style="padding: 8px 12px; text-align: right; background: #fff7ed;">
+                            <div class="inline-edit-wrapper" style="display: flex; align-items: center; justify-content: flex-end; gap: 4px;">
+                                <input type="number" step="0.01" min="0" value="{{ '%.2f' | format(p.channel_prices.get('Shopee', p.price)) }}" 
+                                       class="inline-input"
+                                       data-product-id="{{ p.id }}"
+                                       data-field="channel_price"
+                                       data-channel="Shopee"
+                                       onchange="saveInline(this)"
+                                       style="width: 86px; height: 32px; text-align: right; padding: 4px 8px; font-size: 12.5px; font-weight: 700; border: 1px solid #fed7aa; border-radius: 6px; outline: none; background: #fff;">
+                                <span class="save-status" style="display: none; font-size: 12px;">✅</span>
+                            </div>
+                        </td>
+
+                        <!-- Preço Site Próprio (Editable) -->
+                        <td style="padding: 8px 12px; text-align: right; background: #f8fafc;">
+                            <div class="inline-edit-wrapper" style="display: flex; align-items: center; justify-content: flex-end; gap: 4px;">
+                                <input type="number" step="0.01" min="0" value="{{ '%.2f' | format(p.channel_prices.get('Site Próprio', p.price)) }}" 
+                                       class="inline-input"
+                                       data-product-id="{{ p.id }}"
+                                       data-field="channel_price"
+                                       data-channel="Site Próprio"
+                                       onchange="saveInline(this)"
+                                       style="width: 86px; height: 32px; text-align: right; padding: 4px 8px; font-size: 12.5px; font-weight: 700; border: 1px solid #e2e8f0; border-radius: 6px; outline: none; background: #fff;">
+                                <span class="save-status" style="display: none; font-size: 12px;">✅</span>
+                            </div>
+                        </td>
+
+                        <!-- Actions -->
+                        <td style="padding: 12px 16px; text-align: center;">
+                            <a href="{{ url_for('products.pricing', q=p.sku) }}" class="btn btn-outline" style="padding: 4px 8px; font-size: 11.5px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;" title="Precificar no Simulador">
+                                ⚡ Precificar
+                            </a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="11" style="text-align: center; padding: 40px; color: #94a3b8;">
+                            Nenhum produto encontrado com os filtros aplicados.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- Modal Upload Planilha Excel -->
+<div id="importModal" class="modal-backdrop" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center;">
+    <div style="background: #fff; width: 100%; max-width: 520px; border-radius: 12px; padding: 26px; box-shadow: 0 20px 40px rgba(0,0,0,0.2);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h3 style="margin: 0; font-size: 18px; font-weight: 800; color: #0f172a;">Subir Custos e Preços via Excel</h3>
+            <button type="button" onclick="closeImportModal()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #64748b;">✕</button>
+        </div>
+        
+        <p style="font-size: 13px; color: #64748b; line-height: 1.5; margin-bottom: 20px;">
+            Envie sua planilha preenchida com as colunas <code>SKU</code>, <code>Custo</code>, <code>Valor Pago</code>, <code>Preço Base</code> e/ou os canais <code>Mercado Livre</code>, <code>Shopee</code>, etc. O sistema atualizará os registros instantaneamente.
+        </p>
+
+        <form method="POST" action="{{ url_for('products.stock_analysis_import_excel') }}" enctype="multipart/form-data">
+            <div style="border: 2px dashed #cbd5e1; border-radius: 8px; padding: 24px; text-align: center; background: #f8fafc; margin-bottom: 20px;">
+                <input type="file" name="file" id="excelFileInput" accept=".xlsx" required style="display: block; margin: 0 auto; font-size: 13px;">
+                <span style="font-size: 11.5px; color: #94a3b8; display: block; margin-top: 8px;">Apenas arquivos no formato .xlsx</span>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                <button type="button" onclick="closeImportModal()" class="btn btn-outline" style="padding: 8px 16px;">Cancelar</button>
+                <button type="submit" class="btn btn-primary" style="padding: 8px 20px; font-weight: 600;">Importar e Atualizar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openImportModal() {
+        const modal = document.getElementById('importModal');
+        modal.style.display = 'flex';
+    }
+
+    function closeImportModal() {
+        const modal = document.getElementById('importModal');
+        modal.style.display = 'none';
+    }
+
+    // Salva inline via AJAX
+    async function saveInline(inputElement) {
+        const productId = inputElement.getAttribute('data-product-id');
+        const field = inputElement.getAttribute('data-field');
+        const channel = inputElement.getAttribute('data-channel') || null;
+        const value = parseFloat(inputElement.value);
+        const wrapper = inputElement.closest('.inline-edit-wrapper');
+        const statusSpan = wrapper.querySelector('.save-status');
+
+        inputElement.style.borderColor = '#3b82f6';
+
+        try {
+            const response = await fetch("{{ url_for('products.stock_analysis_update_inline') }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    product_id: parseInt(productId),
+                    field: field,
+                    value: value,
+                    channel: channel
+                })
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                inputElement.style.borderColor = '#10b981';
+                if (statusSpan) {
+                    statusSpan.style.display = 'inline';
+                    setTimeout(() => {
+                        statusSpan.style.display = 'none';
+                        inputElement.style.borderColor = '#e2e8f0';
+                    }, 1800);
+                }
+            } else {
+                inputElement.style.borderColor = '#ef4444';
+                alert('Erro ao salvar: ' + (result.message || 'Erro desconhecido'));
+            }
+        } catch (err) {
+            inputElement.style.borderColor = '#ef4444';
+            console.error('Erro de requisição:', err);
+        }
+    }
+</script>
+{% endblock %}

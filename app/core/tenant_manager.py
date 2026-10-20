@@ -153,6 +153,14 @@ class TenantManager:
                         conn.execute(text("ALTER TABLE products ADD COLUMN color VARCHAR(50);"))
                     if 'style' not in prod_cols:
                         conn.execute(text("ALTER TABLE products ADD COLUMN style VARCHAR(50);"))
+                    if 'purchase_cost' not in prod_cols:
+                        conn.execute(text("ALTER TABLE products ADD COLUMN purchase_cost FLOAT DEFAULT 0.0;"))
+                    if 'min_stock' not in prod_cols:
+                        conn.execute(text("ALTER TABLE products ADD COLUMN min_stock FLOAT DEFAULT 5.0;"))
+                    if 'lead_time_days' not in prod_cols:
+                        conn.execute(text("ALTER TABLE products ADD COLUMN lead_time_days INTEGER DEFAULT 7;"))
+                    if 'weight_kg' not in prod_cols:
+                        conn.execute(text("ALTER TABLE products ADD COLUMN weight_kg FLOAT DEFAULT 0.3;"))
 
                     # Orders
                     order_cols = [row[1] for row in conn.execute(text("PRAGMA table_info(orders);")).fetchall()]

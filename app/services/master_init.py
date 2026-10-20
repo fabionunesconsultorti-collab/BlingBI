@@ -13,7 +13,7 @@ DEFAULT_SEGMENTS = [
         'description': 'Lojas de roupas, calçados, bolsas, malas condicionais e consultoria de estilo.',
         'allowed_screens': ['dashboard', 'sales', 'products', 'customers', 'finance', 'fashion', 'reports', 'integrations'],
         'allowed_reports': ['fashion_bi', 'dre', 'cash_flow', 'rfm', 'stock_coverage', 'multichannel'],
-        'allowed_tabs': ['dashboard.kpis', 'dashboard.sales_timeline', 'dashboard.channels_pie', 'dashboard.top_products', 'dashboard.recent_orders', 'sales.overview', 'sales.multichannel', 'sales.sellers', 'sales.conditional_bags', 'products.overview', 'products.abc', 'products.stock_coverage', 'products.returns', 'customers.overview', 'customers.rfm', 'customers.abc', 'customers.profiles', 'customers.birthdays', 'customers.nps', 'finance.overview', 'finance.dre', 'finance.cash_flow', 'finance.aging', 'finance.cash_statement', 'fashion.block1', 'fashion.block2', 'fashion.block3', 'fashion.block4']
+        'allowed_tabs': ['dashboard.kpis', 'dashboard.sales_timeline', 'dashboard.channels_pie', 'dashboard.top_products', 'dashboard.recent_orders', 'sales.overview', 'sales.multichannel', 'sales.sellers', 'sales.conditional_bags', 'products.overview', 'products.stock_analysis', 'products.pricing', 'products.abc', 'products.stock_coverage', 'products.returns', 'customers.overview', 'customers.rfm', 'customers.abc', 'customers.profiles', 'customers.birthdays', 'customers.nps', 'finance.overview', 'finance.dre', 'finance.cash_flow', 'finance.aging', 'finance.cash_statement', 'fashion.block1', 'fashion.block2', 'fashion.block3', 'fashion.block4']
     },
     {
         'slug': 'furniture_appliances',
@@ -22,7 +22,7 @@ DEFAULT_SEGMENTS = [
         'description': 'Móveis planejados, sofás, salas de jantar, eletrodomésticos e eletrônicos.',
         'allowed_screens': ['dashboard', 'sales', 'products', 'customers', 'finance', 'reports', 'integrations'],
         'allowed_reports': ['dre', 'cash_flow', 'rfm', 'stock_coverage', 'multichannel'],
-        'allowed_tabs': ['dashboard.kpis', 'dashboard.sales_timeline', 'dashboard.channels_pie', 'dashboard.top_products', 'dashboard.recent_orders', 'sales.overview', 'sales.multichannel', 'sales.sellers', 'products.overview', 'products.abc', 'products.stock_coverage', 'customers.overview', 'customers.rfm', 'customers.abc', 'finance.overview', 'finance.dre', 'finance.cash_flow', 'finance.aging']
+        'allowed_tabs': ['dashboard.kpis', 'dashboard.sales_timeline', 'dashboard.channels_pie', 'dashboard.top_products', 'dashboard.recent_orders', 'sales.overview', 'sales.multichannel', 'sales.sellers', 'products.overview', 'products.stock_analysis', 'products.pricing', 'products.abc', 'products.stock_coverage', 'customers.overview', 'customers.rfm', 'customers.abc', 'finance.overview', 'finance.dre', 'finance.cash_flow', 'finance.aging']
     },
     {
         'slug': 'food_restaurant',
@@ -40,7 +40,7 @@ DEFAULT_SEGMENTS = [
         'description': 'Artigos para o lar, presentes, bazar, decoração e organização.',
         'allowed_screens': ['dashboard', 'sales', 'products', 'customers', 'finance', 'reports', 'integrations'],
         'allowed_reports': ['dre', 'cash_flow', 'rfm', 'stock_coverage', 'multichannel'],
-        'allowed_tabs': ['dashboard.kpis', 'dashboard.sales_timeline', 'dashboard.channels_pie', 'dashboard.top_products', 'dashboard.recent_orders', 'sales.overview', 'sales.multichannel', 'products.overview', 'products.abc', 'products.stock_coverage', 'customers.overview', 'customers.rfm', 'finance.overview', 'finance.dre', 'finance.cash_flow']
+        'allowed_tabs': ['dashboard.kpis', 'dashboard.sales_timeline', 'dashboard.channels_pie', 'dashboard.top_products', 'dashboard.recent_orders', 'sales.overview', 'sales.multichannel', 'products.overview', 'products.stock_analysis', 'products.pricing', 'products.abc', 'products.stock_coverage', 'customers.overview', 'customers.rfm', 'finance.overview', 'finance.dre', 'finance.cash_flow']
     },
     {
         'slug': 'toys',
@@ -49,7 +49,7 @@ DEFAULT_SEGMENTS = [
         'description': 'Jogos, colecionáveis, brinquedos educativos e recreação infantil.',
         'allowed_screens': ['dashboard', 'sales', 'products', 'customers', 'finance', 'reports', 'integrations'],
         'allowed_reports': ['dre', 'cash_flow', 'rfm', 'stock_coverage', 'multichannel'],
-        'allowed_tabs': ['dashboard.kpis', 'dashboard.sales_timeline', 'dashboard.channels_pie', 'dashboard.top_products', 'dashboard.recent_orders', 'sales.overview', 'products.overview', 'products.abc', 'customers.overview', 'customers.birthdays', 'finance.overview', 'finance.dre']
+        'allowed_tabs': ['dashboard.kpis', 'dashboard.sales_timeline', 'dashboard.channels_pie', 'dashboard.top_products', 'dashboard.recent_orders', 'sales.overview', 'products.overview', 'products.stock_analysis', 'products.pricing', 'products.abc', 'customers.overview', 'customers.birthdays', 'finance.overview', 'finance.dre']
     },
     {
         'slug': 'retail_general',
@@ -58,7 +58,7 @@ DEFAULT_SEGMENTS = [
         'description': 'Comércio varejista e atacadista multicanal (E-commerce + Loja Física).',
         'allowed_screens': ['dashboard', 'sales', 'products', 'customers', 'finance', 'reports', 'integrations'],
         'allowed_reports': ['dre', 'cash_flow', 'rfm', 'stock_coverage', 'multichannel'],
-        'allowed_tabs': ['dashboard.kpis', 'dashboard.sales_timeline', 'dashboard.channels_pie', 'dashboard.top_products', 'dashboard.recent_orders', 'sales.overview', 'sales.multichannel', 'sales.sellers', 'products.overview', 'products.abc', 'products.stock_coverage', 'customers.overview', 'customers.rfm', 'customers.abc', 'customers.profiles', 'finance.overview', 'finance.dre', 'finance.cash_flow', 'finance.aging']
+        'allowed_tabs': ['dashboard.kpis', 'dashboard.sales_timeline', 'dashboard.channels_pie', 'dashboard.top_products', 'dashboard.recent_orders', 'sales.overview', 'sales.multichannel', 'sales.sellers', 'products.overview', 'products.stock_analysis', 'products.pricing', 'products.abc', 'products.stock_coverage', 'customers.overview', 'customers.rfm', 'customers.abc', 'customers.profiles', 'finance.overview', 'finance.dre', 'finance.cash_flow', 'finance.aging']
     },
     {
         'slug': 'services',
