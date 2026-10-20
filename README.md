@@ -29,9 +29,22 @@ As credenciais do sistema são protegidas e podem ser definidas de forma confide
 | `ADMIN_DEFAULT_PASSWORD` | Senha do Super Administrador (`admgeral`) | Definir senha forte no dashboard do servidor |
 | `CLEAR_DATABASE_PASSWORD` | Senha de segurança para comandos de limpeza e carga demo | Definir senha administrativa no dashboard |
 | `SECRET_KEY` | Chave criptográfica de sessão Flask | Chave aleatória gerada automaticamente |
-| `DATABASE_URL` | Conexão do banco Master (PostgreSQL opcional) | Fornecido pelo banco gerenciado do Render |
+| `SUPABASE_DB_URL` | String de conexão direta ou Pooler do Supabase (PostgreSQL) | Permite persistência 100% vitalícia e schemas isolados |
+| `DATABASE_URL` | Conexão do banco Master (PostgreSQL ou Supabase) | Compatível com Render Postgres ou Supabase |
 | `BLING_CLIENT_ID` | Client ID da API v3 do Bling ERP (opcional) | Configurado na tela `/integrations/` ou ambiente |
 | `BLING_CLIENT_SECRET` | Client Secret da API v3 do Bling ERP (opcional) | Configurado na tela `/integrations/` ou ambiente |
+
+---
+
+## ⚡ Conectividade Supabase & Schemas Dedicados (100% Persistente)
+
+Para ambientes de nuvem efêmeros (como instâncias gratuitas ou standard do Render que apagam arquivos locais ao reiniciar):
+- **Isolamento por Schemas Nativos (`tenant_{username}`)**: Todas as tabelas operacionais do cliente residem em um schema dedicado dentro do Supabase PostgreSQL, mantendo isolamento absoluto de dados sem custos extras de múltiplas instâncias.
+- **Assistente de Migração em 1 Clique (`/admin/migrate-supabase`)**:
+  - Teste prévio de conectividade com a URL do Supabase (porta 5432 ou Transaction/Session Pooler 6543).
+  - Cópia segura de todos os dados existentes de bancos SQLite locais diretamente para os schemas do Supabase.
+  - Conversão automática dos clientes para utilizarem seus schemas correspondentes.
+  - O sistema passa a funcionar com persistência permanente, imune a reinicializações de contêineres.
 
 ---
 
@@ -169,12 +182,17 @@ Consulte o guia completo em: **[DEPLOY.md](DEPLOY.md)**.
   - Modos de restauração: Total, Apenas Bases de Clientes ou Apenas Configurações e Segmentos.
   - Download individual dos backups para contingência externa.
 
+### 9. Assistente de Migração para Supabase (`/admin/migrate-supabase`)
+- **Migração em 1 Clique**: Transfere todas as bases e dados operacionais de instâncias locais/efêmeras SQLite para o Supabase (PostgreSQL).
+- **Schemas Dedicados (`tenant_{username}`)**: Cada cliente recebe seu próprio schema isolado, garantindo total privacidade e alta escalabilidade.
+- **Diagnóstico em Tempo Real**: Validação de conectividade e status dos schemas diretamente pelo painel administrativo.
+
 ---
 
 ## 🛠️ Tecnologias Utilizadas
 
 - **Backend**: Python 3.12, Flask 3.x, Flask-SQLAlchemy 3.x com `MultiTenantSession`.
-- **Banco de Dados**: SQLite Multi-Bases (WAL mode) / PostgreSQL gerenciado para nuvem.
+- **Banco de Dados**: SQLite Multi-Bases (WAL mode) / PostgreSQL gerenciado & Supabase com Schemas.
 - **Frontend**: Jinja2 Templates, Vanilla CSS Bling ERP Theme, Chart.js.
 - **Exportação & Analytics**: Polars, OpenPyXL e ReportLab.
 - **Testes**: Pytest (suíte de testes automatizados completa para multi-tenancy e relatórios).
@@ -187,8 +205,11 @@ Consulte o guia completo em: **[DEPLOY.md](DEPLOY.md)**.
 # Testes da arquitetura Multi-Usuários, Autenticação e Multi-Tenancy:
 PYTHONPATH=. ./venv/bin/pytest tests/test_auth_multitenant.py -v
 
-# Testes da Análise de Estoque e Precificação Automática:
-PYTHONPATH=. ./venv/bin/pytest tests/test_stock_and_pricing.py -v
+# Testes do Migrador Supabase e Schemas Dedicados:
+PYTHONPATH=. ./venv/bin/pytest tests/test_supabase_migrator.py -v
+
+# Testes da Central de Backup e Contingência:
+PYTHONPATH=. ./venv/bin/pytest tests/test_backup_system.py -v
 
 # Todos os testes do sistema:
 PYTHONPATH=. ./venv/bin/pytest tests/ -v

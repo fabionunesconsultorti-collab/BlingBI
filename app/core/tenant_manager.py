@@ -35,6 +35,18 @@ class TenantManager:
         return f"sqlite:///{filepath}"
 
     @classmethod
+    def build_postgres_schema_uri(cls, username: str) -> str:
+        """Gera a URI de schema dedicado no Supabase/PostgreSQL (ex: schema:tenant_nome)."""
+        safe_name = "".join(c for c in username.lower() if c.isalnum() or c == '_')
+        return f"schema:tenant_{safe_name}"
+
+    @classmethod
+    def is_postgres_active(cls) -> bool:
+        """Indica se a aplicação está conectada ao Supabase/PostgreSQL."""
+        from app.config import Config
+        return bool(getattr(Config, 'IS_POSTGRES', False))
+
+    @classmethod
     def get_engine(cls, db_uri: str):
         """Retorna uma Engine do SQLAlchemy em cache ou cria uma nova com os parâmetros corretos."""
         if not db_uri:
@@ -47,13 +59,39 @@ class TenantManager:
         if db_uri in cls._engines_cache:
             return cls._engines_cache[db_uri]
 
+        # 1. Suporte a Multi-Tenancy por Schema no Supabase/PostgreSQL
+        if db_uri.startswith("schema:"):
+            schema_name = db_uri.split(":", 1)[1]
+            from app.config import Config
+            base_uri = Config.SQLALCHEMY_DATABASE_URI
+            if base_uri.startswith("postgres://"):
+                base_uri = base_uri.replace("postgres://", "postgresql://", 1)
+
+            engine = create_engine(
+                base_uri,
+                pool_pre_ping=True,
+                pool_recycle=300
+            ).execution_options(schema_translate_map={None: schema_name})
+
+            @event.listens_for(engine, "connect")
+            def set_search_path(dbapi_connection, connection_record):
+                try:
+                    cursor = dbapi_connection.cursor()
+                    cursor.execute(f'SET search_path TO "{schema_name}", public;')
+                    cursor.close()
+                except Exception:
+                    pass
+
+            cls._engines_cache[db_uri] = engine
+            return engine
+
+        # 2. Suporte a SQLite Dedicado por Cliente
         if db_uri.startswith("sqlite"):
             engine = create_engine(
                 db_uri,
                 poolclass=NullPool,
                 connect_args={'timeout': 60, 'check_same_thread': False}
             )
-            # Ativa WAL mode no SQLite
             @event.listens_for(engine, "connect")
             def set_sqlite_pragma(dbapi_connection, connection_record):
                 try:
@@ -90,12 +128,10 @@ class TenantManager:
 
         # 2. Contexto de requisição Flask
         if has_request_context():
-            # Admgeral auditando cliente
             impersonate_uri = session.get('impersonate_tenant_uri')
             if impersonate_uri:
                 return impersonate_uri
 
-            # Usuário cliente logado
             tenant_uri = session.get('tenant_db_uri')
             if tenant_uri:
                 return tenant_uri
@@ -106,6 +142,10 @@ class TenantManager:
     def test_connection(cls, db_uri: str) -> tuple[bool, str]:
         """Testa se a URI de banco é válida e acessível."""
         try:
+            if db_uri.startswith("schema:"):
+                from app.config import Config
+                return cls.test_connection(Config.SQLALCHEMY_DATABASE_URI)
+
             engine = cls.get_engine(db_uri)
             with engine.connect() as conn:
                 conn.execute(text("SELECT 1;"))
@@ -118,12 +158,30 @@ class TenantManager:
     def init_tenant_database(cls, db_uri: str):
         """
         Cria todas as tabelas operacionais do tenant (clientes, pedidos, produtos, financeiro, etc.)
-        no banco alvo, garantindo que as tabelas mestres não sejam duplicadas.
+        no banco/schema alvo, garantindo que as tabelas mestres não sejam duplicadas.
         """
         from app.database import db
-        engine = cls.get_engine(db_uri)
 
-        # Filtra apenas tabelas operacionais do tenant (não mestres)
+        # 1. Se for Schema no Supabase/PostgreSQL
+        if db_uri.startswith("schema:"):
+            schema_name = db_uri.split(":", 1)[1]
+            from app.config import Config
+            base_engine = cls.get_engine(Config.SQLALCHEMY_DATABASE_URI)
+            with base_engine.connect() as conn:
+                conn.execute(text(f'CREATE SCHEMA IF NOT EXISTS "{schema_name}";'))
+                conn.commit()
+
+            engine = cls.get_engine(db_uri)
+            tenant_tables = [
+                table for name, table in db.metadata.tables.items()
+                if not name.startswith('master_')
+            ]
+            logger.info(f"[TenantManager] Inicializando {len(tenant_tables)} tabelas no schema '{schema_name}' (Supabase/PostgreSQL)...")
+            db.metadata.create_all(bind=engine, tables=tenant_tables)
+            return
+
+        # 2. Se for SQLite ou conexão Postgres dedicada
+        engine = cls.get_engine(db_uri)
         tenant_tables = [
             table for name, table in db.metadata.tables.items()
             if not name.startswith('master_')
@@ -132,7 +190,6 @@ class TenantManager:
         logger.info(f"[TenantManager] Inicializando {len(tenant_tables)} tabelas operacionais em {db_uri}...")
         db.metadata.create_all(bind=engine, tables=tenant_tables)
 
-        # Aplica migrações não destrutivas de colunas no SQLite
         if db_uri.startswith("sqlite"):
             try:
                 with engine.connect() as conn:

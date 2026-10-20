@@ -128,6 +128,12 @@
                             Backup & Contingência
                         </a>
                     </li>
+                    <li class="menu-item {% if request.endpoint and request.endpoint.startswith('admin.migrate_supabase') %}active{% endif %}">
+                        <a href="{{ url_for('admin.migrate_supabase_index') }}" style="color: #6ee7b7; font-weight: 600;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                            Migrar p/ Supabase
+                        </a>
+                    </li>
                 {% endif %}
             </ul>
             <div class="sidebar-footer">

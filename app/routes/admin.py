@@ -9,6 +9,7 @@ from app.core.tenant_manager import TenantManager
 from app.core.feature_registry import FEATURES_CATALOG
 from app.reports.registry import report_registry
 from app.services.backup_service import BackupService
+from app.services.supabase_migrator import SupabaseMigrator
 
 logger = logging.getLogger(__name__)
 
@@ -86,24 +87,26 @@ def client_create():
     with TenantManager.master_scope():
         segments = MasterSegment.query.order_by(MasterSegment.name).all()
 
+        is_pg = TenantManager.is_postgres_active()
         if request.method == 'POST':
             username = request.form.get('username', '').strip().lower()
             email = request.form.get('email', '').strip().lower()
             password = request.form.get('password', '').strip()
             company_name = request.form.get('company_name', '').strip()
             segment_id = request.form.get('segment_id', type=int)
-            db_type = request.form.get('db_type', 'sqlite').strip()
+            default_db_type = 'postgres_schema' if is_pg else 'sqlite'
+            db_type = request.form.get('db_type', default_db_type).strip()
             custom_uri = request.form.get('db_uri', '').strip()
             seed_data = bool(request.form.get('seed_data'))
 
             # Validações
             if not username or not email or not password or not company_name:
                 flash('Preencha todos os campos obrigatórios (Usuário, E-mail, Senha e Nome da Empresa).', 'warning')
-                return render_template('admin/client_form.html', segments=segments, client=None)
+                return render_template('admin/client_form.html', segments=segments, client=None, is_postgres=is_pg)
 
             if len(password) < 6:
                 flash('A senha deve conter no mínimo 6 caracteres.', 'warning')
-                return render_template('admin/client_form.html', segments=segments, client=None)
+                return render_template('admin/client_form.html', segments=segments, client=None, is_postgres=is_pg)
 
             # Verifica unicidade
             existing_user = MasterUser.query.filter(
@@ -111,15 +114,17 @@ def client_create():
             ).first()
             if existing_user:
                 flash('Já existe um usuário cadastrado com este nome de usuário ou e-mail.', 'danger')
-                return render_template('admin/client_form.html', segments=segments, client=None)
+                return render_template('admin/client_form.html', segments=segments, client=None, is_postgres=is_pg)
 
             # Resolve a URI da base de dados do cliente
-            if db_type == 'sqlite':
+            if db_type == 'postgres_schema':
+                resolved_db_uri = TenantManager.build_postgres_schema_uri(username)
+            elif db_type == 'sqlite':
                 resolved_db_uri = TenantManager.build_sqlite_tenant_uri(username)
             else:
                 if not custom_uri:
                     flash('Para conexão externa personalizada, a String de Conexão (URI) é obrigatória.', 'warning')
-                    return render_template('admin/client_form.html', segments=segments, client=None)
+                    return render_template('admin/client_form.html', segments=segments, client=None, is_postgres=is_pg)
                 resolved_db_uri = custom_uri
 
             # Cria o cliente no Master DB
@@ -149,13 +154,14 @@ def client_create():
 
             return redirect(url_for('admin.clients_list'))
 
-    return render_template('admin/client_form.html', segments=segments, client=None)
+    return render_template('admin/client_form.html', segments=segments, client=None, is_postgres=is_pg)
 
 
 @bp.route('/clients/<int:client_id>/edit', methods=['GET', 'POST'])
 @admin_required
 def client_edit(client_id):
     """Edição dos dados cadastrais, segmento, base de dados e redefinição de senha do cliente."""
+    is_pg = TenantManager.is_postgres_active()
     with TenantManager.master_scope():
         client = MasterUser.query.get_or_404(client_id)
         if client.role == 'admin':
@@ -174,7 +180,14 @@ def client_edit(client_id):
             db_type = request.form.get('db_type', 'sqlite').strip()
             custom_uri = request.form.get('db_uri', '').strip()
             client.db_type = db_type
-            if db_type == 'sqlite':
+            if db_type == 'postgres_schema':
+                if not client.db_uri or not client.db_uri.startswith('schema:'):
+                    client.db_uri = TenantManager.build_postgres_schema_uri(client.username)
+                    try:
+                        TenantManager.init_tenant_database(client.db_uri)
+                    except Exception as e:
+                        logger.warning(f"Aviso ao inicializar schema postgres: {e}")
+            elif db_type == 'sqlite':
                 if not client.db_uri or 'sqlite' not in client.db_uri:
                     client.db_uri = TenantManager.build_sqlite_tenant_uri(client.username)
             else:
@@ -186,7 +199,7 @@ def client_edit(client_id):
             if new_password:
                 if len(new_password) < 6:
                     flash('A nova senha deve ter no mínimo 6 caracteres.', 'warning')
-                    return render_template('admin/client_form.html', segments=segments, client=client)
+                    return render_template('admin/client_form.html', segments=segments, client=client, is_postgres=is_pg)
                 client.set_password(new_password)
                 flash(f"A senha de acesso de '{client.company_name}' foi atualizada!", 'info')
 
@@ -194,7 +207,7 @@ def client_edit(client_id):
             flash(f"Dados da empresa '{client.company_name}' atualizados com sucesso!", 'success')
             return redirect(url_for('admin.clients_list'))
 
-    return render_template('admin/client_form.html', segments=segments, client=client)
+    return render_template('admin/client_form.html', segments=segments, client=client, is_postgres=is_pg)
 
 
 @bp.route('/clients/<int:client_id>/toggle-status', methods=['POST'])
@@ -552,4 +565,78 @@ def backup_delete(filename):
         flash(f"Erro ao excluir backup: {str(e)}", 'danger')
 
     return redirect(url_for('admin.backups_index'))
+
+
+# ==============================================================================
+# ASSISTENTE DE MIGRAÇÃO PARA O SUPABASE (POSTGRESQL)
+# ==============================================================================
+
+def mask_database_url(url: str) -> str:
+    if not url:
+        return 'Não configurada'
+    if '@' in url:
+        try:
+            proto, rest = url.split('://', 1)
+            auth, host_db = rest.split('@', 1)
+            user = auth.split(':')[0]
+            return f"{proto}://{user}:••••••••@{host_db}"
+        except Exception:
+            return "postgresql://••••••••"
+    return url
+
+
+@bp.route('/migrate-supabase', methods=['GET'])
+@admin_required
+def migrate_supabase_index():
+    """Tela do assistente de migração de SQLite para Supabase."""
+    from app.config import Config
+    active_url = os.environ.get('SUPABASE_DB_URL') or os.environ.get('DATABASE_URL') or ''
+    masked_url = mask_database_url(active_url)
+    is_pg = TenantManager.is_postgres_active()
+
+    with TenantManager.master_scope():
+        clients = MasterUser.query.filter_by(role='client').all()
+        total_clients = len(clients)
+        segments_count = MasterSegment.query.count()
+
+    return render_template(
+        'admin/migrate_supabase.html',
+        active_url=active_url,
+        masked_url=masked_url,
+        is_pg=is_pg,
+        total_clients=total_clients,
+        segments_count=segments_count,
+        clients=clients
+    )
+
+
+@bp.route('/migrate-supabase/test', methods=['POST'])
+@admin_required
+def migrate_supabase_test():
+    """Testa a conexão fornecida com o Supabase."""
+    target_url = request.form.get('target_url', '').strip()
+    success, message = SupabaseMigrator.test_connection(target_url or None)
+    return jsonify({
+        'success': success,
+        'message': message
+    })
+
+
+@bp.route('/migrate-supabase/run', methods=['POST'])
+@admin_required
+def migrate_supabase_run():
+    """Executa a migração integral dos dados de SQLite para o Supabase."""
+    target_url = request.form.get('target_url', '').strip() or None
+    result = SupabaseMigrator.migrate_all_to_supabase(target_url)
+
+    if request.is_json:
+        return jsonify(result)
+
+    if result.get('success'):
+        flash(result.get('message', 'Migração realizada com sucesso!'), 'success')
+    else:
+        flash(result.get('message', 'Falha durante a migração.'), 'danger')
+
+    return redirect(url_for('admin.migrate_supabase_index'))
+
 

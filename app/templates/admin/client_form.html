@@ -85,12 +85,27 @@
                 <h4 style="font-size: 13.5px; text-transform: uppercase; color: #008b54; font-weight: 700; margin-bottom: 16px; letter-spacing: 0.5px;">3. Base de Dados do Cliente</h4>
                 
                 <div style="background: #f8fafc; padding: 16px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 16px;">
-                    <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer; margin-bottom: 12px;">
-                        <input type="radio" name="db_type" value="sqlite" id="dbTypeSqlite" {% if not client or client.db_type == 'sqlite' %}checked{% endif %} style="margin-top: 3px;">
+                    {% if is_postgres %}
+                    <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer; margin-bottom: 12px; background: #ecfdf5; padding: 12px; border-radius: 6px; border: 1.5px solid #10b981;">
+                        <input type="radio" name="db_type" value="postgres_schema" id="dbTypePostgresSchema" {% if (client and client.db_type == 'postgres_schema') or (not client and is_postgres) %}checked{% endif %} style="margin-top: 3px;">
                         <div>
-                            <strong style="color: #0f172a; font-size: 13.5px;">Base Própria SQLite Dedicada (Recomendado)</strong>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <strong style="color: #065f46; font-size: 13.5px;">Schema Dedicado no Supabase / PostgreSQL (Recomendado - 100% Persistente)</strong>
+                                <span style="background: #10b981; color: #fff; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px;">NUVEM</span>
+                            </div>
+                            <p style="margin: 2px 0 0 0; font-size: 12px; color: #047857;">
+                                Cria um schema isolado <code>tenant_{username}</code> no Supabase. Os dados persistem permanentemente entre reinicializações e novos deploys do Render.
+                            </p>
+                        </div>
+                    </label>
+                    {% endif %}
+
+                    <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer; margin-bottom: 12px;">
+                        <input type="radio" name="db_type" value="sqlite" id="dbTypeSqlite" {% if (client and client.db_type == 'sqlite') or (not client and not is_postgres) %}checked{% endif %} style="margin-top: 3px;">
+                        <div>
+                            <strong style="color: #0f172a; font-size: 13.5px;">Base Própria SQLite Local</strong>
                             <p style="margin: 2px 0 0 0; font-size: 12px; color: #64748b;">
-                                Cria automaticamente um arquivo isolado em <code>data/tenants/{username}.db</code> com modo WAL de alta performance.
+                                Cria automaticamente um arquivo isolado em <code>data/tenants/{username}.db</code>. (Recomendado para desenvolvimento local/offline).
                             </p>
                         </div>
                     </label>
@@ -100,7 +115,7 @@
                         <div>
                             <strong style="color: #0f172a; font-size: 13.5px;">String de Conexão Externa (PostgreSQL / MySQL)</strong>
                             <p style="margin: 2px 0 0 0; font-size: 12px; color: #64748b;">
-                                Para empresas que possuem sua própria instância ou banco em nuvem.
+                                Para empresas que possuem sua própria instância dedicada em nuvem.
                             </p>
                         </div>
                     </label>
@@ -149,17 +164,19 @@
 <script>
 const radioSqlite = document.getElementById('dbTypeSqlite');
 const radioCustom = document.getElementById('dbTypeCustom');
+const radioSchema = document.getElementById('dbTypePostgresSchema');
 const containerCustom = document.getElementById('customUriContainer');
 
 function updateDbVisibility() {
-    if (radioCustom.checked) {
+    if (radioCustom && radioCustom.checked) {
         containerCustom.style.display = 'block';
     } else {
         containerCustom.style.display = 'none';
     }
 }
 
-radioSqlite.addEventListener('change', updateDbVisibility);
-radioCustom.addEventListener('change', updateDbVisibility);
+if (radioSqlite) radioSqlite.addEventListener('change', updateDbVisibility);
+if (radioCustom) radioCustom.addEventListener('change', updateDbVisibility);
+if (radioSchema) radioSchema.addEventListener('change', updateDbVisibility);
 </script>
 {% endblock %}

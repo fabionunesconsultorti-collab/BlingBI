@@ -11,6 +11,10 @@ def check_and_apply_migrations():
     """
     try:
         engine = db.engine
+        if getattr(engine, 'dialect', None) and engine.dialect.name != 'sqlite':
+            logger.info("[Migration] Base PostgreSQL/Supabase detectada. Migrações PRAGMA de SQLite ignoradas.")
+            return
+
         with engine.connect() as conn:
             tables = [r[0] for r in conn.execute(text("SELECT name FROM sqlite_master WHERE type='table';")).fetchall()]
 
