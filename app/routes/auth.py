@@ -53,9 +53,17 @@ def requires_segment_screen(screen_name: str):
 @bp.route('/login', methods=['GET', 'POST'])
 def login():
     if 'user_id' in session:
-        if session.get('is_admin') and not session.get('impersonate_user_id'):
-            return redirect(url_for('admin.index'))
-        return redirect(url_for('dashboard.index'))
+        try:
+            with TenantManager.master_scope():
+                user = db.session.get(MasterUser, session['user_id'])
+                if not user or not user.is_active:
+                    session.clear()
+                elif session.get('is_admin') and not session.get('impersonate_user_id'):
+                    return redirect(url_for('admin.index'))
+                else:
+                    return redirect(url_for('dashboard.index'))
+        except Exception:
+            session.clear()
 
     if request.method == 'POST':
         login_input = request.form.get('username', '').strip()
@@ -152,7 +160,7 @@ def change_password():
             return render_template('auth/change_password.html')
 
         with TenantManager.master_scope():
-            user = MasterUser.query.get(session['user_id'])
+            user = db.session.get(MasterUser, session['user_id'])
             if not user or not user.check_password(current_password):
                 flash('Senha atual incorreta.', 'danger')
                 return render_template('auth/change_password.html')

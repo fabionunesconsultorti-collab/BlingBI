@@ -210,3 +210,46 @@ def test_tenant_database_physical_isolation(test_app):
                 os.remove(p)
             except Exception:
                 pass
+
+
+def test_stale_session_auto_recovery(test_app):
+    """Garante que qualquer sessão com user_id inexistente ou corrompido seja limpa automaticamente sem gerar erro 500."""
+    client = test_app.test_client()
+
+    with client.session_transaction() as sess:
+        sess['user_id'] = 999999  # Usuário fantasma/inexistente
+        sess['role'] = 'client'
+        sess['tenant_db_uri'] = 'sqlite:///caminho_inexistente.db'
+
+    # Acessar /login com cookie obsoleto -> Deve limpar sessão e carregar tela de login com 200 OK
+    res_login = client.get('/login')
+    assert res_login.status_code == 200
+    assert 'Acesso Centralizado à Inteligência de Negócio' in res_login.get_data(as_text=True)
+
+    # Acessar rota protegida com cookie obsoleto -> Deve redirecionar para /login sem erro 500
+    with client.session_transaction() as sess:
+        sess['user_id'] = 888888
+
+    res_root = client.get('/', follow_redirects=True)
+    assert res_root.status_code == 200
+    assert 'Acesso Centralizado à Inteligência de Negócio' in res_root.get_data(as_text=True)
+
+
+def test_admin_root_redirect_to_admin(test_app):
+    """Garante que o Administrador Geral acessando a raiz / seja conduzido para /admin sem disparar erro no dashboard."""
+    client = test_app.test_client()
+
+    with test_app.app_context():
+        with TenantManager.master_scope():
+            admin = MasterUser.query.filter_by(role='admin').first()
+            admin_id = admin.id
+
+    with client.session_transaction() as sess:
+        sess['user_id'] = admin_id
+        sess['is_admin'] = True
+        sess['role'] = 'admin'
+
+    res = client.get('/', follow_redirects=False)
+    assert res.status_code == 302
+    assert '/admin' in res.location
+

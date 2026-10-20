@@ -116,11 +116,41 @@ def create_app(config_class=Config):
                 return jsonify({'success': False, 'message': 'Autenticação necessária.'}), 401
             return redirect(url_for('auth.login', next=request.url))
 
-        # 3. Administrador Geral (fora do modo impersonate) tem livre trânsito
+        # 3. Validação defensiva do usuário da sessão no Master DB
+        try:
+            from app.core.tenant_manager import TenantManager
+            from app.models.master import MasterUser
+            with TenantManager.master_scope():
+                current_user = db.session.get(MasterUser, session['user_id'])
+            if not current_user or not current_user.is_active:
+                session.clear()
+                if request.is_json or path.startswith('/api/'):
+                    from flask import jsonify
+                    return jsonify({'success': False, 'message': 'Sessão expirada.'}), 401
+                flash('Sua sessão foi encerrada por segurança. Por favor, acesse novamente.', 'info')
+                return redirect(url_for('auth.login'))
+        except Exception:
+            session.clear()
+            if request.is_json or path.startswith('/api/'):
+                from flask import jsonify
+                return jsonify({'success': False, 'message': 'Erro de validação de sessão.'}), 401
+            return redirect(url_for('auth.login'))
+
+        # 4. Administrador Geral (fora do modo impersonate) tem livre trânsito
         if session.get('is_admin') and not session.get('impersonate_user_id'):
+            if endpoint == 'dashboard.index' or path == '/':
+                return redirect(url_for('admin.index'))
             return None
 
-        # 4. Verificação de tela do segmento para o blueprint acessado
+        # 5. Verificação de integridade do tenant para clientes
+        if not session.get('is_admin') or session.get('impersonate_user_id'):
+            tenant_uri = session.get('tenant_db_uri')
+            if not tenant_uri:
+                session.clear()
+                flash('Base de dados do cliente não configurada. Faça login novamente.', 'warning')
+                return redirect(url_for('auth.login'))
+
+        # 6. Verificação de tela do segmento para o blueprint acessado
         bp_name = request.blueprint
         if bp_name in BLUEPRINT_SCREEN_MAP:
             required_screen = BLUEPRINT_SCREEN_MAP[bp_name]
@@ -133,6 +163,19 @@ def create_app(config_class=Config):
                 return redirect(url_for('dashboard.index'))
 
         return None
+
+    # Tratamento global gracioso de erros para impedir quebras de tela
+    @app.errorhandler(500)
+    def internal_server_error(e):
+        import logging
+        logging.getLogger(__name__).error(f"Erro 500 capturado defensivamente: {e}", exc_info=True)
+        if 'user_id' in session:
+            session.clear()
+        if request.is_json or (request.path or '').startswith('/api/'):
+            from flask import jsonify
+            return jsonify({'success': False, 'message': 'Instabilidade temporária na sessão. Por favor, tente novamente.'}), 500
+        flash('Uma instabilidade temporária foi detectada e sua sessão foi reiniciada com segurança.', 'warning')
+        return redirect(url_for('auth.login'))
 
     # Inicializa Master DB e tabelas do sistema
     with app.app_context():
