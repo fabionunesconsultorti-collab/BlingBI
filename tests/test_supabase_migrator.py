@@ -37,21 +37,21 @@ def test_app():
 
 
 def test_resolve_target_url():
-    # Test postgres:// -> postgresql:// conversion
+    # Test postgres:// -> postgresql+psycopg2:// conversion
     url = "postgres://user:pass@host:5432/dbname"
     resolved = SupabaseMigrator.resolve_target_url(url)
-    assert resolved == "postgresql://user:pass@host:5432/dbname"
+    assert resolved == "postgresql+psycopg2://user:pass@host:5432/dbname"
 
-    # Test already postgresql://
+    # Test postgresql:// -> postgresql+psycopg2://
     url2 = "postgresql://user:pass@host:5432/dbname"
-    assert SupabaseMigrator.resolve_target_url(url2) == url2
+    assert SupabaseMigrator.resolve_target_url(url2) == "postgresql+psycopg2://user:pass@host:5432/dbname"
 
     # Test stripping whitespace
-    assert SupabaseMigrator.resolve_target_url("  postgresql://host/db  ") == "postgresql://host/db"
+    assert SupabaseMigrator.resolve_target_url("  postgresql://host/db  ") == "postgresql+psycopg2://host/db"
 
     # Test fallback to env
     with patch.dict(os.environ, {'SUPABASE_DB_URL': 'postgresql://envuser:envpass@ep-host:6543/postgres'}):
-        assert SupabaseMigrator.resolve_target_url(None) == 'postgresql://envuser:envpass@ep-host:6543/postgres'
+        assert SupabaseMigrator.resolve_target_url(None) == 'postgresql+psycopg2://envuser:envpass@ep-host:6543/postgres'
 
 
 def test_tenant_manager_postgres_schema_helpers():

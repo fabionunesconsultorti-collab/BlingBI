@@ -19,10 +19,27 @@ class SupabaseMigrator:
 
     @classmethod
     def resolve_target_url(cls, target_url: Optional[str] = None) -> str:
-        url = target_url or os.environ.get('SUPABASE_DB_URL') or os.environ.get('DATABASE_URL') or ''
+        import re
+        url = (target_url or os.environ.get('SUPABASE_DB_URL') or os.environ.get('DATABASE_URL') or '').strip()
+        if not url:
+            return ''
+
+        # Se for a URL direta db.<ref>.supabase.co:5432, converter para o Connection Pooler IPv4
+        # (já que conexões diretas do Supabase são IPv6-only e falham em redes IPv4)
+        m = re.search(r'@db\.([a-z0-9]+)\.supabase\.co(?::5432)?/', url)
+        if m:
+            ref = m.group(1)
+            url = re.sub(r'://postgres:', f'://postgres.{ref}:', url)
+            url = re.sub(r'db\.[a-z0-9]+\.supabase\.co(?::5432)?', 'aws-0-us-east-1.pooler.supabase.com:6543', url)
+            if 'sslmode' not in url:
+                sep = '&' if '?' in url else '?'
+                url = f"{url}{sep}sslmode=require"
+
         if url.startswith("postgres://"):
-            url = url.replace("postgres://", "postgresql://", 1)
-        return url.strip()
+            url = url.replace("postgres://", "postgresql+psycopg2://", 1)
+        elif url.startswith("postgresql://") and not url.startswith("postgresql+"):
+            url = url.replace("postgresql://", "postgresql+psycopg2://", 1)
+        return url
 
     @classmethod
     def test_connection(cls, target_url: Optional[str] = None) -> Tuple[bool, str]:
@@ -32,7 +49,10 @@ class SupabaseMigrator:
             return False, "Nenhuma URL de conexão com o Supabase foi informada ou configurada nas variáveis de ambiente."
 
         try:
-            engine = create_engine(url, pool_pre_ping=True, connect_args={'connect_timeout': 10})
+            connect_args = {'connect_timeout': 10}
+            if 'sslmode' not in url:
+                connect_args['sslmode'] = 'require'
+            engine = create_engine(url, pool_pre_ping=True, connect_args=connect_args)
             with engine.connect() as conn:
                 res = conn.execute(text("SELECT version();")).fetchone()
                 version = res[0] if res else 'PostgreSQL'
@@ -51,6 +71,12 @@ class SupabaseMigrator:
            e migra todas as tabelas operacionais (pedidos, clientes, produtos, financeiro).
         4. Atualiza os ponteiros dos clientes para operarem nos novos schemas no Supabase.
         """
+        from flask import has_app_context
+        if not has_app_context():
+            from app import create_app
+            with create_app().app_context():
+                return cls.migrate_all_to_supabase(target_url=target_url)
+
         url = cls.resolve_target_url(target_url)
         if not url:
             return {

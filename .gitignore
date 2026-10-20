@@ -32,6 +32,10 @@ env/
 ENV/
 .venv/
 
+# Environment variables & secrets
+.env
+.env.*
+
 # Database files & local data (contém tokens de API e dados locais)
 data/*.db
 data/*.db-wal

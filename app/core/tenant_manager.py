@@ -52,9 +52,11 @@ class TenantManager:
         if not db_uri:
             return None
 
-        # Trata URLs postgres://
+        # Trata URLs postgres:// e postgresql:// para garantir uso do driver psycopg2
         if db_uri.startswith("postgres://"):
-            db_uri = db_uri.replace("postgres://", "postgresql://", 1)
+            db_uri = db_uri.replace("postgres://", "postgresql+psycopg2://", 1)
+        elif db_uri.startswith("postgresql://") and not db_uri.startswith("postgresql+"):
+            db_uri = db_uri.replace("postgresql://", "postgresql+psycopg2://", 1)
 
         if db_uri in cls._engines_cache:
             return cls._engines_cache[db_uri]
@@ -65,7 +67,9 @@ class TenantManager:
             from app.config import Config
             base_uri = Config.SQLALCHEMY_DATABASE_URI
             if base_uri.startswith("postgres://"):
-                base_uri = base_uri.replace("postgres://", "postgresql://", 1)
+                base_uri = base_uri.replace("postgres://", "postgresql+psycopg2://", 1)
+            elif base_uri.startswith("postgresql://") and not base_uri.startswith("postgresql+"):
+                base_uri = base_uri.replace("postgresql://", "postgresql+psycopg2://", 1)
 
             engine = create_engine(
                 base_uri,
