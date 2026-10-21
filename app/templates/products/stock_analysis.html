@@ -153,7 +153,10 @@
                     💡 Dica: Dê dois cliques em qualquer campo de custo ou preço na tabela para editar diretamente e salvar.
                 </span>
             </div>
-            <div style="display: flex; gap: 10px; align-items: center;">
+                <button type="button" class="btn btn-outline" id="btnSyncStocksDirect" onclick="triggerStockSyncFast()" style="height: 36px; padding: 0 14px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; border: 1px solid #10b981; color: #047857; background: #ecfdf5;">
+                    <span id="btnSyncStocksDirectIcon">🔄</span>
+                    <span id="btnSyncStocksDirectTxt">Atualizar Saldos Bling</span>
+                </button>
                 <button type="button" class="btn btn-outline" onclick="openImportModal()" style="height: 36px; padding: 0 14px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; border: 1px solid #cbd5e1;">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
                     Subir Custos via Planilha Excel
@@ -417,6 +420,47 @@
             inputElement.style.borderColor = '#ef4444';
             console.error('Erro de requisição:', err);
         }
+    }
+
+    function triggerStockSyncFast() {
+        const btn = document.getElementById('btnSyncStocksDirect');
+        const icon = document.getElementById('btnSyncStocksDirectIcon');
+        const txt = document.getElementById('btnSyncStocksDirectTxt');
+        if (!btn) return;
+
+        btn.disabled = true;
+        icon.innerHTML = '⏳';
+        txt.innerText = 'Sincronizando Saldos...';
+
+        fetch('/integrations/sync-stocks-only', { method: 'POST' })
+        .then(res => res.json())
+        .then(data => {
+            const checkInterval = setInterval(() => {
+                fetch('/integrations/sync-status')
+                .then(r => r.json())
+                .then(st => {
+                    if (st.status === 'success') {
+                        clearInterval(checkInterval);
+                        icon.innerHTML = '✅';
+                        txt.innerText = 'Saldos Atualizados!';
+                        setTimeout(() => window.location.reload(), 800);
+                    } else if (st.status === 'error') {
+                        clearInterval(checkInterval);
+                        btn.disabled = false;
+                        icon.innerHTML = '❌';
+                        txt.innerText = 'Erro ao atualizar';
+                        alert('Falha ao sincronizar saldos: ' + (st.error || st.message));
+                    }
+                })
+                .catch(() => clearInterval(checkInterval));
+            }, 1000);
+        })
+        .catch(err => {
+            btn.disabled = false;
+            icon.innerHTML = '🔄';
+            txt.innerText = 'Atualizar Saldos Bling';
+            alert('Erro ao conectar com servidor: ' + err);
+        });
     }
 </script>
 {% endblock %}

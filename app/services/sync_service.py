@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 class SyncService:
     @staticmethod
-    def sync_selected(options=None):
+    def sync_selected(options=None, progress_callback=None):
         """
         Executa sincronização modular baseada nas caixas de seleção do usuário.
         options: dict com chaves booleanas:
@@ -23,7 +23,15 @@ class SyncService:
           - orders (default True)
           - receivables (default True)
           - payables (default True)
+        progress_callback: função opcional callback(step, percent, message, summary_dict)
         """
+        def notify(step, pct, msg, sum_dict=None):
+            if progress_callback:
+                try:
+                    progress_callback(step, pct, msg, sum_dict)
+                except Exception:
+                    pass
+
         if options is None:
             options = {
                 'customers': True,
@@ -35,65 +43,90 @@ class SyncService:
 
         client = BlingApiClient()
         if not client.is_configured():
+            notify('auth', 100, "API do Bling não configurada.")
             return False, "API do Bling não configurada. Conecte sua conta em Configurações."
 
         # Testa conexão
+        notify('auth', 5, "Validando credenciais da API Bling v3...")
         conn_ok, conn_msg = client.test_connection()
         if not conn_ok:
+            notify('auth', 100, f"Falha na autenticação: {conn_msg}")
             return False, f"Falha na autenticação com a API do Bling: {conn_msg}"
 
         summary = {}
         errors = []
 
         try:
+            # Modo rápido exclusivo: apenas saldos de estoque
+            if options.get('stocks_only'):
+                logger.info("Sincronizando exclusivamente saldos reais de estoque...")
+                notify('stocks', 40, "Consultando saldos físicos em /estoques/saldos...")
+                summary['stocks'] = SyncService.sync_stocks(client)
+                Setting.set('last_sync_date', datetime.utcnow().strftime('%d/%m/%Y %H:%M:%S'))
+                Setting.set('last_sync_status', f"Sucesso ({summary['stocks']} saldos de estoque atualizados)")
+                notify('completed', 100, f"{summary['stocks']} saldos de estoque atualizados com sucesso!", summary)
+                return True, summary
+
             # 1. Clientes
             if options.get('customers', True):
                 try:
                     logger.info("Sincronizando clientes...")
+                    notify('customers', 15, "Importando clientes e contatos...")
                     summary['customers'] = SyncService.sync_customers(client)
+                    notify('customers', 30, f"{summary['customers']} clientes sincronizados.", summary)
                 except Exception as e:
                     logger.error(f"Erro ao sincronizar clientes: {e}")
                     errors.append(f"Clientes: {str(e)}")
                     db.session.rollback()
 
-            # 2. Produtos & Estoques Físicos
+            # 2. Produtos
             if options.get('products', True):
                 try:
                     logger.info("Sincronizando produtos...")
+                    notify('products', 35, "Importando catálogo de produtos...")
                     summary['products'] = SyncService.sync_products(client)
+                    notify('products', 50, f"{summary['products']} produtos cadastrados.", summary)
+
+                    # 3. Saldos de Estoque (/estoques/saldos)
                     logger.info("Sincronizando saldos reais de estoque...")
+                    notify('stocks', 55, "Sincronizando saldos reais de estoque físico...")
                     summary['stocks'] = SyncService.sync_stocks(client)
+                    notify('stocks', 68, f"{summary['stocks']} saldos de estoque consolidados.", summary)
                 except Exception as e:
                     logger.error(f"Erro ao sincronizar produtos/estoques: {e}")
                     errors.append(f"Produtos/Estoques: {str(e)}")
                     db.session.rollback()
 
-            # 3. Pedidos de Venda
+            # 4. Pedidos de Venda
             if options.get('orders', True):
                 try:
                     logger.info("Sincronizando pedidos...")
+                    notify('orders', 70, "Importando pedidos de venda e itens...")
                     summary['orders'] = SyncService.sync_orders(client)
                     # Amarra retrospectivamente quaisquer itens que tenham ficado sem vínculo
                     SyncService.link_orphan_order_items()
+                    notify('orders', 85, f"{summary['orders']} pedidos processados.", summary)
                 except Exception as e:
                     logger.error(f"Erro ao sincronizar pedidos: {e}")
                     errors.append(f"Pedidos: {str(e)}")
                     db.session.rollback()
 
-            # 4. Contas a Receber
+            # 5. Contas a Receber
             if options.get('receivables', True):
                 try:
                     logger.info("Sincronizando contas a receber...")
+                    notify('finance', 88, "Importando contas a receber...")
                     summary['receivables'] = SyncService.sync_receivables(client)
                 except Exception as e:
                     logger.error(f"Erro ao sincronizar contas a receber: {e}")
                     errors.append(f"Contas a Receber: {str(e)}")
                     db.session.rollback()
 
-            # 5. Contas a Pagar
+            # 6. Contas a Pagar
             if options.get('payables', True):
                 try:
                     logger.info("Sincronizando contas a pagar...")
+                    notify('finance', 93, "Importando contas a pagar...")
                     summary['payables'] = SyncService.sync_payables(client)
                 except Exception as e:
                     logger.error(f"Erro ao sincronizar contas a pagar: {e}")
@@ -110,6 +143,7 @@ class SyncService:
                 total_items = sum(v for k, v in summary.items() if isinstance(v, int))
                 Setting.set('last_sync_status', f"Sucesso ({total_items} registros atualizados)")
 
+            notify('completed', 100, "Sincronização concluída com sucesso!", summary)
             return True, summary
         except Exception as e:
             logger.error(f"Erro geral no sync_selected: {e}", exc_info=True)
@@ -279,12 +313,6 @@ class SyncService:
             except Exception as var_sync_err:
                 logger.info(f"Nota na busca de variações tipo='V': {var_sync_err}")
 
-        # Sincroniza os saldos reais de estoque após cadastrar os produtos
-        try:
-            SyncService.sync_stocks(client)
-        except Exception as stock_err:
-            logger.warning(f"Aviso ao sincronizar saldos de estoque após sync_products: {stock_err}")
-
         return count
 
     @staticmethod
@@ -294,9 +322,10 @@ class SyncService:
         oficial da API v3 do Bling (/estoques/saldos).
         
         Boas práticas Bling v3:
-        1. Consulta em lotes (chunks) de até 100 IDs via parâmetro idsProdutos[]
+        1. Consulta paginada direta em /estoques/saldos (sem risco de URL longa ou bloqueio por ID inválido)
         2. Agrega os saldos somando todos os depósitos retornados para cada produto.
         3. Atualiza o campo Product.stock com o saldoFisico real total consolidado.
+        4. Suporta consulta direcionada em micro-lotes de 25 IDs caso necessário.
         """
         client = client or BlingApiClient()
         products = Product.query.all()
@@ -305,86 +334,78 @@ class SyncService:
 
         prod_map_bling = {p.bling_id: p for p in products if p.bling_id}
         prod_map_sku = {p.sku.strip().upper(): p for p in products if p.sku}
-        bling_ids = list(prod_map_bling.keys())
+        stock_by_bling = {}
         count = 0
 
-        if bling_ids:
-            chunk_size = 100
-            for i in range(0, len(bling_ids), chunk_size):
-                chunk = bling_ids[i:i + chunk_size]
-                items = client.get_stock_balances(product_ids=chunk)
-                if not items:
-                    continue
+        # 1. Paginação direta oficial da API v3 em /estoques/saldos
+        page = 1
+        while True:
+            items = client.get_stock_balances(page=page, limit=100)
+            if not items:
+                break
 
-                # Acumula saldos físicos por ID de produto somando todos os depósitos
-                stock_by_bling = {}
-                for item in items:
+            for item in items:
+                try:
                     p_info = item.get('produto', {}) or {}
                     b_id = p_info.get('id')
-                    if not b_id:
-                        continue
+                    sku = item.get('codigo') or p_info.get('codigo')
 
-                    # Saldo físico real do depósito (ou fallback para saldoFisicoTotal)
+                    # Saldo físico real do depósito
                     sf = float(item.get('saldoFisico') if item.get('saldoFisico') is not None else item.get('saldoFisicoTotal', 0.0) or 0.0)
-                    stock_by_bling[b_id] = stock_by_bling.get(b_id, 0.0) + sf
 
-                # Atualiza os produtos pertencentes a este lote
-                for b_id in chunk:
-                    prod = prod_map_bling.get(b_id)
-                    if prod:
-                        if b_id in stock_by_bling:
-                            prod.stock = float(stock_by_bling[b_id])
-                        else:
-                            # Se não retornou nenhum saldo para o produto, estoque é zero
-                            prod.stock = 0.0
-                        count += 1
+                    if b_id:
+                        stock_by_bling[b_id] = stock_by_bling.get(b_id, 0.0) + sf
+                    elif sku:
+                        sku_clean = sku.strip().upper()
+                        if sku_clean in prod_map_sku:
+                            p_match = prod_map_sku[sku_clean]
+                            stock_by_bling[p_match.bling_id] = stock_by_bling.get(p_match.bling_id, 0.0) + sf
+                except Exception as parse_err:
+                    logger.warning(f"Erro ao processar item de estoque {item}: {parse_err}")
 
+            if len(items) < 100:
+                break
+            page += 1
+            time.sleep(0.2)
+
+        # 2. Atualiza os produtos que vieram na listagem de saldos
+        for b_id, total_stk in stock_by_bling.items():
+            prod = prod_map_bling.get(b_id)
+            if prod:
+                prod.stock = float(total_stk)
+                count += 1
+
+        # 3. Micro-lotes de fallback para produtos cadastrados não encontrados no feed geral
+        remaining_ids = [b_id for b_id in prod_map_bling.keys() if b_id not in stock_by_bling]
+        if remaining_ids:
+            chunk_size = 25  # micro-lote seguro para não estourar tamanho de URL
+            for i in range(0, len(remaining_ids), chunk_size):
+                chunk = remaining_ids[i:i + chunk_size]
                 try:
-                    db.session.commit()
-                except Exception as commit_err:
-                    logger.error(f"Erro no commit de saldos de estoque (lote {i // chunk_size + 1}): {commit_err}")
-                    db.session.rollback()
-                    raise commit_err
-
-                time.sleep(0.2)
-        else:
-            # Fallback caso não haja produtos com bling_id mapeados
-            page = 1
-            while True:
-                items = client.get_stock_balances(page=page, limit=100)
-                if not items:
-                    break
-
-                for item in items:
-                    try:
+                    fb_items = client.get_stock_balances(product_ids=chunk)
+                    fb_stock = {}
+                    for item in fb_items:
                         p_info = item.get('produto', {}) or {}
                         b_id = p_info.get('id')
-                        sku = item.get('codigo') or p_info.get('codigo')
-
-                        prod = None
                         if b_id:
-                            prod = prod_map_bling.get(b_id)
-                        if not prod and sku:
-                            prod = prod_map_sku.get(sku.strip().upper())
+                            sf = float(item.get('saldoFisico') if item.get('saldoFisico') is not None else item.get('saldoFisicoTotal', 0.0) or 0.0)
+                            fb_stock[b_id] = fb_stock.get(b_id, 0.0) + sf
 
+                    for b_id in chunk:
+                        prod = prod_map_bling.get(b_id)
                         if prod:
-                            saldo = float(item.get('saldoFisico') if item.get('saldoFisico') is not None else item.get('saldoFisicoTotal', 0.0) or 0.0)
-                            prod.stock = saldo
+                            prod.stock = float(fb_stock.get(b_id, 0.0))
                             count += 1
-                    except Exception as stock_err:
-                        logger.warning(f"Erro ao processar saldo de estoque do item {item}: {stock_err}")
+                except Exception as chunk_err:
+                    logger.warning(f"Aviso no fallback de estoque micro-lote: {chunk_err}")
+                time.sleep(0.1)
 
-                try:
-                    db.session.commit()
-                except Exception as commit_err:
-                    logger.error(f"Erro no commit de saldos de estoque página {page}: {commit_err}")
-                    db.session.rollback()
-                    raise commit_err
-
-                if len(items) < 100:
-                    break
-                page += 1
-                time.sleep(0.3)
+        try:
+            db.session.commit()
+        except Exception as commit_err:
+            logger.error(f"Erro no commit final de saldos de estoque: {commit_err}")
+            db.session.rollback()
+            raise commit_err
 
         logger.info(f"Saldos reais de estoque sincronizados com sucesso para {count} produtos.")
         return count
@@ -559,8 +580,11 @@ class SyncService:
 
                     # Itens do pedido: busca se não vierem na listagem
                     itens_data = item.get('itens', [])
-                    if not itens_data:
-                        time.sleep(0.2)
+                    # Otimização incremental de alta performance: se o pedido já foi sincronizado
+                    # e já possui itens salvos, pula a chamada individual get_order_details
+                    needs_details = not itens_data and (not order.id or not order.items or len(order.items) == 0)
+                    if needs_details:
+                        time.sleep(0.15)
                         order_details = client.get_order_details(b_id)
                         if order_details and isinstance(order_details, dict):
                             itens_data = order_details.get('itens', [])

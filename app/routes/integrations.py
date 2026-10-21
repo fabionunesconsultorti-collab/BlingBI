@@ -1,9 +1,10 @@
 import os
 import logging
-from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for
+from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for, current_app
 from app.models.setting import Setting
 from app.services.bling_api import BlingApiClient
 from app.services.sync_service import SyncService
+from app.services.sync_worker import SyncWorker
 from app.services.demo_data import seed_demo_data
 from app.services.niche_demo_data import NICHE_METADATA, seed_niche_demo_data
 
@@ -152,6 +153,10 @@ def test_connection():
 
 @bp.route('/sync-now', methods=['POST'])
 def sync_now():
+    """
+    Inicia a sincronização de forma assíncrona em background.
+    Responde imediatamente com status 200 para evitar timeout de gateway (Render 100s).
+    """
     data = request.get_json(silent=True) or {}
     options = {
         'customers': bool(data.get('customers', True)),
@@ -160,18 +165,39 @@ def sync_now():
         'receivables': bool(data.get('receivables', True)),
         'payables': bool(data.get('payables', True)),
     }
-    success, result = SyncService.sync_selected(options)
-    if success:
+
+    started, message = SyncWorker.start_sync(current_app, options)
+    if started:
         return jsonify({
             'success': True,
-            'message': 'Sincronização concluída com sucesso!',
-            'details': result
+            'status': 'started',
+            'message': message,
+            'state': SyncWorker.get_status()
         })
     else:
         return jsonify({
             'success': False,
-            'message': f'Falha na sincronização: {result}'
-        }), 400
+            'status': 'busy',
+            'message': message,
+            'state': SyncWorker.get_status()
+        }), 409
+
+
+@bp.route('/sync-status', methods=['GET'])
+def sync_status():
+    """Retorna o estado e progresso em tempo real da sincronização."""
+    return jsonify(SyncWorker.get_status())
+
+
+@bp.route('/sync-stocks-only', methods=['POST'])
+def sync_stocks_only():
+    """Ação rápida: sincroniza exclusivamente os saldos de estoque físico."""
+    started, message = SyncWorker.start_sync(current_app, {'stocks_only': True})
+    return jsonify({
+        'success': started,
+        'message': message,
+        'state': SyncWorker.get_status()
+    }), (200 if started else 409)
 
 CLEAR_DATABASE_PASSWORD = os.environ.get('CLEAR_DATABASE_PASSWORD', 'c4nib4l')
 

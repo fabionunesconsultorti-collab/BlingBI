@@ -269,84 +269,113 @@ document.addEventListener('DOMContentLoaded', function () {
         resetSyncModal(options);
         syncModal.classList.add('active');
 
-        // Animação dos passos selecionados
-        setTimeout(() => {
-            if (stepAuth) { stepAuth.className = 'sync-step-item done'; stepAuth.innerHTML = '<span>✅</span> Conexão e tokens validados'; }
-            if (options.customers && stepContacts) { stepContacts.className = 'sync-step-item active'; stepContacts.innerHTML = '<span>🔄</span> Importando contatos e clientes...'; }
-        }, 1000);
-
-        setTimeout(() => {
-            if (options.customers && stepContacts) { stepContacts.className = 'sync-step-item done'; stepContacts.innerHTML = '<span>✅</span> Contatos e clientes importados'; }
-            if (options.products && stepProducts) { stepProducts.className = 'sync-step-item active'; stepProducts.innerHTML = '<span>🔄</span> Importando produtos e estoque...'; }
-        }, 3000);
-
-        setTimeout(() => {
-            if (options.products && stepProducts) { stepProducts.className = 'sync-step-item done'; stepProducts.innerHTML = '<span>✅</span> Produtos e estoque importados'; }
-            if (options.orders && stepOrders) { stepOrders.className = 'sync-step-item active'; stepOrders.innerHTML = '<span>🔄</span> Importando pedidos e itens de venda...'; }
-        }, 6000);
-
-        setTimeout(() => {
-            if (options.orders && stepOrders) { stepOrders.className = 'sync-step-item done'; stepOrders.innerHTML = '<span>✅</span> Pedidos e itens processados'; }
-            if ((options.receivables || options.payables) && stepFinance) { stepFinance.className = 'sync-step-item active'; stepFinance.innerHTML = '<span>🔄</span> Importando contas a pagar e receber...'; }
-        }, 9000);
-
+        // Dispara a sincronização assíncrona em background
         fetch('/integrations/sync-now', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(options)
         })
         .then(res => res.json())
-        .then(data => {
-            syncSpinner.style.display = 'none';
-
-            if (data.success) {
-                syncTitle.innerText = '🎉 Sincronização Concluída com Sucesso!';
-                syncSubtitle.innerText = 'Seus dados foram atualizados e processados pelo motor analítico.';
-
-                [stepAuth, stepContacts, stepProducts, stepOrders, stepFinance].forEach(el => {
-                    if (el && el.style.display !== 'none') el.className = 'sync-step-item done';
-                });
-
-                const d = data.details || {};
-                let summaryHtml = `<b>Resumo da Sincronização:</b><br>`;
-                if (d.orders !== undefined) summaryHtml += `• <b>${d.orders}</b> Pedidos de venda importados<br>`;
-                if (d.products !== undefined) summaryHtml += `• <b>${d.products}</b> Produtos e saldos de estoque<br>`;
-                if (d.customers !== undefined) summaryHtml += `• <b>${d.customers}</b> Clientes e contatos<br>`;
-                if (d.receivables !== undefined) summaryHtml += `• <b>${d.receivables}</b> Contas a receber<br>`;
-                if (d.payables !== undefined) summaryHtml += `• <b>${d.payables}</b> Contas a pagar<br>`;
-
-                syncSummary.innerHTML = summaryHtml;
-                syncSummary.style.display = 'block';
-                syncSummary.style.background = '#ecfdf5';
-                syncSummary.style.borderColor = '#a7f3d0';
-                syncSummary.style.color = '#065f46';
-
+        .then(initialData => {
+            if (!initialData.success && initialData.status !== 'busy') {
+                syncSpinner.style.display = 'none';
+                syncTitle.innerText = '❌ Falha ao Iniciar Sincronização';
+                syncSubtitle.innerText = initialData.message || 'Não foi possível disparar a sincronização.';
                 syncActions.style.display = 'flex';
-            } else {
-                syncTitle.innerText = '❌ Falha na Sincronização';
-                syncSubtitle.innerText = 'Não foi possível concluir a importação com o Bling.';
-
-                syncSummary.innerHTML = `<b>Detalhe do erro:</b><br>${data.message}`;
-                syncSummary.style.display = 'block';
-                syncSummary.style.background = '#fef2f2';
-                syncSummary.style.borderColor = '#fecaca';
-                syncSummary.style.color = '#991b1b';
-
-                syncActions.innerHTML = `<button type="button" class="btn btn-outline" onclick="document.getElementById('syncProgressModal').classList.remove('active');">Fechar</button>`;
-                syncActions.style.display = 'flex';
+                return;
             }
+
+            // Inicia Polling em tempo real do progresso da sincronização
+            let pollTimer = setInterval(() => {
+                fetch('/integrations/sync-status')
+                .then(r => r.json())
+                .then(st => {
+                    const step = st.current_step || 'idle';
+                    const msg = st.message || '';
+
+                    // Atualiza mensagens e ícones de acordo com a etapa real
+                    if (step === 'auth') {
+                        if (stepAuth) { stepAuth.className = 'sync-step-item active'; stepAuth.innerHTML = `<span>🔄</span> ${msg}`; }
+                    } else if (step === 'customers') {
+                        if (stepAuth) { stepAuth.className = 'sync-step-item done'; stepAuth.innerHTML = `<span>✅</span> Conexão e tokens validados`; }
+                        if (stepContacts) { stepContacts.className = 'sync-step-item active'; stepContacts.innerHTML = `<span>🔄</span> ${msg}`; }
+                    } else if (step === 'products') {
+                        if (stepAuth) stepAuth.className = 'sync-step-item done';
+                        if (stepContacts) { stepContacts.className = 'sync-step-item done'; stepContacts.innerHTML = `<span>✅</span> Clientes e contatos importados`; }
+                        if (stepProducts) { stepProducts.className = 'sync-step-item active'; stepProducts.innerHTML = `<span>🔄</span> ${msg}`; }
+                    } else if (step === 'stocks') {
+                        if (stepAuth) stepAuth.className = 'sync-step-item done';
+                        if (stepContacts) stepContacts.className = 'sync-step-item done';
+                        if (stepProducts) { stepProducts.className = 'sync-step-item active'; stepProducts.innerHTML = `<span>🔄</span> ${msg}`; }
+                    } else if (step === 'orders') {
+                        if (stepAuth) stepAuth.className = 'sync-step-item done';
+                        if (stepContacts) stepContacts.className = 'sync-step-item done';
+                        if (stepProducts) { stepProducts.className = 'sync-step-item done'; stepProducts.innerHTML = `<span>✅</span> Produtos e saldos de estoque importados`; }
+                        if (stepOrders) { stepOrders.className = 'sync-step-item active'; stepOrders.innerHTML = `<span>🔄</span> ${msg}`; }
+                    } else if (step === 'finance') {
+                        if (stepAuth) stepAuth.className = 'sync-step-item done';
+                        if (stepContacts) stepContacts.className = 'sync-step-item done';
+                        if (stepProducts) stepProducts.className = 'sync-step-item done';
+                        if (stepOrders) { stepOrders.className = 'sync-step-item done'; stepOrders.innerHTML = `<span>✅</span> Pedidos e itens processados`; }
+                        if (stepFinance) { stepFinance.className = 'sync-step-item active'; stepFinance.innerHTML = `<span>🔄</span> ${msg}`; }
+                    }
+
+                    if (st.status === 'success') {
+                        clearInterval(pollTimer);
+                        syncSpinner.style.display = 'none';
+                        syncTitle.innerText = '🎉 Sincronização Concluída com Sucesso!';
+                        syncSubtitle.innerText = 'Seus dados foram atualizados e processados pelo motor analítico.';
+
+                        [stepAuth, stepContacts, stepProducts, stepOrders, stepFinance].forEach(el => {
+                            if (el && el.style.display !== 'none') el.className = 'sync-step-item done';
+                        });
+
+                        const d = st.summary || {};
+                        let summaryHtml = `<b>Resumo da Sincronização:</b><br>`;
+                        if (d.products !== undefined) summaryHtml += `• <b>${d.products}</b> Produtos cadastrados<br>`;
+                        if (d.stocks !== undefined) summaryHtml += `• <b>${d.stocks}</b> Saldos de estoque físico atualizados<br>`;
+                        if (d.orders !== undefined) summaryHtml += `• <b>${d.orders}</b> Pedidos de venda importados<br>`;
+                        if (d.customers !== undefined) summaryHtml += `• <b>${d.customers}</b> Clientes e contatos<br>`;
+                        if (d.receivables !== undefined) summaryHtml += `• <b>${d.receivables}</b> Contas a receber<br>`;
+                        if (d.payables !== undefined) summaryHtml += `• <b>${d.payables}</b> Contas a pagar<br>`;
+
+                        syncSummary.innerHTML = summaryHtml;
+                        syncSummary.style.display = 'block';
+                        syncSummary.style.background = '#ecfdf5';
+                        syncSummary.style.borderColor = '#a7f3d0';
+                        syncSummary.style.color = '#065f46';
+
+                        syncActions.style.display = 'flex';
+                    } else if (st.status === 'error') {
+                        clearInterval(pollTimer);
+                        syncSpinner.style.display = 'none';
+                        syncTitle.innerText = '❌ Falha na Sincronização';
+                        syncSubtitle.innerText = 'Não foi possível concluir a importação com o Bling.';
+
+                        syncSummary.innerHTML = `<b>Detalhe do erro:</b><br>${st.error || st.message}`;
+                        syncSummary.style.display = 'block';
+                        syncSummary.style.background = '#fef2f2';
+                        syncSummary.style.borderColor = '#fecaca';
+                        syncSummary.style.color = '#991b1b';
+
+                        syncActions.innerHTML = `<button type="button" class="btn btn-outline" onclick="document.getElementById('syncProgressModal').classList.remove('active');">Fechar</button>`;
+                        syncActions.style.display = 'flex';
+                    }
+                })
+                .catch(pollErr => {
+                    console.warn('Erro transitório no polling de status:', pollErr);
+                });
+            }, 1000);
         })
         .catch(err => {
             syncSpinner.style.display = 'none';
-            syncTitle.innerText = '❌ Erro de Comunicação';
-            syncSubtitle.innerText = 'Ocorreu um erro ao processar a requisição com o servidor local.';
-
+            syncTitle.innerText = '❌ Erro de Conexão';
+            syncSubtitle.innerText = 'Não foi possível se comunicar com o servidor do BlingBI.';
             syncSummary.innerHTML = `<b>Erro:</b> ${err}`;
             syncSummary.style.display = 'block';
             syncSummary.style.background = '#fef2f2';
             syncSummary.style.borderColor = '#fecaca';
             syncSummary.style.color = '#991b1b';
-
             syncActions.innerHTML = `<button type="button" class="btn btn-outline" onclick="document.getElementById('syncProgressModal').classList.remove('active');">Fechar</button>`;
             syncActions.style.display = 'flex';
         });
