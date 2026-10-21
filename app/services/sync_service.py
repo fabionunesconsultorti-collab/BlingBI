@@ -174,44 +174,66 @@ class SyncService:
         return count
 
     @staticmethod
+    def _save_or_update_product(item):
+        """Salva ou atualiza um produto a partir de um registro retornado pela API v3 do Bling."""
+        b_id = item.get('id')
+        if not b_id:
+            return None
+        prod = Product.query.filter_by(bling_id=b_id).first()
+        if not prod:
+            prod = Product(bling_id=b_id)
+            db.session.add(prod)
+
+        prod.name = item.get('nome', 'Produto sem nome')
+        prod.sku = item.get('codigo')
+        prod.price = float(item.get('preco', 0.0) or 0.0)
+        prod.cost = float(item.get('precoCusto', 0.0) or 0.0)
+
+        # Se a listagem trouxe saldo embutido, armazena como estimativa inicial
+        # (o saldo físico oficial consolidado de depósitos é sincronizado em sync_stocks)
+        stock_data = item.get('estoque', {}) or {}
+        if isinstance(stock_data, dict):
+            sf = stock_data.get('saldoFisico') if stock_data.get('saldoFisico') is not None else stock_data.get('saldoFisicoTotal')
+            if sf is not None:
+                prod.stock = float(sf or 0.0)
+
+        prod.format = item.get('formato')
+        prod.status = item.get('situacao', 'A')
+
+        from app.services.product_attributes import parse_product_attributes
+        s_det, c_det = parse_product_attributes(prod.name)
+        if s_det and not prod.size:
+            prod.size = s_det
+        if c_det and not prod.color:
+            prod.color = c_det
+
+        return prod
+
+    @staticmethod
     def sync_products(client=None):
         client = client or BlingApiClient()
         page = 1
         count = 0
+        has_variations = False
+
         while True:
             items = client.get_products(page=page, limit=100)
             if not items:
                 break
             for item in items:
                 try:
-                    b_id = item.get('id')
-                    if not b_id:
-                        continue
-                    prod = Product.query.filter_by(bling_id=b_id).first()
-                    if not prod:
-                        prod = Product(bling_id=b_id)
-                        db.session.add(prod)
-                    
-                    prod.name = item.get('nome', 'Produto sem nome')
-                    prod.sku = item.get('codigo')
-                    prod.price = float(item.get('preco', 0.0) or 0.0)
-                    prod.cost = float(item.get('precoCusto', 0.0) or 0.0)
-                    
-                    stock_data = item.get('estoque', {}) or {}
-                    if isinstance(stock_data, dict):
-                        prod.stock = float(stock_data.get('saldoFisicoTotal', 0.0) or 0.0)
-                    
-                    prod.format = item.get('formato')
-                    prod.status = item.get('situacao', 'A')
+                    prod = SyncService._save_or_update_product(item)
+                    if prod:
+                        count += 1
+                        if prod.format == 'V':
+                            has_variations = True
 
-                    from app.services.product_attributes import parse_product_attributes
-                    s_det, c_det = parse_product_attributes(prod.name)
-                    if s_det and not prod.size:
-                        prod.size = s_det
-                    if c_det and not prod.color:
-                        prod.color = c_det
-
-                    count += 1
+                    # Se o produto com variações já vier com a lista de variações embutida
+                    for v_item in item.get('variacoes', []):
+                        if isinstance(v_item, dict) and v_item.get('id'):
+                            v_prod = SyncService._save_or_update_product(v_item)
+                            if v_prod:
+                                count += 1
                 except Exception as item_err:
                     logger.warning(f"Erro no produto {item.get('id')}: {item_err}")
 
@@ -227,6 +249,36 @@ class SyncService:
             page += 1
             time.sleep(0.3)
 
+        # Se houver produtos com variações, busca explicitamente produtos do tipo 'V'
+        # para garantir que todas as variações/grades tenham SKU e ID cadastrados
+        if has_variations:
+            try:
+                var_page = 1
+                while True:
+                    var_items = client.get_products(page=var_page, limit=100, product_type='V')
+                    if not var_items:
+                        break
+                    for v_item in var_items:
+                        try:
+                            v_prod = SyncService._save_or_update_product(v_item)
+                            if v_prod:
+                                count += 1
+                        except Exception as v_err:
+                            logger.warning(f"Erro ao salvar variação {v_item.get('id')}: {v_err}")
+
+                    try:
+                        db.session.commit()
+                    except Exception as commit_err:
+                        db.session.rollback()
+                        break
+
+                    if len(var_items) < 100:
+                        break
+                    var_page += 1
+                    time.sleep(0.3)
+            except Exception as var_sync_err:
+                logger.info(f"Nota na busca de variações tipo='V': {var_sync_err}")
+
         # Sincroniza os saldos reais de estoque após cadastrar os produtos
         try:
             SyncService.sync_stocks(client)
@@ -240,54 +292,99 @@ class SyncService:
         """
         Sincroniza os saldos de estoque físico de todos os produtos a partir do endpoint
         oficial da API v3 do Bling (/estoques/saldos).
-        Atualiza o campo Product.stock com o saldoFisicoTotal real consolidado.
+        
+        Boas práticas Bling v3:
+        1. Consulta em lotes (chunks) de até 100 IDs via parâmetro idsProdutos[]
+        2. Agrega os saldos somando todos os depósitos retornados para cada produto.
+        3. Atualiza o campo Product.stock com o saldoFisico real total consolidado.
         """
         client = client or BlingApiClient()
-        page = 1
-        count = 0
         products = Product.query.all()
         if not products:
             return 0
 
         prod_map_bling = {p.bling_id: p for p in products if p.bling_id}
         prod_map_sku = {p.sku.strip().upper(): p for p in products if p.sku}
+        bling_ids = list(prod_map_bling.keys())
+        count = 0
 
-        while True:
-            items = client.get_stock_balances(page=page, limit=100)
-            if not items:
-                break
+        if bling_ids:
+            chunk_size = 100
+            for i in range(0, len(bling_ids), chunk_size):
+                chunk = bling_ids[i:i + chunk_size]
+                items = client.get_stock_balances(product_ids=chunk)
+                if not items:
+                    continue
 
-            for item in items:
-                try:
+                # Acumula saldos físicos por ID de produto somando todos os depósitos
+                stock_by_bling = {}
+                for item in items:
                     p_info = item.get('produto', {}) or {}
                     b_id = p_info.get('id')
-                    sku = item.get('codigo') or p_info.get('codigo')
+                    if not b_id:
+                        continue
 
-                    prod = None
-                    if b_id:
-                        prod = prod_map_bling.get(b_id)
-                    if not prod and sku:
-                        prod = prod_map_sku.get(sku.strip().upper())
+                    # Saldo físico real do depósito (ou fallback para saldoFisicoTotal)
+                    sf = float(item.get('saldoFisico') if item.get('saldoFisico') is not None else item.get('saldoFisicoTotal', 0.0) or 0.0)
+                    stock_by_bling[b_id] = stock_by_bling.get(b_id, 0.0) + sf
 
+                # Atualiza os produtos pertencentes a este lote
+                for b_id in chunk:
+                    prod = prod_map_bling.get(b_id)
                     if prod:
-                        # Saldo Físico Total consolidado de todos os depósitos
-                        saldo = float(item.get('saldoFisicoTotal', 0.0) or 0.0)
-                        prod.stock = saldo
+                        if b_id in stock_by_bling:
+                            prod.stock = float(stock_by_bling[b_id])
+                        else:
+                            # Se não retornou nenhum saldo para o produto, estoque é zero
+                            prod.stock = 0.0
                         count += 1
-                except Exception as stock_err:
-                    logger.warning(f"Erro ao processar saldo de estoque do item {item}: {stock_err}")
 
-            try:
-                db.session.commit()
-            except Exception as commit_err:
-                logger.error(f"Erro no commit de saldos de estoque página {page}: {commit_err}")
-                db.session.rollback()
-                raise commit_err
+                try:
+                    db.session.commit()
+                except Exception as commit_err:
+                    logger.error(f"Erro no commit de saldos de estoque (lote {i // chunk_size + 1}): {commit_err}")
+                    db.session.rollback()
+                    raise commit_err
 
-            if len(items) < 100:
-                break
-            page += 1
-            time.sleep(0.3)
+                time.sleep(0.2)
+        else:
+            # Fallback caso não haja produtos com bling_id mapeados
+            page = 1
+            while True:
+                items = client.get_stock_balances(page=page, limit=100)
+                if not items:
+                    break
+
+                for item in items:
+                    try:
+                        p_info = item.get('produto', {}) or {}
+                        b_id = p_info.get('id')
+                        sku = item.get('codigo') or p_info.get('codigo')
+
+                        prod = None
+                        if b_id:
+                            prod = prod_map_bling.get(b_id)
+                        if not prod and sku:
+                            prod = prod_map_sku.get(sku.strip().upper())
+
+                        if prod:
+                            saldo = float(item.get('saldoFisico') if item.get('saldoFisico') is not None else item.get('saldoFisicoTotal', 0.0) or 0.0)
+                            prod.stock = saldo
+                            count += 1
+                    except Exception as stock_err:
+                        logger.warning(f"Erro ao processar saldo de estoque do item {item}: {stock_err}")
+
+                try:
+                    db.session.commit()
+                except Exception as commit_err:
+                    logger.error(f"Erro no commit de saldos de estoque página {page}: {commit_err}")
+                    db.session.rollback()
+                    raise commit_err
+
+                if len(items) < 100:
+                    break
+                page += 1
+                time.sleep(0.3)
 
         logger.info(f"Saldos reais de estoque sincronizados com sucesso para {count} produtos.")
         return count

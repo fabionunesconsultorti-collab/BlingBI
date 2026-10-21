@@ -234,11 +234,38 @@ class BlingApiClient:
             return resp.json().get('data', [])
         return []
 
-    def get_products(self, page=1, limit=100):
-        resp = self.request('GET', '/produtos', params={'pagina': page, 'limite': limit})
+    def get_products(self, page=1, limit=100, code=None, product_type=None, criteria=None):
+        """
+        Lista produtos da API v3 do Bling (/produtos) com suporte a paginação e filtros.
+        - page: página da consulta (padrão: 1)
+        - limit: registros por página (máx: 100)
+        - code: SKU / código do item (filtro exato)
+        - product_type: tipo do produto ('P' para simples, 'V' para variação, 'C' para composição)
+        - criteria: critério de ordenação / filtro por data
+        """
+        params = {'pagina': page, 'limite': limit}
+        if code:
+            params['codigo'] = code
+        if product_type:
+            params['tipo'] = product_type
+        if criteria:
+            params['criterio'] = criteria
+        resp = self.request('GET', '/produtos', params=params)
         if resp and resp.status_code == 200:
             return resp.json().get('data', [])
         return []
+
+    def get_product_by_id(self, product_id):
+        """Busca os detalhes completos de um produto específico por ID numérico do Bling."""
+        resp = self.request('GET', f'/produtos/{product_id}')
+        if resp and resp.status_code == 200:
+            return resp.json().get('data', {})
+        return {}
+
+    def get_product_by_sku(self, sku):
+        """Localiza um produto no Bling a partir do seu código / SKU."""
+        items = self.get_products(code=sku, limit=1)
+        return items[0] if items else None
 
     def get_orders(self, page=1, limit=100, date_from=None):
         params = {'pagina': page, 'limite': limit}
@@ -272,19 +299,80 @@ class BlingApiClient:
             return resp.json().get('data', [])
         return []
 
-    def get_stock_balances(self, page=1, limit=100, product_ids=None):
+    def get_stock_balances(self, page=1, limit=100, product_ids=None, deposit_ids=None):
         """
         Consulta saldos de estoque físico e virtual da API v3 do Bling (/estoques/saldos).
-        Permite sincronizar os saldos de estoque consolidados (saldoFisicoTotal e saldoVirtualTotal).
+        Suporta:
+        - product_ids: lista com IDs dos produtos (enviado como idsProdutos[]=id1&idsProdutos[]=id2)
+        - deposit_ids: lista com IDs dos depósitos (enviado como idsDepositos[]=dep1)
+        - pagina / limite: para consulta paginada de saldos
         """
-        params = {'pagina': page, 'limite': limit}
+        if isinstance(page, (list, tuple, set)):
+            product_ids = page
+            page = 1
+
+        params = {}
         if product_ids:
-            if isinstance(product_ids, list):
-                params['idsProdutos'] = ','.join(str(i) for i in product_ids)
-            else:
-                params['idsProdutos'] = str(product_ids)
+            if not isinstance(product_ids, (list, tuple, set)):
+                product_ids = [product_ids]
+            # Formato oficial da API v3 do Bling para arrays: idsProdutos[]
+            params['idsProdutos[]'] = [int(p) for p in product_ids if p]
+        else:
+            params['pagina'] = page
+            params['limite'] = limit
+
+        if deposit_ids:
+            if not isinstance(deposit_ids, (list, tuple, set)):
+                deposit_ids = [deposit_ids]
+            params['idsDepositos[]'] = [int(d) for d in deposit_ids if d]
+
         resp = self.request('GET', '/estoques/saldos', params=params)
         if resp and resp.status_code == 200:
             return resp.json().get('data', [])
         return []
+
+    def get_product_with_stock(self, sku=None, product_id=None):
+        """
+        Fluxo desacoplado oficial Bling v3:
+        1. Consulta dados cadastrais do produto (por SKU ou ID).
+        2. Consulta saldos em /estoques/saldos usando o ID do produto.
+        3. Consolida saldo_fisico e saldo_disponivel (saldoVirtual) somando os depósitos.
+        """
+        produto = None
+        if product_id:
+            produto = self.get_product_by_id(product_id)
+        elif sku:
+            produto = self.get_product_by_sku(sku)
+
+        if not produto:
+            return None
+
+        p_id = produto.get('id')
+        if not p_id:
+            return None
+
+        saldos = self.get_stock_balances(product_ids=[p_id])
+        saldo_fisico = sum(
+            float(item.get('saldoFisico') if item.get('saldoFisico') is not None else item.get('saldoFisicoTotal', 0.0) or 0.0)
+            for item in saldos
+        )
+        saldo_virtual = sum(
+            float(item.get('saldoVirtual') if item.get('saldoVirtual') is not None else item.get('saldoVirtualTotal', 0.0) or 0.0)
+            for item in saldos
+        )
+
+        return {
+            'id': p_id,
+            'nome': produto.get('nome'),
+            'codigo': produto.get('codigo'),
+            'preco': float(produto.get('preco', 0.0) or 0.0),
+            'preco_custo': float(produto.get('precoCusto', 0.0) or 0.0),
+            'tipo': produto.get('tipo', 'P'),
+            'formato': produto.get('formato', 'S'),
+            'situacao': produto.get('situacao', 'A'),
+            'saldo_fisico': saldo_fisico,
+            'saldo_disponivel': saldo_virtual,
+            'detalhes_depositos': saldos
+        }
+
 
