@@ -44,11 +44,12 @@ def get_registered_sellers():
     try:
         from app.services.bling_api import BlingApiClient
         client = BlingApiClient()
-        res = client.request('GET', '/vendedores?limite=100')
-        if res and res.status_code == 200:
-            names = [v.get('contato', {}).get('nome') or v.get('nome') for v in res.json().get('data', []) if v.get('contato', {}).get('nome') or v.get('nome')]
-            if names:
-                return names
+        if client.is_configured():
+            res = client.request('GET', '/vendedores?limite=100')
+            if res and res.status_code == 200:
+                names = [v.get('contato', {}).get('nome') or v.get('nome') for v in res.json().get('data', []) if v.get('contato', {}).get('nome') or v.get('nome')]
+                if names:
+                    return names
     except Exception:
         pass
 

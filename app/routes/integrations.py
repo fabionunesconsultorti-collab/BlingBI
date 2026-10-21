@@ -166,37 +166,44 @@ def sync_now():
         'payables': bool(data.get('payables', True)),
     }
 
-    started, message = SyncWorker.start_sync(current_app, options)
+    from app.core.tenant_manager import TenantManager
+    tenant_uri = TenantManager.get_current_tenant_uri()
+    started, message = SyncWorker.start_sync(current_app, options, tenant_uri=tenant_uri)
+    status_dict = SyncWorker.get_status(tenant_uri=tenant_uri)
     if started:
         return jsonify({
             'success': True,
             'status': 'started',
             'message': message,
-            'state': SyncWorker.get_status()
+            'state': status_dict
         })
     else:
         return jsonify({
             'success': False,
             'status': 'busy',
             'message': message,
-            'state': SyncWorker.get_status()
+            'state': status_dict
         }), 409
 
 
 @bp.route('/sync-status', methods=['GET'])
 def sync_status():
     """Retorna o estado e progresso em tempo real da sincronização."""
-    return jsonify(SyncWorker.get_status())
+    from app.core.tenant_manager import TenantManager
+    tenant_uri = TenantManager.get_current_tenant_uri()
+    return jsonify(SyncWorker.get_status(tenant_uri=tenant_uri))
 
 
 @bp.route('/sync-stocks-only', methods=['POST'])
 def sync_stocks_only():
     """Ação rápida: sincroniza exclusivamente os saldos de estoque físico."""
-    started, message = SyncWorker.start_sync(current_app, {'stocks_only': True})
+    from app.core.tenant_manager import TenantManager
+    tenant_uri = TenantManager.get_current_tenant_uri()
+    started, message = SyncWorker.start_sync(current_app, {'stocks_only': True}, tenant_uri=tenant_uri)
     return jsonify({
         'success': started,
         'message': message,
-        'state': SyncWorker.get_status()
+        'state': SyncWorker.get_status(tenant_uri=tenant_uri)
     }), (200 if started else 409)
 
 CLEAR_DATABASE_PASSWORD = os.environ.get('CLEAR_DATABASE_PASSWORD', 'c4nib4l')

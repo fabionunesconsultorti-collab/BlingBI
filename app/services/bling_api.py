@@ -19,10 +19,11 @@ class BlingApiClient:
         self.refresh_token = Setting.get('bling_refresh_token', '')
 
     def is_configured(self):
-        token = Setting.get('bling_access_token', '')
-        cid = Setting.get('bling_client_id', '')
-        csecret = Setting.get('bling_client_secret', '')
-        return bool(token or (cid and csecret))
+        token = (Setting.get('bling_access_token', '') or '').strip()
+        refresh = (Setting.get('bling_refresh_token', '') or '').strip()
+        cid = (Setting.get('bling_client_id', '') or '').strip()
+        csecret = (Setting.get('bling_client_secret', '') or '').strip()
+        return bool(token or refresh or (cid and csecret))
 
     def get_authorization_url(self, redirect_uri=None, state='bling_bi_auth'):
         """Gera a URL oficial do Bling para autorização OAuth 2.0."""
@@ -114,8 +115,11 @@ class BlingApiClient:
     def _get_headers(self):
         token = (self.access_token or '').strip()
         if not token:
-            token = Setting.get('bling_access_token', '').strip()
-            self.access_token = token
+            token = (Setting.get('bling_access_token', '') or '').strip()
+        if not token and (Setting.get('bling_refresh_token', '') or '').strip():
+            self.refresh_access_token()
+            token = (Setting.get('bling_access_token', '') or '').strip()
+        self.access_token = token
         return {
             'Authorization': f'Bearer {token}',
             'Accept': 'application/json',
@@ -207,14 +211,26 @@ class BlingApiClient:
 
     def test_connection(self):
         """Verifica se a conexão com a API Bling v3 está operando perfeitamente."""
-        token = Setting.get('bling_access_token', '').strip()
+        token = (Setting.get('bling_access_token', '') or '').strip()
         if not token:
-            return False, "Nenhum Access Token configurado. Realize a autorização OAuth ou insira um token."
+            # Tenta renovar usando o refresh_token se disponível
+            refreshed, ref_msg = self.refresh_access_token()
+            if refreshed:
+                token = (Setting.get('bling_access_token', '') or '').strip()
+            else:
+                return False, f"Nenhum Access Token configurado e não foi possível renovar: {ref_msg}"
+
         try:
             resp = self.request('GET', '/contatos', params={'limite': 1})
             if resp and resp.status_code == 200:
                 return True, "✅ Conexão com a API Bling v3 estabelecida com sucesso!"
             elif resp and resp.status_code == 401:
+                # Tenta renovar uma vez se deu 401
+                refreshed, _ = self.refresh_access_token()
+                if refreshed:
+                    retry_resp = self.request('GET', '/contatos', params={'limite': 1})
+                    if retry_resp and retry_resp.status_code == 200:
+                        return True, "✅ Conexão com a API Bling v3 restabelecida com sucesso após renovar o token!"
                 return False, "❌ Token inválido ou expirado. Clique em 'Conectar com Bling' para autorizar."
             elif resp:
                 err_text = resp.text
@@ -223,10 +239,10 @@ class BlingApiClient:
                     err_text = err_json.get('error', {}).get('description', err_text)
                 except Exception:
                     pass
-                return False, f"Resposta Bling HTTP {resp.status_code}: {err_text}"
+                return False, f"Erro na API Bling (HTTP {resp.status_code}): {err_text[:100]}"
             return False, "Sem resposta da API Bling."
         except Exception as e:
-            return False, f"Falha de conexão com a API Bling: {str(e)}"
+            return False, f"Exceção ao conectar com a API Bling: {str(e)}"
 
     def get_contacts(self, page=1, limit=100):
         resp = self.request('GET', '/contatos', params={'pagina': page, 'limite': limit})

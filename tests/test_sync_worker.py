@@ -107,3 +107,35 @@ def test_sync_stocks_paginated_and_multi_deposit(app):
         up2 = Product.query.filter_by(bling_id=66602).first()
         assert up1.stock == 40.0
         assert up2.stock == 10.0
+
+
+def test_background_thread_uses_tenant_database(app, tmp_path):
+    """Regressão: a thread em background deve ler o token Bling da base do TENANT, não do Master."""
+    from app.core.tenant_manager import TenantManager
+    from app.models.setting import Setting
+
+    tenant_uri = f"sqlite:///{tmp_path / 'tenant_sync.db'}"
+    TenantManager.init_tenant_database(tenant_uri)
+    with TenantManager.tenant_scope(tenant_uri):
+        Setting.set('bling_access_token', 'TOKEN_DO_TENANT')
+        db.session.remove()
+
+    captured = {}
+
+    def fake_sync(options=None, progress_callback=None):
+        captured['token'] = Setting.get('bling_access_token', '')
+        return True, {}
+
+    orig_sync = SyncService.sync_selected
+    SyncService.sync_selected = fake_sync
+    try:
+        started, _ = SyncWorker.start_sync(app, {'stocks_only': True}, tenant_uri=tenant_uri)
+        assert started
+        for _ in range(50):
+            if SyncWorker.get_status(tenant_uri)['status'] != 'running':
+                break
+            time.sleep(0.05)
+        assert SyncWorker.get_status(tenant_uri)['status'] == 'success'
+        assert captured['token'] == 'TOKEN_DO_TENANT'
+    finally:
+        SyncService.sync_selected = orig_sync
