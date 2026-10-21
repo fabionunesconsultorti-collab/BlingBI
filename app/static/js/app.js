@@ -589,3 +589,52 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 });
+
+// ==========================================
+// Modal de Histórico de Versões & Changelog
+// ==========================================
+window.openVersionModal = function() {
+    const modal = document.getElementById('versionChangelogModal');
+    if (modal) {
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    }
+};
+
+window.closeVersionModal = function() {
+    const modal = document.getElementById('versionChangelogModal');
+    if (modal) {
+        modal.style.display = 'none';
+        document.body.style.overflow = '';
+    }
+};
+
+window.closeVersionModalOnBackdrop = function(event) {
+    if (event && event.target && event.target.id === 'versionChangelogModal') {
+        window.closeVersionModal();
+    }
+};
+
+window.filterChangelog = function(type, btn) {
+    document.querySelectorAll('.version-filter-btn').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+
+    const items = document.querySelectorAll('.changelog-item');
+    items.forEach(item => {
+        const itemType = item.getAttribute('data-type');
+        if (type === 'all' || itemType === type || (type === 'security' && (itemType === 'security' || itemType === 'docs' || itemType === 'refactor'))) {
+            item.style.display = 'flex';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+};
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        const modal = document.getElementById('versionChangelogModal');
+        if (modal && modal.style.display === 'flex') {
+            window.closeVersionModal();
+        }
+    }
+});

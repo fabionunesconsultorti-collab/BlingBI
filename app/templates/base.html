@@ -137,8 +137,19 @@
                 {% endif %}
             </ul>
             <div class="sidebar-footer">
-                <span>Versão 1.0 Local</span>
-                <span style="color: #10b981;">● Online</span>
+                <button type="button" 
+                        class="version-footer-btn" 
+                        id="btnOpenVersionModal" 
+                        onclick="openVersionModal()" 
+                        title="Ver histórico de melhorias e versões (Build #{{ app_version.commit_count if app_version else '1' }})">
+                    <span class="version-tag-pill">{{ app_version.tag if app_version else 'v1.0.1' }}</span>
+                    <span class="version-hash-pill">{{ app_version.short_hash if app_version else 'latest' }}</span>
+                    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" class="version-info-icon"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                </button>
+                <div class="status-indicator-pill" title="Serviço Ativo e Conectado">
+                    <span class="status-dot-pulse"></span>
+                    <span>Online</span>
+                </div>
             </div>
         </aside>
 
@@ -233,6 +244,21 @@
                 <!-- Bloco de Conteúdo -->
                 {% block content %}{% endblock %}
             </div>
+
+            <!-- Rodapé Principal do Painel -->
+            <footer class="system-main-footer">
+                <div class="system-footer-left">
+                    <span>BlingBI Enterprise &copy; {{ current_year or '2026' }} &bull; Inteligência & Analytics para Bling ERP API v3</span>
+                </div>
+                <div class="system-footer-right">
+                    <button type="button" class="system-version-btn" onclick="openVersionModal()" title="Clique para ver o histórico de atualizações">
+                        <span class="version-dot"></span>
+                        <span class="version-label">Versão {{ app_version.tag if app_version else 'v1.0.1' }}</span>
+                        <span class="version-build-badge">Build #{{ app_version.commit_count if app_version else '1' }}</span>
+                        <span class="version-news-badge">Histórico</span>
+                    </button>
+                </div>
+            </footer>
         </div>
     </div>
 
@@ -272,6 +298,115 @@
                 <button type="button" class="btn btn-primary" onclick="window.location.reload();">
                     Ver Dashboards Atualizados
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Histórico de Alterações & Versões -->
+    <div id="versionChangelogModal" class="modal-backdrop version-modal-backdrop" style="display: none;" onclick="closeVersionModalOnBackdrop(event)">
+        <div class="version-modal-card" onclick="event.stopPropagation()">
+            <!-- Header do Modal -->
+            <div class="version-modal-header">
+                <div class="version-modal-title-box">
+                    <div class="version-modal-icon-badge">🚀</div>
+                    <div>
+                        <h3 class="version-modal-title">Histórico de Alterações & Versões</h3>
+                        <p class="version-modal-subtitle">Registro cronológico de melhorias, correções e novidades do BlingBI</p>
+                    </div>
+                </div>
+                <div class="version-modal-header-actions">
+                    <span class="version-header-tag">{{ app_version.tag if app_version else 'v1.0.1' }}</span>
+                    <button type="button" class="version-modal-close-btn" onclick="closeVersionModal()" aria-label="Fechar modal">&times;</button>
+                </div>
+            </div>
+
+            <!-- Barra de Resumo / Métricas de Build -->
+            <div class="version-stats-bar">
+                <div class="version-stat-item">
+                    <span class="version-stat-label">Versão Atual</span>
+                    <span class="version-stat-val text-primary">{{ app_version.tag if app_version else 'v1.0.1' }}</span>
+                </div>
+                <div class="version-stat-item">
+                    <span class="version-stat-label">Build / Total Commits</span>
+                    <span class="version-stat-val">#{{ app_version.commit_count if app_version else '1' }}</span>
+                </div>
+                <div class="version-stat-item">
+                    <span class="version-stat-label">Último Commit</span>
+                    <span class="version-stat-val font-mono">{{ app_version.short_hash if app_version else 'latest' }}</span>
+                </div>
+                <div class="version-stat-item">
+                    <span class="version-stat-label">Status do Sistema</span>
+                    <span class="version-stat-val text-success">● Produção</span>
+                </div>
+            </div>
+
+            <!-- Barra de Filtros por Categoria -->
+            <div class="version-filter-bar">
+                <button type="button" class="version-filter-btn active" data-filter="all" onclick="filterChangelog('all', this)">
+                    Todos ({{ app_version.changelog|length if app_version and app_version.changelog else 0 }})
+                </button>
+                <button type="button" class="version-filter-btn" data-filter="feat" onclick="filterChangelog('feat', this)">
+                    ✨ Novidades
+                </button>
+                <button type="button" class="version-filter-btn" data-filter="fix" onclick="filterChangelog('fix', this)">
+                    🐛 Correções
+                </button>
+                <button type="button" class="version-filter-btn" data-filter="perf" onclick="filterChangelog('perf', this)">
+                    ⚡ Performance
+                </button>
+                <button type="button" class="version-filter-btn" data-filter="security" onclick="filterChangelog('security', this)">
+                    🔒 Segurança / Infra
+                </button>
+            </div>
+
+            <!-- Corpo com Timeline dos Commits -->
+            <div class="version-modal-body">
+                <div class="changelog-timeline" id="changelogTimelineContainer">
+                    {% if app_version and app_version.changelog %}
+                        {% for item in app_version.changelog %}
+                            <div class="changelog-item" data-type="{{ item.type }}">
+                                <div class="changelog-marker" style="background-color: {{ item.badge_color }};"></div>
+                                <div class="changelog-content-card">
+                                    <div class="changelog-card-top">
+                                        <div class="changelog-badges">
+                                            <span class="changelog-type-pill" style="background: {{ item.badge_color }}20; color: {{ item.badge_color }}; border: 1px solid {{ item.badge_color }}40;">
+                                                {{ item.icon }} {{ item.type_label }}
+                                            </span>
+                                            {% if item.scope %}
+                                                <span class="changelog-scope-pill">{{ item.scope }}</span>
+                                            {% endif %}
+                                            {% if item.is_latest %}
+                                                <span class="changelog-latest-pill">Último Commit</span>
+                                            {% endif %}
+                                        </div>
+                                        <div class="changelog-meta-right">
+                                            <span class="changelog-hash-tag">{{ item.hash }}</span>
+                                            <span class="changelog-date">{{ item.date }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="changelog-card-message">
+                                        {{ item.message }}
+                                    </div>
+                                    <div class="changelog-card-footer">
+                                        <span class="changelog-author">👤 {{ item.author }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="changelog-empty-state">
+                            <p>Nenhum registro de alteração disponível no momento.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Rodapé do Modal -->
+            <div class="version-modal-footer">
+                <div class="version-footer-note">
+                    <span>💡 Cada commit realizado no repositório incrementa a versão e atualiza o histórico automaticamente.</span>
+                </div>
+                <button type="button" class="btn btn-primary btn-sm" onclick="closeVersionModal()">Fechar</button>
             </div>
         </div>
     </div>

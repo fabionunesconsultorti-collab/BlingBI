@@ -109,6 +109,22 @@ def create_app(config_class=Config):
 
     app.jinja_env.globals['is_screen_allowed'] = is_screen_allowed
 
+    # Injeta versão e histórico globalmente nos templates Jinja2
+    @app.context_processor
+    def inject_global_vars():
+        from app.core.version import get_version_info
+        return {
+            'app_version': get_version_info(),
+            'current_year': datetime.now().year
+        }
+
+    # Endpoint para consulta do changelog via API / AJAX
+    @app.route('/api/changelog', methods=['GET'])
+    def api_changelog():
+        from flask import jsonify
+        from app.core.version import get_version_info
+        return jsonify(get_version_info())
+
     # Registro de Blueprints de Negócio & BI
     from app.routes.auth import bp as auth_bp
     from app.routes.admin import bp as admin_bp
@@ -153,6 +169,8 @@ def create_app(config_class=Config):
         if (
             endpoint.startswith('auth.') or 
             endpoint == 'static' or 
+            endpoint == 'api_changelog' or
+            path == '/api/changelog' or
             path.startswith('/static/') or 
             path == '/favicon.ico' or
             path == '/integrations/webhook'
