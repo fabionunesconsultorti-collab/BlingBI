@@ -75,7 +75,14 @@
                         </span>
                     </td>
                     <td style="font-family: monospace; font-size: 12px; color: #475569;">{{ p.sku }}</td>
-                    <td style="font-weight: 600; color: #1E293B;">{{ p.name }}</td>
+                    <td style="font-weight: 600; color: #1E293B;">
+                        <div>{{ p.name }}</div>
+                        <div style="display: flex; gap: 6px; align-items: center; margin-top: 2px; font-size: 11px; flex-wrap: wrap;">
+                            {% if p.category %}<span style="color: #64748B;">{{ p.category }}</span>{% endif %}
+                            {% if p.size %}<span class="badge" style="background:#e0f2fe; color:#0369a1; padding:1px 5px; font-size:10px;">Tam: {{ p.size }}</span>{% endif %}
+                            {% if p.color %}<span class="badge" style="background:#faf5ff; color:#7e22ce; padding:1px 5px; font-size:10px;">{{ p.color }}</span>{% endif %}
+                        </div>
+                    </td>
                     <td style="text-align: center; font-weight: 600;">{{ p.qty_sold | number }} un</td>
                     <td style="text-align: right; font-weight: 700; color: #1E293B;">{{ p.revenue | currency }}</td>
                     <td style="text-align: right; color: var(--bling-primary); font-weight: 600;">{{ p.margin | currency }}</td>
@@ -136,7 +143,13 @@
                 {% for p in analytics.zero_sales_products %}
                 <tr>
                     <td style="font-family: monospace; font-size: 12px; color: #64748B;">{{ p.sku }}</td>
-                    <td style="font-weight: 600; color: #1E293B;">{{ p.name }}</td>
+                    <td style="font-weight: 600; color: #1E293B;">
+                        <div>{{ p.name }}</div>
+                        <div style="display: flex; gap: 6px; align-items: center; margin-top: 2px; font-size: 11px; flex-wrap: wrap;">
+                            {% if p.size %}<span class="badge" style="background:#e0f2fe; color:#0369a1; padding:1px 5px; font-size:10px;">Tam: {{ p.size }}</span>{% endif %}
+                            {% if p.color %}<span class="badge" style="background:#faf5ff; color:#7e22ce; padding:1px 5px; font-size:10px;">{{ p.color }}</span>{% endif %}
+                        </div>
+                    </td>
                     <td style="color: #64748B;">{{ p.category }}</td>
                     <td style="text-align: center;">
                         <span class="badge badge-c" style="background: #F1F5F9; color: #64748B; border: 1px solid #CBD5E1;">

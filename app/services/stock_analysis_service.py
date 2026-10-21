@@ -191,6 +191,8 @@ class StockAnalysisService:
                 'sku': p.sku or 'S/ SKU',
                 'name': p.name,
                 'category': p.category or 'Geral',
+                'size': p.size or '',
+                'color': p.color or '',
                 'stock': stk,
                 'min_stock': min_stk,
                 'cost': float(p.cost or 0.0),

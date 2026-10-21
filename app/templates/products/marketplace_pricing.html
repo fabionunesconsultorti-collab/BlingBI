@@ -171,7 +171,8 @@
                         <th style="padding: 12px 14px; width: 36px; text-align: center;">
                             <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll(this)" style="cursor: pointer;">
                         </th>
-                        <th style="padding: 14px 14px;">Produto / SKU</th>
+                        <th style="padding: 14px 14px; max-width: 280px;">Produto / SKU</th>
+                        <th style="padding: 14px 10px; text-align: center; width: 110px;">Saldo Estoque</th>
                         <th style="padding: 14px 12px; text-align: right;">Custo Base</th>
                         <th style="padding: 14px 12px; text-align: right;">Preço Base</th>
                         <th style="padding: 14px 12px; text-align: right;">Preço Atual no Canal</th>
@@ -192,9 +193,18 @@
                             <div style="font-weight: 700; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ p.product_name }}">
                                 {{ p.product_name }}
                             </div>
-                            <div style="font-size: 11px; color: #64748b; font-family: monospace;">
-                                {{ p.sku }}
+                            <div style="display: flex; gap: 6px; align-items: center; font-size: 11px; margin-top: 2px; flex-wrap: wrap;">
+                                <span style="color: #64748b; font-family: monospace;">{{ p.sku }}</span>
+                                {% if p.size %}<span class="badge" style="background:#e0f2fe; color:#0369a1; padding:1px 5px; font-size:10px;">Tam: {{ p.size }}</span>{% endif %}
+                                {% if p.color %}<span style="color: #64748b; font-size: 10.5px;">{{ p.color }}</span>{% endif %}
                             </div>
+                        </td>
+
+                        <!-- Saldo Estoque -->
+                        <td style="padding: 12px 10px; text-align: center;">
+                            <span class="badge {% if p.stock > 10 %}badge-success{% elif p.stock > 0 %}badge-warning{% else %}badge-danger{% endif %}" style="font-size: 11.5px; font-weight: 700; padding: 3px 8px;">
+                                {{ p.stock | number }} un
+                            </span>
                         </td>
 
                         <td style="padding: 12px; text-align: right; font-weight: 600; color: #475569;">
@@ -237,7 +247,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="9" style="text-align: center; padding: 40px; color: #94a3b8;">
+                        <td colspan="10" style="text-align: center; padding: 40px; color: #94a3b8;">
                             Nenhum produto encontrado para precificação.
                         </td>
                     </tr>

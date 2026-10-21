@@ -503,8 +503,9 @@
                     <th>Categoria</th>
                     <th>SKU</th>
                     <th>Produto</th>
-                    <th style="text-align: center;">Peças Vendidas</th>
-                    <th style="text-align: right;">Receita Gerada</th>
+                    <th style="text-align: center; width: 110px;">Saldo Estoque</th>
+                    <th style="text-align: center; width: 110px;">Peças Vendidas</th>
+                    <th style="text-align: right; width: 130px;">Receita Gerada</th>
                 </tr>
             </thead>
             <tbody>
@@ -518,11 +519,16 @@
                     <td style="font-weight: 600; color: #0284c7;">{{ tp.category }}</td>
                     <td style="font-family: monospace; font-size: 12px;">{{ tp.sku }}</td>
                     <td style="font-weight: 600;">{{ tp.product_name }}</td>
-                    <td style="text-align: center; font-weight: 700;">{{ tp.total_quantity | number }}</td>
+                    <td style="text-align: center;">
+                        <span class="badge {% if tp.stock > 10 %}badge-success{% elif tp.stock > 0 %}badge-warning{% else %}badge-danger{% endif %}" style="font-size: 11.5px; font-weight: 700; padding: 3px 8px;">
+                            {{ tp.stock | number }} un
+                        </span>
+                    </td>
+                    <td style="text-align: center; font-weight: 700;">{{ tp.total_quantity | number }} un</td>
                     <td style="text-align: right; font-weight: 700; color: var(--bling-primary);">{{ tp.total_revenue | currency }}</td>
                 </tr>
                 {% else %}
-                <tr><td colspan="6" style="text-align: center; padding: 24px;">Sem vendas por categoria no período.</td></tr>
+                <tr><td colspan="7" style="text-align: center; padding: 24px;">Sem vendas por categoria no período.</td></tr>
                 {% endfor %}
             </tbody>
         </table>

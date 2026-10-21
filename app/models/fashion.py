@@ -77,6 +77,7 @@ class ProductReturn(db.Model):
     order = db.relationship('Order', backref=db.backref('returns', lazy='dynamic'))
 
     def to_dict(self):
+        stock_curr = float(self.product.stock or 0.0) if self.product else 0.0
         return {
             'id': self.id,
             'sku': self.sku,
@@ -85,7 +86,8 @@ class ProductReturn(db.Model):
             'seller_name': self.seller_name,
             'quantity': self.quantity,
             'reason': self.reason,
-            'return_date': self.return_date.strftime('%Y-%m-%d') if self.return_date else None
+            'return_date': self.return_date.strftime('%Y-%m-%d') if self.return_date else None,
+            'stock': stock_curr
         }
 
 

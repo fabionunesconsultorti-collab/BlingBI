@@ -474,19 +474,32 @@ class FashionBiEngine:
                 cust_name = cust.name if cust else 'Cliente Não Informado'
                 sent_dt_str = cord.order_date.strftime('%Y-%m-%d') if cord.order_date else ''
                 
-                # Mapeia itens enviados na consignação
+                # Mapeia itens enviados na consignação com saldo de estoque
+                prods_cat = Product.query.all()
+                prod_sku_map = {p.sku.strip().upper(): p for p in prods_cat if p.sku}
+                prod_name_map = {p.name.strip().upper(): p for p in prods_cat if p.name}
+
                 sent_items = []
                 for item in cord.items:
+                    prod = item.product
+                    if not prod and item.sku:
+                        prod = prod_sku_map.get(item.sku.strip().upper())
+                    if not prod and item.product_name:
+                        prod = prod_name_map.get(item.product_name.strip().upper())
+
+                    stock_val = float(prod.stock or 0.0) if prod else 0.0
+
                     sent_items.append({
                         'id': item.id,
-                        'product_id': item.product_id,
-                        'sku': (item.sku or '').strip().upper(),
+                        'product_id': item.product_id or (prod.id if prod else None),
+                        'sku': (item.sku or (prod.sku if prod else '')).strip().upper(),
                         'name': item.product_name,
-                        'size': item.size or '',
-                        'color': item.color or '',
+                        'size': item.size or (prod.size if prod else ''),
+                        'color': item.color or (prod.color if prod else ''),
                         'quantity': float(item.quantity or 1.0),
                         'unit_price': float(item.unit_price or 0.0),
                         'total_price': float(item.total_price or 0.0),
+                        'stock': stock_val,
                         'invoiced_qty': 0.0,
                         'returned_qty': 0.0,
                         'status': 'Devolvido ao Estoque'
@@ -712,6 +725,16 @@ class FashionBiEngine:
 
         ranked_list = ranked_df.to_dicts()
 
+        # Enriquece ranking com saldo de estoque real do catálogo
+        all_prods = Product.query.all()
+        p_by_sku = {p.sku.strip().upper(): p for p in all_prods if p.sku}
+        p_by_name = {p.name.strip().upper(): p for p in all_prods if p.name}
+        for item in ranked_list:
+            sku = (item.get('sku') or '').strip().upper()
+            pname = (item.get('product_name') or '').strip().upper()
+            p = p_by_sku.get(sku) or p_by_name.get(pname)
+            item['stock'] = float(p.stock or 0.0) if p else 0.0
+
         # Top 8 para gráfico horizontal
         top_chart = ranked_df.sort("total_revenue", descending=True).limit(8)
         chart = {
@@ -763,7 +786,21 @@ class FashionBiEngine:
         if not returns:
             return empty_res
 
-        returns_data = [r.to_dict() for r in returns]
+        returns_data = []
+        all_prods_ret = Product.query.all()
+        ret_by_sku = {p.sku.strip().upper(): p for p in all_prods_ret if p.sku}
+        ret_by_name = {p.name.strip().upper(): p for p in all_prods_ret if p.name}
+
+        for r in returns:
+            rd = r.to_dict()
+            if not rd.get('stock') or rd.get('stock') == 0.0:
+                sku_clean = (r.sku or '').strip().upper()
+                name_clean = (r.product_name or '').strip().upper()
+                p_match = ret_by_sku.get(sku_clean) or ret_by_name.get(name_clean)
+                if p_match:
+                    rd['stock'] = float(p_match.stock or 0.0)
+            returns_data.append(rd)
+
         ret_df = pl.DataFrame(returns_data)
 
         total_pieces_returned = float(ret_df["quantity"].sum())

@@ -275,6 +275,10 @@ class PricingEngine:
         calc['product_id'] = product.id
         calc['product_name'] = product.name
         calc['sku'] = product.sku or ''
+        calc['stock'] = float(product.stock or 0.0)
+        calc['category'] = product.category or 'Geral'
+        calc['size'] = product.size or ''
+        calc['color'] = product.color or ''
         calc['base_price'] = float(product.price or 0.0)
         calc['channel'] = rule.channel
         calc['channel_display_name'] = rule.channel_display_name or rule.channel

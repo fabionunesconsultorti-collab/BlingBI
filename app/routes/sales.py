@@ -4,6 +4,7 @@ from app.services.standard_reports import StandardReportsEngine
 from app.services.fashion_bi import FashionBiEngine
 from app.services.exporter import BiExporter
 from app.models.order import Order
+from app.models.product import Product
 from app.core.feature_registry import requires_feature
 
 bp = Blueprint('sales', __name__, url_prefix='/sales')
@@ -41,19 +42,37 @@ def order_detail(order_id):
     """Retorna os dados detalhados de um pedido para a modal e impressão de cupom térmico 78mm."""
     order = Order.query.get_or_404(order_id)
 
+    # Pré-carrega mapa de produtos para resolução ágil e precisa de saldos
+    prods = Product.query.all()
+    prod_map_id = {p.id: p for p in prods}
+    prod_map_bling = {p.bling_id: p for p in prods if p.bling_id}
+    prod_map_sku = {p.sku.strip().upper(): p for p in prods if p.sku}
+    prod_map_name = {p.name.strip().upper(): p for p in prods if p.name}
+
     items_list = []
     subtotal_items = 0.0
     for item in order.items:
+        # Resolução do produto em cascata para obter saldo em estoque atualizado
+        prod = prod_map_id.get(item.product_id) or prod_map_bling.get(item.product_id)
+        if not prod and item.sku:
+            prod = prod_map_sku.get(item.sku.strip().upper())
+        if not prod and item.product_name:
+            prod = prod_map_name.get(item.product_name.strip().upper())
+
+        stock_val = float(prod.stock or 0.0) if prod else 0.0
+
         items_list.append({
             'id': item.id,
-            'sku': item.sku or 'N/A',
+            'product_id': item.product_id or (prod.id if prod else None),
+            'sku': item.sku or (prod.sku if prod else 'N/A'),
             'product_name': item.product_name,
-            'size': item.size or '',
-            'color': item.color or '',
-            'style': item.style or '',
+            'size': item.size or (prod.size if prod else ''),
+            'color': item.color or (prod.color if prod else ''),
+            'style': item.style or (prod.style if prod else ''),
             'quantity': float(item.quantity or 1),
             'unit_price': float(item.unit_price or 0.0),
-            'total_price': float(item.total_price or 0.0)
+            'total_price': float(item.total_price or 0.0),
+            'stock': stock_val
         })
         subtotal_items += float(item.total_price or 0.0)
 

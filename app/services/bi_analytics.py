@@ -106,21 +106,47 @@ class BiAnalytics:
         channels_labels = [c[0] for c in channel_data]
         channels_values = [round(float(c[1]), 2) for c in channel_data]
 
-        # 6. Top 5 Produtos
+        # 6. Top 5 Produtos com SKU e Saldo de Estoque
         top_products = db.session.query(
             OrderItem.product_name,
+            OrderItem.sku,
+            OrderItem.product_id,
             func.sum(OrderItem.quantity).label('qty_sold'),
             func.sum(OrderItem.total_price).label('revenue_sold')
         ).join(Order, OrderItem.order_id == Order.id).filter(
             Order.order_date >= start_date,
             Order.order_date <= end_date,
             Order.status == 'Atendido'
-        ).group_by(OrderItem.product_name).order_by(desc('revenue_sold')).limit(5).all()
+        ).group_by(OrderItem.product_name, OrderItem.sku, OrderItem.product_id).order_by(desc('revenue_sold')).limit(5).all()
 
-        top_prod_list = [
-            {'name': p[0], 'qty': int(p[1]), 'revenue': float(p[2])}
-            for p in top_products
-        ]
+        prods_all = Product.query.all()
+        prod_by_id = {p.id: p for p in prods_all}
+        prod_by_bling = {p.bling_id: p for p in prods_all if p.bling_id}
+        prod_by_sku = {p.sku.strip().upper(): p for p in prods_all if p.sku}
+        prod_by_name = {p.name.strip().upper(): p for p in prods_all if p.name}
+
+        top_prod_list = []
+        for p in top_products:
+            p_name = p[0]
+            p_sku = (p[1] or '').strip().upper()
+            p_id = p[2]
+
+            p_match = prod_by_id.get(p_id) or prod_by_bling.get(p_id)
+            if not p_match and p_sku:
+                p_match = prod_by_sku.get(p_sku)
+            if not p_match and p_name:
+                p_match = prod_by_name.get(p_name.strip().upper())
+
+            stk_val = float(p_match.stock or 0.0) if p_match else 0.0
+            resolved_sku = p_match.sku if p_match and p_match.sku else (p[1] or '')
+
+            top_prod_list.append({
+                'name': p_name,
+                'sku': resolved_sku,
+                'stock': stk_val,
+                'qty': int(p[3]),
+                'revenue': float(p[4])
+            })
 
         # 7. Pedidos Recentes
         recent_orders = Order.query.order_by(desc(Order.order_date), desc(Order.id)).limit(6).all()
@@ -269,6 +295,8 @@ class BiAnalytics:
                         'name': prod_db.name,
                         'sku': prod_db.sku or item.sku or 'N/A',
                         'category': prod_db.category or 'Geral',
+                        'size': prod_db.size or '',
+                        'color': prod_db.color or '',
                         'qty_sold': 0.0,
                         'revenue': 0.0,
                         'cost': 0.0,
@@ -287,6 +315,8 @@ class BiAnalytics:
                     'name': item.product_name or 'Item sem cadastro',
                     'sku': item.sku or 'N/A',
                     'category': 'Geral',
+                    'size': '',
+                    'color': '',
                     'qty_sold': qty,
                     'revenue': rev,
                     'cost': cost,
@@ -332,6 +362,8 @@ class BiAnalytics:
                     'name': p.name,
                     'sku': p.sku or 'N/A',
                     'category': p.category or 'Geral',
+                    'size': p.size or '',
+                    'color': p.color or '',
                     'qty_sold': 0.0,
                     'revenue': 0.0,
                     'cost': 0.0,

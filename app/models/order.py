@@ -57,3 +57,21 @@ class OrderItem(db.Model):
     unit_price = db.Column(db.Float, default=0.0)
     cost_price = db.Column(db.Float, default=0.0)
     total_price = db.Column(db.Float, default=0.0)
+
+    def to_dict(self):
+        stock_curr = float(self.product.stock or 0.0) if self.product else 0.0
+        return {
+            'id': self.id,
+            'order_id': self.order_id,
+            'product_id': self.product_id,
+            'product_name': self.product_name,
+            'sku': self.sku or 'N/A',
+            'size': self.size or '',
+            'color': self.color or '',
+            'style': self.style or '',
+            'quantity': float(self.quantity or 1.0),
+            'unit_price': float(self.unit_price or 0.0),
+            'cost_price': float(self.cost_price or 0.0),
+            'total_price': float(self.total_price or 0.0),
+            'stock': stock_curr
+        }

@@ -214,6 +214,7 @@
                         <th style="padding: 8px 10px; font-size: 11px; color: #475569;">SKU</th>
                         <th style="padding: 8px 10px; font-size: 11px; color: #475569;">Produto</th>
                         <th style="padding: 8px 10px; font-size: 11px; color: #475569; text-align: center;">Tam</th>
+                        <th style="padding: 8px 10px; font-size: 11px; color: #475569; text-align: center;">Saldo Estoque</th>
                         <th style="padding: 8px 10px; font-size: 11px; color: #475569; text-align: center;">Enviado</th>
                         <th style="padding: 8px 10px; font-size: 11px; color: #475569; text-align: right;">Preço Un.</th>
                         <th style="padding: 8px 10px; font-size: 11px; color: #475569; text-align: center;">Resultado</th>
@@ -405,6 +406,11 @@ function openBagItemsModal(idx) {
                     <td style="padding: 8px 10px; font-family: monospace; font-size: 11px; color: #64748B;">${it.sku || '-'}</td>
                     <td style="padding: 8px 10px; font-weight: 600; color: #1E293B;">${it.name}</td>
                     <td style="padding: 8px 10px; text-align: center;"><span class="badge" style="background:#e0f2fe; color:#0369a1; padding:2px 6px; font-size:10px;">${it.size || '-'}</span></td>
+                    <td style="padding: 8px 10px; text-align: center;">
+                        <span class="badge ${it.stock > 10 ? 'badge-success' : (it.stock > 0 ? 'badge-warning' : 'badge-danger')}" style="font-size: 10.5px; font-weight: 700; padding: 2px 6px;">
+                            ${Number(it.stock || 0).toLocaleString('pt-BR')} un
+                        </span>
+                    </td>
                     <td style="padding: 8px 10px; text-align: center; font-weight: 700;">${it.quantity}</td>
                     <td style="padding: 8px 10px; text-align: right; font-family: monospace;">${formatCurrencyBRL(it.unit_price)}</td>
                     <td style="padding: 8px 10px; text-align: center;">
@@ -416,7 +422,7 @@ function openBagItemsModal(idx) {
             `;
         }).join('');
     } else {
-        tbody.innerHTML = '<tr><td colspan="6" style="padding: 16px; text-align: center; color: #94A3B8;">Sem detalhamento de itens disponível.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="padding: 16px; text-align: center; color: #94A3B8;">Sem detalhamento de itens disponível.</td></tr>';
     }
 
     const backdrop = document.getElementById('bagItemsModalBackdrop');

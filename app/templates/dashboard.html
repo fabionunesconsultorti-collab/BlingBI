@@ -119,21 +119,32 @@
             <table class="bling-table">
                 <thead>
                     <tr>
-                        <th>Produto</th>
-                        <th style="text-align: center;">Qtd</th>
-                        <th style="text-align: right;">Total Vendido</th>
+                        <th>Produto / SKU</th>
+                        <th style="text-align: center; width: 110px;">Saldo Estoque</th>
+                        <th style="text-align: center; width: 90px;">Vendidas</th>
+                        <th style="text-align: right; width: 130px;">Total Vendido</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for p in metrics.top_products %}
                     <tr>
-                        <td style="font-weight: 500;">{{ p.name }}</td>
-                        <td style="text-align: center;">{{ p.qty | number }} un</td>
-                        <td style="text-align: right; font-weight: 600; color: var(--bling-primary);">{{ p.revenue | currency }}</td>
+                        <td>
+                            <div style="font-weight: 600; color: #0f172a;">{{ p.name }}</div>
+                            {% if p.sku %}
+                            <div style="font-size: 11px; color: var(--text-muted); font-family: monospace;">SKU: {{ p.sku }}</div>
+                            {% endif %}
+                        </td>
+                        <td style="text-align: center;">
+                            <span class="badge {% if p.stock > 10 %}badge-success{% elif p.stock > 0 %}badge-warning{% else %}badge-danger{% endif %}" style="font-size: 11.5px; font-weight: 700; padding: 3px 8px;">
+                                {{ p.stock | number }} un
+                            </span>
+                        </td>
+                        <td style="text-align: center; font-weight: 600;">{{ p.qty | number }} un</td>
+                        <td style="text-align: right; font-weight: 700; color: var(--bling-primary);">{{ p.revenue | currency }}</td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="3" style="text-align: center; color: var(--text-muted); padding: 24px;">Nenhum produto vendido no período.</td>
+                        <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 24px;">Nenhum produto vendido no período.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
