@@ -78,8 +78,8 @@
                     <td style="text-align: center;">{{ p.qty_sold | number }} un</td>
                     <td style="text-align: right; font-weight: 700;">{{ p.revenue | currency }}</td>
                     <td style="text-align: right; color: var(--bling-primary); font-weight: 600;">{{ p.margin | currency }}</td>
-                    <td style="text-align: center; font-weight: 600;">{{ "%.1f"|format(p.margin_pct) }}%</td>
-                    <td style="text-align: center; color: var(--text-muted); font-weight: 600;">{{ "%.1f"|format(p.accumulated_pct) }}%</td>
+                    <td style="text-align: center; font-weight: 600;">{{ p.margin_pct | percent }}</td>
+                    <td style="text-align: center; color: var(--text-muted); font-weight: 600;">{{ p.accumulated_pct | percent }}</td>
                     <td style="text-align: center;">
                         <span style="font-weight: 700; color: {% if p.stock <= 5 %}#dc2626{% else %}#1e293b{% endif %};">
                             {{ p.stock | number }} un

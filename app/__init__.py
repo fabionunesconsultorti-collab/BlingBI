@@ -1,3 +1,4 @@
+from datetime import datetime, date
 import os
 from flask import Flask, request, redirect, url_for, session, flash
 from sqlalchemy import event
@@ -26,12 +27,58 @@ def format_currency(value):
     except (ValueError, TypeError):
         return "R$ 0,00"
 
-def format_number(value):
+def format_number(value, decimals=0):
     try:
         val = float(value or 0.0)
+        if decimals > 0:
+            return f"{val:,.{decimals}f}".replace(',', 'X').replace('.', ',').replace('X', '.')
         return f"{val:,.0f}".replace(',', '.')
     except (ValueError, TypeError):
         return "0"
+
+def format_date(value, fmt='%d/%m/%Y'):
+    if not value:
+        return '-'
+    if isinstance(value, (datetime, date)):
+        return value.strftime(fmt)
+    if isinstance(value, str):
+        v = value.strip()
+        if not v or v in ['None', 'null', 'nan']:
+            return '-'
+        if len(v) >= 10 and v[2] == '/' and v[5] == '/':
+            return v[:10]
+        try:
+            return datetime.strptime(v[:10], '%Y-%m-%d').strftime(fmt)
+        except Exception:
+            return v
+    return str(value)
+
+def format_datetime(value, fmt='%d/%m/%Y %H:%M'):
+    if not value:
+        return '-'
+    if isinstance(value, (datetime, date)):
+        return value.strftime(fmt)
+    if isinstance(value, str):
+        v = value.strip()
+        if not v or v in ['None', 'null', 'nan']:
+            return '-'
+        try:
+            if 'T' in v:
+                return datetime.fromisoformat(v).strftime(fmt)
+            elif ' ' in v:
+                return datetime.strptime(v[:19], '%Y-%m-%d %H:%M:%S').strftime(fmt)
+            return datetime.strptime(v[:10], '%Y-%m-%d').strftime('%d/%m/%Y')
+        except Exception:
+            return v
+    return str(value)
+
+def format_percent(value, decimals=1):
+    try:
+        val = float(value or 0.0)
+        formatted = f"{val:.{decimals}f}".replace('.', ',')
+        return f"{formatted}%"
+    except (ValueError, TypeError):
+        return "0,0%"
 
 def create_app(config_class=Config):
     app = Flask(__name__)
@@ -43,6 +90,10 @@ def create_app(config_class=Config):
     # Filtros customizados do Jinja2
     app.jinja_env.filters['currency'] = format_currency
     app.jinja_env.filters['number'] = format_number
+    app.jinja_env.filters['date'] = format_date
+    app.jinja_env.filters['date_br'] = format_date
+    app.jinja_env.filters['datetime'] = format_datetime
+    app.jinja_env.filters['percent'] = format_percent
 
     # Funções globais do Jinja2 para ativação/desativação dinâmica de abas e gráficos
     from app.core.feature_registry import FeatureRegistry
@@ -138,7 +189,7 @@ def create_app(config_class=Config):
 
         # 4. Administrador Geral (fora do modo impersonate) tem livre trânsito
         if session.get('is_admin') and not session.get('impersonate_user_id'):
-            if endpoint == 'dashboard.index' or path == '/':
+            if (endpoint == 'dashboard.index' or path == '/') and not session.get('allowed_screens'):
                 return redirect(url_for('admin.index'))
             return None
 

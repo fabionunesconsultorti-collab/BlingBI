@@ -99,12 +99,12 @@
     <div class="kpi-card">
         <span class="kpi-title">Total de Pedidos</span>
         <div class="kpi-value">{{ analytics.total_orders | number }}</div>
-        <div class="kpi-subtext">Em todos os status</div>
+        <div class="kpi-subtext">{{ analytics.attended_count | default(analytics.total_orders) }} atendidos no período</div>
     </div>
     <div class="kpi-card">
         <span class="kpi-title">Ticket Médio</span>
         <div class="kpi-value">{{ analytics.avg_ticket | currency }}</div>
-        <div class="kpi-subtext">Média por pedido</div>
+        <div class="kpi-subtext">Média por pedido atendido</div>
     </div>
     <div class="kpi-card">
         <span class="kpi-title">Descontos Concedidos</span>
@@ -164,7 +164,7 @@
                             #{{ o.number }}
                         </button>
                     </td>
-                    <td>{{ o.order_date }}</td>
+                    <td>{{ o.order_date | date_br }}</td>
                     <td>
                         <div style="font-weight: 600; color: var(--text-dark);">{{ o.customer_name }}</div>
                         {% if o.customer_document %}

@@ -168,10 +168,12 @@ class BiAnalytics:
         orders = query.order_by(desc(Order.order_date)).all()
 
         total_orders = len(orders)
-        total_gross = sum(o.total for o in orders if o.status == 'Atendido')
-        total_discounts = sum(o.discount for o in orders if o.status == 'Atendido')
-        total_shipping = sum(o.shipping for o in orders if o.status == 'Atendido')
-        avg_ticket = (total_gross / len([o for o in orders if o.status == 'Atendido'])) if total_gross > 0 else 0.0
+        attended_orders = [o for o in orders if o.status == 'Atendido']
+        attended_count = len(attended_orders)
+        total_gross = sum(o.total for o in attended_orders)
+        total_discounts = sum(o.discount for o in attended_orders)
+        total_shipping = sum(o.shipping for o in attended_orders)
+        avg_ticket = (total_gross / attended_count) if attended_count > 0 else 0.0
 
         # Status count
         status_counts = {}
@@ -196,6 +198,7 @@ class BiAnalytics:
         return {
             'orders': [o.to_dict() for o in orders],
             'total_orders': total_orders,
+            'attended_count': attended_count,
             'total_gross': total_gross,
             'total_discounts': total_discounts,
             'total_shipping': total_shipping,
@@ -408,16 +411,43 @@ class BiAnalytics:
         ).scalar()
 
         net_sales = float(gross_sales - canceled_sales)
-        cpv_estimated = net_sales * 0.52 # Custo médio de mercadorias vendidas ~52%
-        gross_profit = net_sales - cpv_estimated
-        operating_expenses = float(pay_paid + pay_pending) * 0.45 # Despesas fixas e operacionais
+
+        # CMV Real apurado a partir dos itens dos pedidos atendidos
+        real_cmv = db.session.query(
+            func.coalesce(func.sum(OrderItem.quantity * OrderItem.cost_price), 0.0)
+        ).join(
+            Order, Order.id == OrderItem.order_id
+        ).filter(
+            Order.order_date >= start_date,
+            Order.order_date <= end_date,
+            Order.status == 'Atendido'
+        ).scalar() or 0.0
+
+        cpv_real = float(real_cmv)
+        # Fallback apenas se não houver custos cadastrados e houver vendas
+        if cpv_real == 0.0 and net_sales > 0:
+            cpv_real = net_sales * 0.52
+
+        gross_profit = net_sales - cpv_real
+
+        # Despesas Operacionais Reais (Contas a Pagar do período não canceladas)
+        real_expenses = db.session.query(
+            func.coalesce(func.sum(FinancialEntry.amount), 0.0)
+        ).filter(
+            FinancialEntry.entry_type == 'PAGAR',
+            FinancialEntry.due_date >= start_date,
+            FinancialEntry.due_date <= end_date,
+            FinancialEntry.status != 'Cancelado'
+        ).scalar() or 0.0
+
+        operating_expenses = float(real_expenses)
         operating_result = gross_profit - operating_expenses
 
         dre = {
             'gross_revenue': float(gross_sales),
             'deductions': float(canceled_sales),
             'net_revenue': net_sales,
-            'cpv': cpv_estimated,
+            'cpv': cpv_real,
             'gross_profit': gross_profit,
             'operating_expenses': operating_expenses,
             'net_profit': operating_result,

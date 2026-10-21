@@ -50,7 +50,7 @@
         <div class="card" style="padding: 16px;">
             <div style="font-size: 12px; color: #64748B; font-weight: 600;">Lucro Bruto (Margem)</div>
             <div style="font-size: 22px; font-weight: 800; color: #008B54; margin-top: 4px;">{{ summary.gross_profit|currency }}</div>
-            <div style="font-size: 11px; color: #008B54; margin-top: 2px; font-weight: 700;">Margem Bruta: {{ summary.gross_margin_pct }}%</div>
+            <div style="font-size: 11px; color: #008B54; margin-top: 2px; font-weight: 700;">Margem Bruta: {{ summary.gross_margin_pct | percent }}</div>
         </div>
         <div class="card" style="padding: 16px;">
             <div style="font-size: 12px; color: #64748B; font-weight: 600;">Despesas Operacionais Fixas</div>
@@ -63,7 +63,7 @@
                 {{ summary.net_profit|currency }}
             </div>
             <div style="font-size: 11px; color: {% if summary.net_profit >= 0 %}#10B981{% else %}#EF4444{% endif %}; margin-top: 2px; font-weight: 700;">
-                Margem Líquida: {{ summary.net_margin_pct }}%
+                Margem Líquida: {{ summary.net_margin_pct | percent }}
             </div>
         </div>
     </div>
@@ -106,7 +106,7 @@
                         <td style="padding: 10px 16px; text-align: center;">
                             {% if l.margin_pct is defined %}
                             <span class="badge" style="background: {% if l.margin_pct >= 0 %}#D1FAE5; color: #065F46;{% else %}#FEE2E2; color: #991B1B;{% endif %} padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 700;">
-                                {{ l.margin_pct }}%
+                                {{ l.margin_pct | percent }}
                             </span>
                             {% else %}
                             <span style="color: #CBD5E1;">-</span>

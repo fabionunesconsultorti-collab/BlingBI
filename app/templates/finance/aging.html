@@ -36,7 +36,7 @@
         <div class="card" style="padding: 18px; border-left: 4px solid #0EA5E9;">
             <div style="font-size: 11px; font-weight: 700; color: #64748B; text-transform: uppercase;">Total em Aberto</div>
             <div style="font-size: 24px; font-weight: 800; color: #1E293B; margin-top: 4px;">{{ report_data.summary.total_open | currency }}</div>
-            <div style="font-size: 12px; color: #64748B; margin-top: 2px;">{{ report_data.summary.total_titles }} títulos pendentes</div>
+            <div style="font-size: 12px; color: #64748B; margin-top: 2px;">{{ report_data.summary.total_titles | number }} títulos pendentes</div>
         </div>
 
         <div class="card" style="padding: 18px; border-left: 4px solid #10B981;">
@@ -54,7 +54,7 @@
         <div class="card" style="padding: 18px; border-left: 4px solid #F59E0B;">
             <div style="font-size: 11px; font-weight: 700; color: #64748B; text-transform: uppercase;">Taxa de Inadimplência</div>
             <div style="font-size: 24px; font-weight: 800; color: {% if report_data.summary.default_rate > 10 %}#DC2626{% else %}#F59E0B{% endif %}; margin-top: 4px;">
-                {{ report_data.summary.default_rate }}%
+                {{ report_data.summary.default_rate | percent }}
             </div>
             <div style="font-size: 12px; color: #64748B; margin-top: 2px;">Vencidos / Carteira Aberta</div>
         </div>
@@ -80,7 +80,7 @@
                 <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: #F8FAFC; border-radius: 8px; border-left: 4px solid {{ b.color }};">
                     <div>
                         <div style="font-weight: 700; font-size: 13px; color: #1E293B;">{{ b.label }}</div>
-                        <div style="font-size: 11px; color: #64748B;">{{ b.count }} títulos nesta faixa</div>
+                        <div style="font-size: 11px; color: #64748B;">{{ b.count | number }} títulos nesta faixa</div>
                     </div>
                     <div style="text-align: right;">
                         <span style="font-size: 16px; font-weight: 800; font-family: monospace; color: {{ b.color }};">{{ b.amount | currency }}</span>
@@ -111,10 +111,10 @@
                     {% for d in report_data.top_debtors %}
                     <tr style="border-bottom: 1px solid #F1F5F9; font-size: 13px;">
                         <td style="padding: 12px 14px; font-weight: 600; color: #1E293B;">{{ d.name }}</td>
-                        <td style="padding: 12px 14px; text-align: center; color: #64748B;">{{ d.titles_count }}</td>
+                        <td style="padding: 12px 14px; text-align: center; color: #64748B;">{{ d.titles_count | number }}</td>
                         <td style="padding: 12px 14px; text-align: center;">
                             <span class="badge" style="background: {% if d.max_days_overdue > 60 %}#FEE2E2; color: #991B1B;{% elif d.max_days_overdue > 30 %}#FFEDD5; color: #C2410C;{% else %}#FEF3C7; color: #92400E;{% endif %}; font-weight: 700; padding: 2px 8px; border-radius: 4px; font-size: 11px;">
-                                {{ d.max_days_overdue }} dias
+                                {{ d.max_days_overdue | number }} dias
                             </span>
                         </td>
                         <td style="padding: 12px 14px; text-align: right; font-family: monospace; color: #64748B;">{{ d.total_due | currency }}</td>
@@ -134,7 +134,7 @@
     <div class="card" style="padding: 20px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
             <h3 style="font-size: 16px; font-weight: 700; color: #1E293B;">Títulos Detalhados em Carteira</h3>
-            <span style="font-size: 12px; color: #64748B;">Exibindo os primeiros {{ report_data.entries|length }} títulos</span>
+            <span style="font-size: 12px; color: #64748B;">Exibindo os primeiros {{ report_data.entries|length | number }} títulos</span>
         </div>
 
         <div style="overflow-x: auto;">
@@ -154,7 +154,7 @@
                     <tr style="border-bottom: 1px solid #F1F5F9; font-size: 13px;">
                         <td style="padding: 12px 14px; font-weight: 600; color: #1E293B;">{{ item.entity_name }}</td>
                         <td style="padding: 12px 14px; color: #64748B;">{{ item.description }}</td>
-                        <td style="padding: 12px 14px; white-space: nowrap; color: #475569;">{{ item.due_date }}</td>
+                        <td style="padding: 12px 14px; white-space: nowrap; color: #475569;">{{ item.due_date | date_br }}</td>
                         <td style="padding: 12px 14px; text-align: center;">
                             {% if item.days_diff > 0 %}
                             <span style="color: #DC2626; font-weight: 700;">+{{ item.days_diff }}d</span>

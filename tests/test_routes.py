@@ -19,11 +19,21 @@ def test_customers_route(client):
     assert res.status_code == 200
     assert any(term in res.data for term in [b'Clientes e CRM', b'Clientes &amp; CRM', b'Clientes & CRM'])
 
+    # Test all tabs in Customer & CRM Sector
+    for endpoint in ['/customers/rfm', '/customers/abc', '/customers/profiles', '/customers/birthdays', '/customers/nps']:
+        sub_res = client.get(endpoint)
+        assert sub_res.status_code == 200, f"Failed rendering customer endpoint {endpoint}"
+
 
 def test_finance_route(client):
     res = client.get('/finance/')
     assert res.status_code == 200
     assert b'DRE' in res.data
+
+    # Test all tabs in Finance & DRE Sector
+    for endpoint in ['/finance/dre', '/finance/cash-flow', '/finance/aging', '/finance/cash-statement']:
+        sub_res = client.get(endpoint)
+        assert sub_res.status_code == 200, f"Failed rendering finance endpoint {endpoint}"
 
 def test_integrations_route(client):
     res = client.get('/integrations/')
@@ -79,4 +89,13 @@ def test_tunnel_endpoints(client, monkeypatch):
     assert res.status_code == 200
     data = res.get_json()
     assert data['success'] is True
+
+def test_fashion_routes(client):
+    res = client.get('/fashion/')
+    assert res.status_code == 200
+    assert any(term in res.data for term in [b'Moda', b'Fashion', b'Varejo'])
+
+    for tab in ['block1', 'block2', 'block3', 'block4']:
+        sub_res = client.get(f'/fashion/?tab={tab}')
+        assert sub_res.status_code == 200, f"Failed rendering fashion tab {tab}"
 

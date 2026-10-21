@@ -42,27 +42,27 @@
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.1);">
             <div style="background: rgba(255,255,255,0.06); padding: 10px 14px; border-radius: 8px;">
                 <span style="font-size: 11px; color: #94a3b8; display: block;">Comissão do Canal</span>
-                <strong style="font-size: 17px; color: #38bdf8;">{{ active_rule.commission_percent }}%</strong>
+                <strong style="font-size: 17px; color: #38bdf8;">{{ active_rule.commission_percent | percent }}</strong>
             </div>
             <div style="background: rgba(255,255,255,0.06); padding: 10px 14px; border-radius: 8px;">
-                <span style="font-size: 11px; color: #94a3b8; display: block;">Taxa Fixa (&lt; R$ {{ active_rule.fixed_fee_threshold | int }})</span>
-                <strong style="font-size: 17px; color: #fbbf24;">R$ {{ '%.2f' | format(active_rule.fixed_fee) }}</strong>
+                <span style="font-size: 11px; color: #94a3b8; display: block;">Taxa Fixa (&lt; {{ active_rule.fixed_fee_threshold | currency }})</span>
+                <strong style="font-size: 17px; color: #fbbf24;">{{ active_rule.fixed_fee | currency }}</strong>
             </div>
             <div style="background: rgba(255,255,255,0.06); padding: 10px 14px; border-radius: 8px;">
-                <span style="font-size: 11px; color: #94a3b8; display: block;">Frete Seller (&ge; R$ {{ active_rule.free_shipping_threshold | int }})</span>
-                <strong style="font-size: 17px; color: #f472b6;">R$ {{ '%.2f' | format(active_rule.default_shipping_cost) }}</strong>
+                <span style="font-size: 11px; color: #94a3b8; display: block;">Frete Seller (&ge; {{ active_rule.free_shipping_threshold | currency }})</span>
+                <strong style="font-size: 17px; color: #f472b6;">{{ active_rule.default_shipping_cost | currency }}</strong>
             </div>
             <div style="background: rgba(255,255,255,0.06); padding: 10px 14px; border-radius: 8px;">
                 <span style="font-size: 11px; color: #94a3b8; display: block;">Imposto DAS</span>
-                <strong style="font-size: 17px; color: #a78bfa;">{{ active_rule.tax_percent }}%</strong>
+                <strong style="font-size: 17px; color: #a78bfa;">{{ active_rule.tax_percent | percent }}</strong>
             </div>
             <div style="background: rgba(255,255,255,0.06); padding: 10px 14px; border-radius: 8px;">
                 <span style="font-size: 11px; color: #94a3b8; display: block;">Despesas Operacionais</span>
-                <strong style="font-size: 17px; color: #cbd5e1;">{{ active_rule.operational_cost_percent }}%</strong>
+                <strong style="font-size: 17px; color: #cbd5e1;">{{ active_rule.operational_cost_percent | percent }}</strong>
             </div>
             <div style="background: rgba(255,255,255,0.06); padding: 10px 14px; border-radius: 8px;">
                 <span style="font-size: 11px; color: #94a3b8; display: block;">Margem Líquida Alvo</span>
-                <strong style="font-size: 17px; color: #34d399;">{{ active_rule.target_margin_percent }}%</strong>
+                <strong style="font-size: 17px; color: #34d399;">{{ active_rule.target_margin_percent | percent }}</strong>
             </div>
         </div>
     </div>
@@ -223,7 +223,7 @@
 
                         <td style="padding: 12px; text-align: center;">
                             <span style="background: #dcfce7; color: #166534; padding: 3px 8px; border-radius: 6px; font-weight: 800; font-size: 11.5px;">
-                                {{ p.margin_percent }}%
+                                {{ p.margin_percent | percent }}
                             </span>
                         </td>
 

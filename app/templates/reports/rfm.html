@@ -42,22 +42,22 @@
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px;">
         <div class="card" style="padding: 16px;">
             <div style="font-size: 12px; color: #64748B; font-weight: 600;">Total de Clientes Analisados</div>
-            <div style="font-size: 22px; font-weight: 800; color: #1E293B; margin-top: 4px;">{{ summary.total_customers }} clientes</div>
+            <div style="font-size: 22px; font-weight: 800; color: #1E293B; margin-top: 4px;">{{ summary.total_customers | number }} clientes</div>
             <div style="font-size: 11px; color: #10B981; margin-top: 2px;">Com compras atendidas</div>
         </div>
         <div class="card" style="padding: 16px;">
             <div style="font-size: 12px; color: #8B5CF6; font-weight: 700;">👑 Campeões (VIPs)</div>
-            <div style="font-size: 22px; font-weight: 800; color: #8B5CF6; margin-top: 4px;">{{ summary.champions_count }} clientes</div>
+            <div style="font-size: 22px; font-weight: 800; color: #8B5CF6; margin-top: 4px;">{{ summary.champions_count | number }} clientes</div>
             <div style="font-size: 11px; color: #64748B; margin-top: 2px;">Alta frequência e alto ticket</div>
         </div>
         <div class="card" style="padding: 16px;">
             <div style="font-size: 12px; color: #3B82F6; font-weight: 700;">💎 Clientes Leais</div>
-            <div style="font-size: 22px; font-weight: 800; color: #3B82F6; margin-top: 4px;">{{ summary.loyal_count }} clientes</div>
+            <div style="font-size: 22px; font-weight: 800; color: #3B82F6; margin-top: 4px;">{{ summary.loyal_count | number }} clientes</div>
             <div style="font-size: 11px; color: #64748B; margin-top: 2px;">Recorrência consistente</div>
         </div>
         <div class="card" style="padding: 16px;">
             <div style="font-size: 12px; color: #F59E0B; font-weight: 700;">⚠️ Em Risco de Churn</div>
-            <div style="font-size: 22px; font-weight: 800; color: #F59E0B; margin-top: 4px;">{{ summary.at_risk_count }} clientes</div>
+            <div style="font-size: 22px; font-weight: 800; color: #F59E0B; margin-top: 4px;">{{ summary.at_risk_count | number }} clientes</div>
             <div style="font-size: 11px; color: #64748B; margin-top: 2px;">Sem compras > 60 dias</div>
         </div>
         <div class="card" style="padding: 16px;">
@@ -87,7 +87,7 @@
     <div class="card" style="padding: 20px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
             <h3 style="font-size: 16px; font-weight: 700; color: #1E293B;">Segmentação RFM Analítica & Recomendações de Ação</h3>
-            <span style="font-size: 12px; color: #64748B;">Total exibido: {{ customers|length }}</span>
+            <span style="font-size: 12px; color: #64748B;">Total exibido: {{ customers|length | number }}</span>
         </div>
 
         <div style="overflow-x: auto;">
@@ -122,11 +122,11 @@
                             {% endif %}
                         </td>
                         <td style="padding: 12px 14px; color: #475569; font-size: 12.5px;">{{ c.city }} - {{ c.state }}</td>
-                        <td style="padding: 12px 14px; text-align: center; color: #475569; font-size: 12.5px;">{{ c.last_order_date }}</td>
+                        <td style="padding: 12px 14px; text-align: center; color: #475569; font-size: 12.5px;">{{ c.last_order_date | date_br }}</td>
                         <td style="padding: 12px 14px; text-align: center; font-weight: 600; color: {% if c.recency_days > 90 %}#EF4444{% elif c.recency_days > 60 %}#F59E0B{% else %}#10B981{% endif %};">
-                            {{ c.recency_days }}d
+                            {{ c.recency_days | number }}d
                         </td>
-                        <td style="padding: 12px 14px; text-align: center; font-weight: 700; color: #1E293B;">{{ c.frequency }}</td>
+                        <td style="padding: 12px 14px; text-align: center; font-weight: 700; color: #1E293B;">{{ c.frequency | number }}</td>
                         <td style="padding: 12px 14px; text-align: right; font-weight: 700; color: #008B54;">{{ c.monetary|currency }}</td>
                         <td style="padding: 12px 14px; text-align: center; font-family: monospace; font-weight: 700; color: #1E293B;">{{ c.rfm_score }}</td>
                         <td style="padding: 12px 14px; text-align: center;">

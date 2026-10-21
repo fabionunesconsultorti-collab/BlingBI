@@ -46,7 +46,7 @@
         </div>
         <div class="card" style="padding: 16px;">
             <div style="font-size: 12px; color: #64748B; font-weight: 600;">Taxa Média de Devolução</div>
-            <div style="font-size: 24px; font-weight: 800; color: #1E293B; margin-top: 4px;">{{ returns_data.overall_return_rate }}%</div>
+            <div style="font-size: 24px; font-weight: 800; color: #1E293B; margin-top: 4px;">{{ returns_data.overall_return_rate | percent }}</div>
             <div style="font-size: 11px; color: #64748B; margin-top: 2px;">Sobre o volume vendido</div>
         </div>
         <div class="card" style="padding: 16px;">
@@ -97,11 +97,11 @@
                 <tbody>
                     {% for r in returns_data.returns %}
                     <tr style="border-bottom: 1px solid #EDF2F7;">
-                        <td style="padding: 12px 14px; color: #64748B; font-size: 12.5px;">{{ r.return_date }}</td>
+                        <td style="padding: 12px 14px; color: #64748B; font-size: 12.5px;">{{ r.return_date | date_br }}</td>
                         <td style="padding: 12px 14px; font-family: monospace; font-size: 12px; color: #64748B;">{{ r.sku }}</td>
                         <td style="padding: 12px 14px; font-weight: 600; color: #1E293B;">{{ r.product_name }}</td>
                         <td style="padding: 12px 14px; color: #1E293B;">{{ r.customer_name }}</td>
-                        <td style="padding: 12px 14px; text-align: center; font-weight: 700; color: #EF4444;">{{ r.quantity|int }}</td>
+                        <td style="padding: 12px 14px; text-align: center; font-weight: 700; color: #EF4444;">{{ r.quantity | number }}</td>
                         <td style="padding: 12px 14px;">
                             <span class="badge" style="background: #FEF3C7; color: #92400E; padding: 4px 8px; border-radius: 4px; font-size: 11.5px; font-weight: 600;">
                                 {{ r.reason }}

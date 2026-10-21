@@ -105,7 +105,7 @@
     <div class="card" style="padding: 20px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
             <h3 style="font-size: 16px; font-weight: 700; color: #1E293B;">Inventário Analítico: Giro, Cobertura e Pareto ABC</h3>
-            <span style="font-size: 12px; color: #64748B;">Total de itens exibidos: {{ items|length }}</span>
+            <span style="font-size: 12px; color: #64748B;">Total de itens exibidos: {{ items|length | number }}</span>
         </div>
 
         <div style="overflow-x: auto;">
@@ -137,7 +137,7 @@
                             </span>
                         </td>
                         <td style="padding: 12px 14px; text-align: center; font-weight: 700; color: {% if it.stock <= 0 %}#EF4444{% else %}#1E293B{% endif %};">
-                            {{ it.stock|int }}
+                            {{ it.stock | number }}
                         </td>
                         <td style="padding: 12px 14px; text-align: right; color: #64748B;">{{ it.cost|currency }}</td>
                         <td style="padding: 12px 14px; text-align: center; color: #1E293B; font-weight: 600;">{{ it.run_rate }}</td>
@@ -146,7 +146,7 @@
                                 <span style="color: #94A3B8; font-size: 12px;">Sem Giro</span>
                             {% else %}
                                 <span style="font-weight: 700; color: {% if it.coverage_days < 7 %}#EF4444{% elif it.coverage_days < 16 %}#F59E0B{% else %}#10B981{% endif %};">
-                                    {{ it.coverage_days }}d
+                                    {{ it.coverage_days | number }}d
                                 </span>
                             {% endif %}
                         </td>

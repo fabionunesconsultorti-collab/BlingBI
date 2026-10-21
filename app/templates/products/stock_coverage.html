@@ -63,17 +63,17 @@
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px;">
         <div class="card" style="padding: 16px;">
             <div style="font-size: 12px; color: #64748B; font-weight: 600;">Itens Ativos no Catálogo</div>
-            <div style="font-size: 22px; font-weight: 800; color: #1E293B; margin-top: 4px;">{{ summary.total_products }} SKUs</div>
+            <div style="font-size: 22px; font-weight: 800; color: #1E293B; margin-top: 4px;">{{ summary.total_products | number }} SKUs</div>
             <div style="font-size: 11px; color: #10B981; margin-top: 2px;">Sincronizados com Bling</div>
         </div>
         <div class="card" style="padding: 16px;">
             <div style="font-size: 12px; color: #EF4444; font-weight: 700;">🔴 Em Risco de Ruptura</div>
-            <div style="font-size: 22px; font-weight: 800; color: #EF4444; margin-top: 4px;">{{ summary.critical_rupture_count }} SKUs</div>
-            <div style="font-size: 11px; color: #64748B; margin-top: 2px;">Cobertura < 7 dias ou Zerado</div>
+            <div style="font-size: 22px; font-weight: 800; color: #EF4444; margin-top: 4px;">{{ summary.critical_rupture_count | number }} SKUs</div>
+            <div style="font-size: 11px; color: #64748B; margin-top: 2px;">Cobertura &lt; 7 dias ou Zerado</div>
         </div>
         <div class="card" style="padding: 16px;">
             <div style="font-size: 12px; color: #64748B; font-weight: 600;">Cobertura Média da Loja</div>
-            <div style="font-size: 22px; font-weight: 800; color: #3B82F6; margin-top: 4px;">{{ summary.avg_coverage_days }} dias</div>
+            <div style="font-size: 22px; font-weight: 800; color: #3B82F6; margin-top: 4px;">{{ summary.avg_coverage_days | number }} dias</div>
             <div style="font-size: 11px; color: #64748B; margin-top: 2px;">Para itens com saída ativa</div>
         </div>
         <div class="card" style="padding: 16px;">

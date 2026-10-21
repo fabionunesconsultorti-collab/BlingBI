@@ -72,7 +72,7 @@
         </div>
         <div class="card" style="padding: 16px; border-left: 4px solid #3B82F6;">
             <div style="font-size: 12px; color: #64748B; font-weight: 600;">Taxa de Conversão da Bag</div>
-            <div style="font-size: 24px; font-weight: 800; color: #3B82F6; margin-top: 4px;">{{ bags_data.overall_conversion_rate }}%</div>
+            <div style="font-size: 24px; font-weight: 800; color: #3B82F6; margin-top: 4px;">{{ bags_data.overall_conversion_rate | percent }}</div>
             <div style="font-size: 11px; color: #64748B; margin-top: 2px;">Aproveitamento de prova</div>
         </div>
         <div class="card" style="padding: 16px; border-left: 4px solid #10B981;">
@@ -137,10 +137,10 @@
                             </div>
                             {% endif %}
                         </td>
-                        <td style="padding: 12px 14px; font-size: 12px; color: #64748B;">{{ b.sent_date }}</td>
+                        <td style="padding: 12px 14px; font-size: 12px; color: #64748B;">{{ b.sent_date | date_br }}</td>
                         <td style="padding: 12px 14px; font-weight: 600; color: #1E293B;">{{ b.customer_name }}</td>
                         <td style="padding: 12px 14px; color: #475569; font-size: 12px;">{{ b.seller_name }}</td>
-                        <td style="padding: 12px 14px; text-align: center; font-weight: 700; color: #475569;">{{ b.items_sent }}</td>
+                        <td style="padding: 12px 14px; text-align: center; font-weight: 700; color: #475569;">{{ b.items_sent | number }}</td>
                         <td style="padding: 12px 14px;">
                             {% if b.invoiced_orders and b.invoiced_orders|length > 0 %}
                                 <div style="display: flex; gap: 4px; flex-wrap: wrap;">
@@ -152,12 +152,12 @@
                                 <span style="font-size: 11px; color: #94A3B8; font-style: italic;">Aguardando retorno</span>
                             {% endif %}
                         </td>
-                        <td style="padding: 12px 14px; text-align: center; font-weight: 700; color: #008B54;">{{ b.items_invoiced }}</td>
-                        <td style="padding: 12px 14px; text-align: center; color: #64748B;">{{ b.items_returned }}</td>
+                        <td style="padding: 12px 14px; text-align: center; font-weight: 700; color: #008B54;">{{ b.items_invoiced | number }}</td>
+                        <td style="padding: 12px 14px; text-align: center; color: #64748B;">{{ b.items_returned | number }}</td>
                         <td style="padding: 12px 14px; text-align: right; font-weight: 700; color: #1E293B; font-family: monospace;">{{ b.total_invoiced_value|currency }}</td>
                         <td style="padding: 12px 14px; text-align: center;">
                             <span class="badge" style="background: {% if b.conversion_rate >= 60 %}#D1FAE5; color: #065F46;{% elif b.conversion_rate >= 40 %}#FEF3C7; color: #92400E;{% else %}#FEE2E2; color: #991B1B;{% endif %} padding: 3px 8px; border-radius: 4px; font-weight: 700;">
-                                {{ b.conversion_rate }}%
+                                {{ b.conversion_rate | percent }}
                             </span>
                         </td>
                         <td style="padding: 12px 14px; text-align: center;">

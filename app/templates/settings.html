@@ -241,19 +241,19 @@
                     </div>
                     <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; text-align: center;">
                         <div style="background: #f1f5f9; padding: 8px 4px; border-radius: 6px;">
-                            <div style="font-size: 16px; font-weight: 700; color: #0f172a;">{{ orders_count }}</div>
+                            <div style="font-size: 16px; font-weight: 700; color: #0f172a;">{{ orders_count|number }}</div>
                             <div style="font-size: 10px; color: #64748b; font-weight: 600;">Pedidos</div>
                         </div>
                         <div style="background: #f1f5f9; padding: 8px 4px; border-radius: 6px;">
-                            <div style="font-size: 16px; font-weight: 700; color: #0f172a;">{{ products_count }}</div>
+                            <div style="font-size: 16px; font-weight: 700; color: #0f172a;">{{ products_count|number }}</div>
                             <div style="font-size: 10px; color: #64748b; font-weight: 600;">Produtos</div>
                         </div>
                         <div style="background: #f1f5f9; padding: 8px 4px; border-radius: 6px;">
-                            <div style="font-size: 16px; font-weight: 700; color: #0f172a;">{{ customers_count }}</div>
+                            <div style="font-size: 16px; font-weight: 700; color: #0f172a;">{{ customers_count|number }}</div>
                             <div style="font-size: 10px; color: #64748b; font-weight: 600;">Clientes</div>
                         </div>
                         <div style="background: #f1f5f9; padding: 8px 4px; border-radius: 6px;">
-                            <div style="font-size: 16px; font-weight: 700; color: #0f172a;">{{ finance_count }}</div>
+                            <div style="font-size: 16px; font-weight: 700; color: #0f172a;">{{ finance_count|number }}</div>
                             <div style="font-size: 10px; color: #64748b; font-weight: 600;">Financeiro</div>
                         </div>
                     </div>

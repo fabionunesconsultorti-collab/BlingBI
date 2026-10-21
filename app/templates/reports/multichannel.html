@@ -48,7 +48,7 @@
         <div class="card" style="padding: 16px;">
             <div style="font-size: 12px; color: #64748B; font-weight: 600;">Receita Líquida Faturada</div>
             <div style="font-size: 22px; font-weight: 800; color: #1E293B; margin-top: 4px;">{{ summary.total_net_sales|currency }}</div>
-            <div style="font-size: 11px; color: #10B981; margin-top: 2px;">{{ summary.orders_attended }} pedidos atendidos</div>
+            <div style="font-size: 11px; color: #10B981; margin-top: 2px;">{{ summary.orders_attended|number }} pedidos atendidos</div>
         </div>
         <div class="card" style="padding: 16px;">
             <div style="font-size: 12px; color: #64748B; font-weight: 600;">CMV (Custo Mercadorias)</div>
@@ -58,7 +58,7 @@
         <div class="card" style="padding: 16px;">
             <div style="font-size: 12px; color: #64748B; font-weight: 600;">Lucro Bruto Operacional</div>
             <div style="font-size: 22px; font-weight: 800; color: #008B54; margin-top: 4px;">{{ summary.total_gross_profit|currency }}</div>
-            <div style="font-size: 11px; color: #008B54; margin-top: 2px; font-weight: 600;">Margem Real: {{ summary.overall_margin_pct }}%</div>
+            <div style="font-size: 11px; color: #008B54; margin-top: 2px; font-weight: 600;">Margem Real: {{ summary.overall_margin_pct|percent }}</div>
         </div>
         <div class="card" style="padding: 16px;">
             <div style="font-size: 12px; color: #64748B; font-weight: 600;">Ticket Médio Geral</div>
@@ -68,9 +68,9 @@
         <div class="card" style="padding: 16px;">
             <div style="font-size: 12px; color: #64748B; font-weight: 600;">Fill Rate & Cancelamentos</div>
             <div style="font-size: 22px; font-weight: 800; color: {% if summary.fill_rate_pct >= 85 %}#10B981{% else %}#EF4444{% endif %}; margin-top: 4px;">
-                {{ summary.fill_rate_pct }}%
+                {{ summary.fill_rate_pct|percent }}
             </div>
-            <div style="font-size: 11px; color: #EF4444; margin-top: 2px;">{{ summary.orders_cancelled }} canc. ({{ summary.lost_revenue_cancelled|currency }})</div>
+            <div style="font-size: 11px; color: #EF4444; margin-top: 2px;">{{ summary.orders_cancelled|number }} canc. ({{ summary.lost_revenue_cancelled|currency }})</div>
         </div>
     </div>
 
@@ -94,7 +94,7 @@
     <div class="card" style="padding: 20px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
             <h3 style="font-size: 16px; font-weight: 700; color: #1E293B;">Demonstrativo Detalhado por Canal & Marketplace</h3>
-            <span style="font-size: 12px; color: #64748B;">Período: {{ start_date.strftime('%d/%m/%Y') }} a {{ end_date.strftime('%d/%m/%Y') }}</span>
+            <span style="font-size: 12px; color: #64748B;">Período: {{ start_date|date_br }} a {{ end_date|date_br }}</span>
         </div>
 
         <div style="overflow-x: auto;">
@@ -119,21 +119,21 @@
                         <td style="padding: 12px 14px; font-weight: 600; color: #1E293B;">
                             {{ ch.channel }}
                         </td>
-                        <td style="padding: 12px 14px; text-align: center; color: #475569;">{{ ch.orders_count }}</td>
+                        <td style="padding: 12px 14px; text-align: center; color: #475569;">{{ ch.orders_count|number }}</td>
                         <td style="padding: 12px 14px; text-align: right; font-weight: 700; color: #1E293B;">{{ ch.net_sales|currency }}</td>
                         <td style="padding: 12px 14px; text-align: right; color: #64748B;">{{ ch.cmv|currency }}</td>
                         <td style="padding: 12px 14px; text-align: right; font-weight: 700; color: #008B54;">{{ ch.gross_profit|currency }}</td>
                         <td style="padding: 12px 14px; text-align: center;">
                             <span class="badge" style="background: {% if ch.margin_pct >= 40 %}#D1FAE5; color: #065F46;{% elif ch.margin_pct >= 25 %}#FEF3C7; color: #92400E;{% else %}#FEE2E2; color: #991B1B;{% endif %} padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 700;">
-                                {{ ch.margin_pct }}%
+                                {{ ch.margin_pct|percent }}
                             </span>
                         </td>
                         <td style="padding: 12px 14px; text-align: right; color: #1E293B;">{{ ch.avg_ticket|currency }}</td>
-                        <td style="padding: 12px 14px; text-align: center; color: #475569;">{{ ch.items_per_order }}</td>
-                        <td style="padding: 12px 14px; text-align: center; color: #EF4444; font-weight: 600;">{{ ch.cancelled_count }}</td>
+                        <td style="padding: 12px 14px; text-align: center; color: #475569;">{{ ch.items_per_order|number(1) }}</td>
+                        <td style="padding: 12px 14px; text-align: center; color: #EF4444; font-weight: 600;">{{ ch.cancelled_count|number }}</td>
                         <td style="padding: 12px 14px; text-align: center;">
                             <span style="font-size: 11.5px; color: {% if ch.cancellation_rate > 10 %}#EF4444{% else %}#64748B{% endif %}; font-weight: 600;">
-                                {{ ch.cancellation_rate }}%
+                                {{ ch.cancellation_rate|percent }}
                             </span>
                         </td>
                     </tr>

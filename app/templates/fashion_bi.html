@@ -172,22 +172,22 @@
 <div class="kpi-grid">
     <div class="kpi-card">
         <span class="kpi-title">Clientes Classe A (Pareto)</span>
-        <div class="kpi-value" style="color: var(--bling-primary);">{{ abc_data.summary.class_a_count }}</div>
-        <div class="kpi-subtext">Geram {{ "%.1f"|format(abc_data.summary.class_a_perc) }}% da receita (80/20)</div>
+        <div class="kpi-value" style="color: var(--bling-primary);">{{ abc_data.summary.class_a_count | number }}</div>
+        <div class="kpi-subtext">Geram {{ abc_data.summary.class_a_perc | percent }} da receita (80/20)</div>
     </div>
     <div class="kpi-card">
         <span class="kpi-title">Clientes Classe B</span>
-        <div class="kpi-value" style="color: #f59e0b;">{{ abc_data.summary.class_b_count }}</div>
-        <div class="kpi-subtext">{{ "%.1f"|format(abc_data.summary.class_b_perc) }}% da receita (15%)</div>
+        <div class="kpi-value" style="color: #f59e0b;">{{ abc_data.summary.class_b_count | number }}</div>
+        <div class="kpi-subtext">{{ abc_data.summary.class_b_perc | percent }} da receita (15%)</div>
     </div>
     <div class="kpi-card">
         <span class="kpi-title">Clientes Classe C</span>
-        <div class="kpi-value" style="color: #64748b;">{{ abc_data.summary.class_c_count }}</div>
-        <div class="kpi-subtext">{{ "%.1f"|format(abc_data.summary.class_c_perc) }}% da receita (5% cauda)</div>
+        <div class="kpi-value" style="color: #64748b;">{{ abc_data.summary.class_c_count | number }}</div>
+        <div class="kpi-subtext">{{ abc_data.summary.class_c_perc | percent }} da receita (5% cauda)</div>
     </div>
     <div class="kpi-card">
         <span class="kpi-title">Aniversariantes do Mês</span>
-        <div class="kpi-value" style="color: #ec4899;">{{ birthdays_data.customers|length }}</div>
+        <div class="kpi-value" style="color: #ec4899;">{{ birthdays_data.customers|length | number }}</div>
         <div class="kpi-subtext">Oportunidades de contato ativo no CS</div>
     </div>
 </div>
@@ -253,7 +253,7 @@
                         <td>{{ c.customer_city }}/{{ c.customer_state }}</td>
                         <td style="text-align: center;">{{ c.orders_count }}</td>
                         <td style="text-align: right; font-weight: 700; color: var(--bling-primary);">{{ c.total_revenue | currency }}</td>
-                        <td style="text-align: right; font-family: monospace; font-size: 12px;">{{ "%.1f"|format(c.cum_perc) }}%</td>
+                        <td style="text-align: right; font-family: monospace; font-size: 12px;">{{ c.cum_perc | percent }}</td>
                         <td style="text-align: center;">
                             {% if c.abc_class == 'A' %}
                             <span class="badge" style="background: #dcfce7; color: #166534; font-weight: 700; padding: 4px 8px; border-radius: 4px;">Classe A</span>
@@ -357,7 +357,7 @@
                             {{ p.preferred_style }}
                         </span>
                     </td>
-                    <td style="text-align: center; font-weight: 600;">{{ "%.0f"|format(p.total_pieces) }}</td>
+                    <td style="text-align: center; font-weight: 600;">{{ p.total_pieces | number }}</td>
                     <td style="text-align: right; font-weight: 700; color: var(--bling-primary);">{{ p.total_spent | currency }}</td>
                     <td style="text-align: right; color: var(--text-main);">{{ p.avg_ticket | currency }}</td>
                 </tr>
@@ -384,8 +384,8 @@
     </div>
     <div class="kpi-card">
         <span class="kpi-title">Taxa de Conversão da Bag</span>
-        <div class="kpi-value" style="color: var(--bling-primary);">{{ "%.1f"|format(bags_data.overall_conversion_rate) }}%</div>
-        <div class="kpi-subtext">{{ bags_data.total_invoiced }} peças faturadas de {{ bags_data.total_sent }}</div>
+        <div class="kpi-value" style="color: var(--bling-primary);">{{ bags_data.overall_conversion_rate | percent }}</div>
+        <div class="kpi-subtext">{{ bags_data.total_invoiced | number }} peças faturadas de {{ bags_data.total_sent | number }}</div>
     </div>
     <div class="kpi-card">
         <span class="kpi-title">Receita Gerada por Malas</span>
@@ -394,8 +394,8 @@
     </div>
     <div class="kpi-card">
         <span class="kpi-title">Taxa Geral de Devolução</span>
-        <div class="kpi-value" style="color: #ef4444;">{{ "%.1f"|format(returns_data.overall_return_rate) }}%</div>
-        <div class="kpi-subtext">{{ "%.0f"|format(returns_data.total_pieces_returned) }} peças devolvidas/trocadas</div>
+        <div class="kpi-value" style="color: #ef4444;">{{ returns_data.overall_return_rate | percent }}</div>
+        <div class="kpi-subtext">{{ returns_data.total_pieces_returned | number }} peças devolvidas/trocadas</div>
     </div>
 </div>
 
@@ -447,7 +447,7 @@
                         <td style="text-align: center;">{{ s.bags_count }}</td>
                         <td style="text-align: center;">{{ s.sent }}</td>
                         <td style="text-align: center; font-weight: 600;">{{ s.invoiced }}</td>
-                        <td style="text-align: right; font-weight: 700; color: var(--bling-primary);">{{ "%.1f"|format(s.conv_rate) }}%</td>
+                        <td style="text-align: right; font-weight: 700; color: var(--bling-primary);">{{ s.conv_rate | percent }}</td>
                         <td style="text-align: right; font-weight: 600;">{{ s.revenue | currency }}</td>
                     </tr>
                     {% else %}
@@ -478,8 +478,8 @@
                     <tr>
                         <td style="font-weight: 600; color: #dc2626;">{{ r.reason }}</td>
                         <td style="text-align: center;">{{ r.count }}</td>
-                        <td style="text-align: center; font-weight: 600;">{{ "%.0f"|format(r.pieces) }}</td>
-                        <td style="text-align: right; font-weight: 700;">{{ "%.1f"|format(r.percentage) }}%</td>
+                        <td style="text-align: center; font-weight: 600;">{{ r.pieces | number }}</td>
+                        <td style="text-align: right; font-weight: 700;">{{ r.percentage | percent }}</td>
                     </tr>
                     {% else %}
                     <tr><td colspan="4" style="text-align: center; padding: 20px;">Nenhuma devolução no período.</td></tr>
@@ -518,7 +518,7 @@
                     <td style="font-weight: 600; color: #0284c7;">{{ tp.category }}</td>
                     <td style="font-family: monospace; font-size: 12px;">{{ tp.sku }}</td>
                     <td style="font-weight: 600;">{{ tp.product_name }}</td>
-                    <td style="text-align: center; font-weight: 700;">{{ "%.0f"|format(tp.total_quantity) }}</td>
+                    <td style="text-align: center; font-weight: 700;">{{ tp.total_quantity | number }}</td>
                     <td style="text-align: right; font-weight: 700; color: var(--bling-primary);">{{ tp.total_revenue | currency }}</td>
                 </tr>
                 {% else %}
@@ -537,7 +537,7 @@
 <div class="kpi-grid">
     <div class="kpi-card">
         <span class="kpi-title">P.A. Geral da Loja (Peças/Atendimento)</span>
-        <div class="kpi-value" style="color: var(--bling-primary);">{{ "%.2f"|format(service_kpis.store_pa) }}</div>
+        <div class="kpi-value" style="color: var(--bling-primary);">{{ service_kpis.store_pa | number(2) }}</div>
         <div class="kpi-subtext">Média de peças por venda fechada</div>
     </div>
     <div class="kpi-card">
@@ -547,7 +547,7 @@
     </div>
     <div class="kpi-card">
         <span class="kpi-title">Taxa de Conversão de Atendimento</span>
-        <div class="kpi-value" style="color: #10b981;">{{ "%.1f"|format(service_kpis.store_conversion) }}%</div>
+        <div class="kpi-value" style="color: #10b981;">{{ service_kpis.store_conversion | percent }}</div>
         <div class="kpi-subtext">Atendimentos iniciados convertidos em vendas</div>
     </div>
 </div>
@@ -602,11 +602,11 @@
                         <td style="text-align: center; font-weight: 600;">{{ s.orders_count }}</td>
                         <td style="text-align: center;">
                             <span class="badge" style="background: #ecfdf5; color: #065f46; font-size: 13px; font-weight: 800;">
-                                {{ "%.2f"|format(s.pa) }}
+                                {{ s.pa | number(2) }}
                             </span>
                         </td>
                         <td style="text-align: right; font-weight: 600;">{{ s.ticket_medio | currency }}</td>
-                        <td style="text-align: right; font-weight: 700; color: #2563eb;">{{ "%.1f"|format(s.conversion_rate) }}%</td>
+                        <td style="text-align: right; font-weight: 700; color: #2563eb;">{{ s.conversion_rate | percent }}</td>
                         <td style="text-align: right; font-weight: 800; color: var(--bling-primary);">{{ s.total_revenue | currency }}</td>
                     </tr>
                     {% else %}
@@ -729,13 +729,13 @@
 
             <div style="background: #f8fafc; padding: 14px; border-radius: 8px; margin-bottom: 16px;">
                 <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px;">
-                    <span>🟢 Promotores (Notas 9-10): <strong>{{ satisfaction.promoters_count }} ({{ satisfaction.promoters_perc }}%)</strong></span>
+                    <span>🟢 Promotores (Notas 9-10): <strong>{{ satisfaction.promoters_count | number }} ({{ satisfaction.promoters_perc | percent }})</strong></span>
                 </div>
                 <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px;">
-                    <span>🟡 Neutros (Notas 7-8): <strong>{{ satisfaction.passives_count }} ({{ satisfaction.passives_perc }}%)</strong></span>
+                    <span>🟡 Neutros (Notas 7-8): <strong>{{ satisfaction.passives_count | number }} ({{ satisfaction.passives_perc | percent }})</strong></span>
                 </div>
                 <div style="display: flex; justify-content: space-between; font-size: 13px;">
-                    <span>🔴 Detratores (Notas 0-6): <strong>{{ satisfaction.detractors_count }} ({{ satisfaction.detractors_perc }}%)</strong></span>
+                    <span>🔴 Detratores (Notas 0-6): <strong>{{ satisfaction.detractors_count | number }} ({{ satisfaction.detractors_perc | percent }})</strong></span>
                 </div>
             </div>
 
@@ -773,7 +773,7 @@
                             <div style="display: flex; gap: 6px; flex-wrap: wrap;">
                                 {% for m_key, m_val in row.retention.items() %}
                                 <span class="badge" style="background: #e0f2fe; color: #0284c7; font-size: 11px;">
-                                    {{ m_key }}: {{ m_val.percentage }}% ({{ m_val.count }})
+                                    {{ m_key }}: {{ m_val.percentage | percent }} ({{ m_val.count | number }})
                                 </span>
                                 {% endfor %}
                             </div>
@@ -827,8 +827,8 @@
                         <span class="badge" style="background: #f1f5f9; color: #334155;">{{ inact.preferred_size }}</span>
                         <span style="font-size: 11px; color: var(--text-muted);">{{ inact.preferred_style }}</span>
                     </td>
-                    <td style="text-align: center;">{{ inact.last_purchase }}</td>
-                    <td style="text-align: center; font-weight: 700;">{{ inact.days_inactive }} dias</td>
+                    <td style="text-align: center;">{{ inact.last_purchase | date_br }}</td>
+                    <td style="text-align: center; font-weight: 700;">{{ inact.days_inactive | number }} dias</td>
                     <td style="text-align: center;">
                         {% if inact.days_inactive < 60 %}
                         <span class="badge" style="background: #dcfce7; color: #166534; font-weight: 700;">Ativo</span>
@@ -1031,7 +1031,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     tooltip: {
                         callbacks: {
                             afterLabel: function() {
-                                return 'Média Loja: {{ "%.2f"|format(service_kpis.store_pa) }} peças/atendimento';
+                                return 'Média Loja: {{ service_kpis.store_pa | number(2) }} peças/atendimento';
                             }
                         }
                     }

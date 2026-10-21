@@ -38,7 +38,7 @@
                 Total de Aniversariantes
             </div>
             <div style="font-size: 36px; font-weight: 800; color: #ec4899; line-height: 1.1;">
-                {{ birthdays_data.customers|length }}
+                {{ birthdays_data.customers|length | number }}
             </div>
             <p style="font-size: 12px; color: #94A3B8; margin-top: 8px; line-height: 1.4;">
                 Clientes cadastrados que completam ano neste mês. Entre em contato antecipadamente para fidelização!
@@ -60,7 +60,7 @@
     <div class="card" style="padding: 20px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
             <h3 style="font-size: 16px; font-weight: 700; color: #1E293B;">🎂 Lista de Clientes Aniversariantes</h3>
-            <span style="font-size: 12px; color: #64748B;">Total: {{ birthdays_data.customers|length }} clientes</span>
+            <span style="font-size: 12px; color: #64748B;">Total: {{ birthdays_data.customers|length | number }} clientes</span>
         </div>
 
         <div style="overflow-x: auto;">
@@ -95,7 +95,15 @@
                             <span style="font-size: 12px; color: #64748B; margin-left: 4px;">{{ b.preferred_style }}</span>
                         </td>
                         <td style="padding: 12px 14px; font-size: 12px; color: #475569;">
-                            <div>{{ b.phone }}</div>
+                            {% if b.phone %}
+                            <div>
+                                <a href="https://wa.me/55{{ b.phone|replace('(', '')|replace(')', '')|replace('-', '')|replace(' ', '') }}" target="_blank" style="color: #008B54; text-decoration: none; font-weight: 600;">
+                                    💬 {{ b.phone }}
+                                </a>
+                            </div>
+                            {% else %}
+                            <div>-</div>
+                            {% endif %}
                             <div style="color: #94A3B8; font-size: 11px;">{{ b.email }}</div>
                         </td>
                         <td style="padding: 12px 14px;">

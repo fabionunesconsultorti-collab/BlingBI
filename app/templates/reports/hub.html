@@ -89,11 +89,11 @@
     <div style="display: flex; gap: 10px; border-bottom: 2px solid #E2E8F0; padding-bottom: 12px; margin-top: 4px;">
         <button type="button" id="tab-btn-reports" onclick="switchHubView('reports')" class="hub-nav-tab" style="border-radius: 8px; font-weight: 700; font-size: 13.5px; padding: 9px 20px; display: inline-flex; align-items: center; gap: 8px; background: #008B54; color: #FFFFFF; border: none; cursor: pointer;">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
-            Relatórios Modulares ({{ all_reports|length }})
+            Relatórios Modulares ({{ all_reports|length | number }})
         </button>
         <button type="button" id="tab-btn-features" onclick="switchHubView('features')" class="hub-nav-tab" style="border-radius: 8px; font-weight: 600; font-size: 13.5px; padding: 9px 20px; display: inline-flex; align-items: center; gap: 8px; background: #F1F5F9; color: #475569; border: 1px solid #CBD5E1; cursor: pointer;">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-            Abas, Dashboards & Gráficos (<span id="features-active-count">{{ active_features_count }}</span>/{{ features_count }} ativos)
+            Abas, Dashboards & Gráficos (<span id="features-active-count">{{ active_features_count | number }}</span>/{{ features_count | number }} ativos)
         </button>
     </div>
 
@@ -106,13 +106,13 @@
                 <a href="{{ url_for('reports.hub', category='all', q=search_query) }}" 
                    class="btn btn-sm {% if selected_category == 'all' or not selected_category %}btn-primary{% else %}btn-secondary{% endif %}"
                    style="border-radius: 20px; padding: 4px 12px; font-size: 12.5px;">
-                    Todos ({{ all_reports|length }})
+                    Todos ({{ all_reports|length | number }})
                 </a>
             {% for cat in categories %}
             <a href="{{ url_for('reports.hub', category=cat.id, q=search_query) }}" 
                class="btn btn-sm {% if selected_category == cat.id %}btn-primary{% else %}btn-secondary{% endif %}"
                style="border-radius: 20px; padding: 4px 12px; font-size: 12.5px;">
-                {{ cat.name }} ({{ cat.count }})
+                {{ cat.name }} ({{ cat.count | number }})
             </a>
             {% endfor %}
         </div>
@@ -271,7 +271,7 @@
             </button>
             {% for sector_id, sec_data in features_grouped.items() %}
             <button type="button" onclick="filterSector('{{ sector_id }}')" class="btn btn-sm btn-sector-filter" id="btn-sec-{{ sector_id }}" style="border-radius: 20px; padding: 5px 14px; font-size: 12.5px; background: #F1F5F9; color: #475569; border: 1px solid #CBD5E1; cursor: pointer;">
-                {{ sec_data.sector_name }} ({{ sec_data.features|length }})
+                {{ sec_data.sector_name }} ({{ sec_data.features|length | number }})
             </button>
             {% endfor %}
         </div>
@@ -294,7 +294,7 @@
                         {{ sec_data.sector_name }}
                     </h3>
                     <span style="font-size: 11.5px; background: #E2E8F0; color: #475569; font-weight: 600; padding: 2px 8px; border-radius: 12px;">
-                        {{ sec_data.features|length }} funcionalidades
+                        {{ sec_data.features|length | number }} funcionalidades
                     </span>
                 </div>
             </div>

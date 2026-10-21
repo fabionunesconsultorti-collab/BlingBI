@@ -22,7 +22,7 @@
                 </select>
             </div>
             <div style="font-size: 12px; color: #64748B; padding-top: 14px;">
-                Período: {{ start_date }} até {{ end_date }}
+                Período: {{ start_date | date_br }} até {{ end_date | date_br }}
             </div>
         </form>
 
@@ -54,7 +54,7 @@
         <div class="kpi-card" style="border-left: 4px solid #F59E0B;">
             <span class="kpi-title">Inadimplência</span>
             <div class="kpi-value" style="color: {% if analytics.default_rate > 5 %}#DC2626{% else %}#059669{% endif %};">
-                {{ "%.1f"|format(analytics.default_rate) }}%
+                {{ analytics.default_rate | percent }}
             </div>
             <div class="kpi-subtext">Títulos vencidos a receber</div>
         </div>
@@ -83,11 +83,11 @@
                         <td style="padding: 10px 14px;">(=) RECEITA OPERACIONAL LÍQUIDA</td>
                         <td style="text-align: right; padding: 10px 14px;">{{ analytics.dre.net_revenue | currency }}</td>
                         <td style="text-align: right; padding: 10px 14px;">
-                            {{ "%.1f"|format((analytics.dre.net_revenue / analytics.dre.gross_revenue * 100) if analytics.dre.gross_revenue > 0 else 0) }}%
+                            {{ ((analytics.dre.net_revenue / analytics.dre.gross_revenue * 100) if analytics.dre.gross_revenue > 0 else 0) | percent }}
                         </td>
                     </tr>
                     <tr style="border-bottom: 1px solid #F1F5F9;">
-                        <td style="padding: 10px 14px; padding-left: 30px; color: #64748B;">(-) Custo dos Produtos Vendidos (CPV Médio)</td>
+                        <td style="padding: 10px 14px; padding-left: 30px; color: #64748B;">(-) Custo dos Produtos Vendidos (CPV)</td>
                         <td style="text-align: right; padding: 10px 14px; color: #DC2626;">{{ analytics.dre.cpv | currency }}</td>
                         <td style="text-align: right; padding: 10px 14px; color: #94A3B8;">-</td>
                     </tr>
@@ -95,7 +95,7 @@
                         <td style="padding: 10px 14px; color: #059669;">(=) LUCRO BRUTO (MARGEM DE CONTRIBUIÇÃO)</td>
                         <td style="text-align: right; padding: 10px 14px; color: #059669;">{{ analytics.dre.gross_profit | currency }}</td>
                         <td style="text-align: right; padding: 10px 14px; color: #059669;">
-                            {{ "%.1f"|format((analytics.dre.gross_profit / analytics.dre.net_revenue * 100) if analytics.dre.net_revenue > 0 else 0) }}%
+                            {{ ((analytics.dre.gross_profit / analytics.dre.net_revenue * 100) if analytics.dre.net_revenue > 0 else 0) | percent }}
                         </td>
                     </tr>
                     <tr style="border-bottom: 1px solid #F1F5F9;">
@@ -106,7 +106,7 @@
                     <tr style="background: #ECFDF5; font-weight: 800; border-bottom: 2px solid #008B54; font-size: 15px;">
                         <td style="padding: 12px 14px; color: #065F46;">(=) RESULTADO LÍQUIDO DO PERÍODO</td>
                         <td style="text-align: right; padding: 12px 14px; color: #065F46;">{{ analytics.dre.net_profit | currency }}</td>
-                        <td style="text-align: right; padding: 12px 14px; color: #065F46;">{{ "%.1f"|format(analytics.dre.net_margin) }}%</td>
+                        <td style="text-align: right; padding: 12px 14px; color: #065F46;">{{ analytics.dre.net_margin | percent }}</td>
                     </tr>
                 </tbody>
             </table>
@@ -117,7 +117,7 @@
     <div class="card" style="padding: 20px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
             <h3 style="font-size: 16px; font-weight: 700; color: #1E293B;">Lançamentos Financeiros do Período</h3>
-            <span style="font-size: 12px; color: #64748B;">Exibindo últimos {{ analytics.entries[:30]|length }} títulos</span>
+            <span style="font-size: 12px; color: #64748B;">Exibindo últimos {{ analytics.entries[:30]|length | number }} títulos</span>
         </div>
 
         <div style="overflow-x: auto;">
@@ -144,7 +144,7 @@
                         <td style="padding: 12px 14px; font-weight: 500; color: #1E293B;">{{ e.description }}</td>
                         <td style="padding: 12px 14px; color: #475569;">{{ e.entity_name }}</td>
                         <td style="padding: 12px 14px; color: #64748B;">{{ e.category }}</td>
-                        <td style="padding: 12px 14px; color: #475569; white-space: nowrap;">{{ e.due_date }}</td>
+                        <td style="padding: 12px 14px; color: #475569; white-space: nowrap;">{{ e.due_date | date_br }}</td>
                         <td style="padding: 12px 14px; text-align: right; font-weight: 700; color: {% if e.entry_type == 'RECEBER' %}#059669{% else %}#DC2626{% endif %};">
                             {{ e.amount | currency }}
                         </td>

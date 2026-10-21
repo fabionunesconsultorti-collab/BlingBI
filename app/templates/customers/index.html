@@ -41,7 +41,7 @@
     <div class="kpi-card">
         <span class="kpi-title">Ticket Médio por Cliente</span>
         <div class="kpi-value" style="color: #D97706;">{{ summary.avg_ticket | currency }}</div>
-        <div class="kpi-subtext">Taxa de recompra: {{ "%.1f"|format(summary.recurrence_rate) }}%</div>
+        <div class="kpi-subtext">Taxa de recompra: {{ summary.recurrence_rate | percent }}</div>
     </div>
 </div>
 
@@ -305,7 +305,7 @@
                         </div>
                         {% if c.period_orders > 0 %}
                         <div style="font-size: 11px; color: var(--text-muted); margin-top: 3px;">
-                            PA: {{ "%.1f"|format(c.period_pieces_per_order) }} peças/ped
+                            PA: {{ c.period_pieces_per_order | number(1) }} peças/ped
                         </div>
                         {% endif %}
                     </td>
@@ -318,7 +318,7 @@
                                 {{ c.bags_count }} Bag(s)
                             </span>
                             <span style="font-size: 11px; color: #475569;">
-                                {{ c.bags_items_invoiced }} / {{ c.bags_items_sent }} peças ({{ "%.1f"|format(c.bags_conversion_rate) }}%)
+                                {{ c.bags_items_invoiced }} / {{ c.bags_items_sent }} peças ({{ c.bags_conversion_rate | percent }})
                             </span>
                         </div>
                         {% else %}
@@ -564,7 +564,7 @@ function openCustomerModal(customerId) {
                         <td>${b.sent_date}</td>
                         <td>${b.items_sent} un</td>
                         <td><strong style="color: #166534;">${b.items_invoiced} un</strong></td>
-                        <td><strong>${b.conversion_rate}%</strong></td>
+                        <td><strong>${(b.conversion_rate || 0).toLocaleString('pt-BR', {minimumFractionDigits: 1, maximumFractionDigits: 1})}%</strong></td>
                         <td style="text-align: center;"><span class="badge" style="background: #FEF3C7; color: #B45309; font-size: 10px;">${b.status}</span></td>
                     </tr>`;
                 });

@@ -128,7 +128,7 @@
                     {% for p in metrics.top_products %}
                     <tr>
                         <td style="font-weight: 500;">{{ p.name }}</td>
-                        <td style="text-align: center;">{{ p.qty }} un</td>
+                        <td style="text-align: center;">{{ p.qty | number }} un</td>
                         <td style="text-align: right; font-weight: 600; color: var(--bling-primary);">{{ p.revenue | currency }}</td>
                     </tr>
                     {% else %}
@@ -164,7 +164,7 @@
                     {% for o in metrics.recent_orders %}
                     <tr>
                         <td style="font-weight: 600;">#{{ o.number }}</td>
-                        <td>{{ o.order_date }}</td>
+                        <td>{{ o.order_date | date_br }}</td>
                         <td>{{ o.customer_name }}</td>
                         <td style="text-align: right; font-weight: 600;">{{ o.total | currency }}</td>
                         <td style="text-align: center;">
