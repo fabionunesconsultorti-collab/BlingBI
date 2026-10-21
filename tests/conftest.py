@@ -1,3 +1,6 @@
+import os
+os.environ['DATABASE_URL'] = 'sqlite:///:memory:'
+
 import pytest
 from app import create_app
 from app.database import db
@@ -8,6 +11,7 @@ class TestConfig:
     SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SECRET_KEY = 'test-secret-key'
+    IS_POSTGRES = False
 
 @pytest.fixture
 def app():

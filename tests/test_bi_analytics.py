@@ -32,6 +32,12 @@ def test_products_abc_curve(app):
     classes = {p['class'] for p in analytics['abc_products']}
     assert 'A' in classes or 'B' in classes or 'C' in classes
 
+    # Validação do saldo de estoque (não pode estar todo zerado)
+    assert 'in_stock_count' in analytics
+    assert 'zero_stock_count' in analytics
+    stocks = [p['stock'] for p in analytics['abc_products']]
+    assert any(s > 0 for s in stocks), "Pelo menos um produto na Curva ABC deve ter saldo de estoque positivo"
+
 def test_financial_analytics_and_dre(app):
     start, end = BiAnalytics.parse_date_filter('last_30_days')
     analytics = BiAnalytics.get_finance_analytics(start, end)

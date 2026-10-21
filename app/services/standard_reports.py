@@ -234,6 +234,13 @@ class StandardReportsEngine:
         """
         period_days = max(1, (end_date - start_date).days + 1)
 
+        # 0. Garante amarração de itens de pedido com os produtos do catálogo
+        try:
+            from app.services.bi_analytics import BiAnalytics
+            BiAnalytics.link_orphan_order_items()
+        except Exception:
+            pass
+
         # 1. Todos os produtos ativos no catálogo
         prod_query = db.session.query(
             Product.id,

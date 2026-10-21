@@ -56,14 +56,16 @@ class SyncService:
                     errors.append(f"Clientes: {str(e)}")
                     db.session.rollback()
 
-            # 2. Produtos
+            # 2. Produtos & Estoques Físicos
             if options.get('products', True):
                 try:
                     logger.info("Sincronizando produtos...")
                     summary['products'] = SyncService.sync_products(client)
+                    logger.info("Sincronizando saldos reais de estoque...")
+                    summary['stocks'] = SyncService.sync_stocks(client)
                 except Exception as e:
-                    logger.error(f"Erro ao sincronizar produtos: {e}")
-                    errors.append(f"Produtos: {str(e)}")
+                    logger.error(f"Erro ao sincronizar produtos/estoques: {e}")
+                    errors.append(f"Produtos/Estoques: {str(e)}")
                     db.session.rollback()
 
             # 3. Pedidos de Venda
@@ -71,6 +73,8 @@ class SyncService:
                 try:
                     logger.info("Sincronizando pedidos...")
                     summary['orders'] = SyncService.sync_orders(client)
+                    # Amarra retrospectivamente quaisquer itens que tenham ficado sem vínculo
+                    SyncService.link_orphan_order_items()
                 except Exception as e:
                     logger.error(f"Erro ao sincronizar pedidos: {e}")
                     errors.append(f"Pedidos: {str(e)}")
@@ -222,7 +226,107 @@ class SyncService:
                 break
             page += 1
             time.sleep(0.3)
+
+        # Sincroniza os saldos reais de estoque após cadastrar os produtos
+        try:
+            SyncService.sync_stocks(client)
+        except Exception as stock_err:
+            logger.warning(f"Aviso ao sincronizar saldos de estoque após sync_products: {stock_err}")
+
         return count
+
+    @staticmethod
+    def sync_stocks(client=None):
+        """
+        Sincroniza os saldos de estoque físico de todos os produtos a partir do endpoint
+        oficial da API v3 do Bling (/estoques/saldos).
+        Atualiza o campo Product.stock com o saldoFisicoTotal real consolidado.
+        """
+        client = client or BlingApiClient()
+        page = 1
+        count = 0
+        products = Product.query.all()
+        if not products:
+            return 0
+
+        prod_map_bling = {p.bling_id: p for p in products if p.bling_id}
+        prod_map_sku = {p.sku.strip().upper(): p for p in products if p.sku}
+
+        while True:
+            items = client.get_stock_balances(page=page, limit=100)
+            if not items:
+                break
+
+            for item in items:
+                try:
+                    p_info = item.get('produto', {}) or {}
+                    b_id = p_info.get('id')
+                    sku = item.get('codigo') or p_info.get('codigo')
+
+                    prod = None
+                    if b_id:
+                        prod = prod_map_bling.get(b_id)
+                    if not prod and sku:
+                        prod = prod_map_sku.get(sku.strip().upper())
+
+                    if prod:
+                        # Saldo Físico Total consolidado de todos os depósitos
+                        saldo = float(item.get('saldoFisicoTotal', 0.0) or 0.0)
+                        prod.stock = saldo
+                        count += 1
+                except Exception as stock_err:
+                    logger.warning(f"Erro ao processar saldo de estoque do item {item}: {stock_err}")
+
+            try:
+                db.session.commit()
+            except Exception as commit_err:
+                logger.error(f"Erro no commit de saldos de estoque página {page}: {commit_err}")
+                db.session.rollback()
+                raise commit_err
+
+            if len(items) < 100:
+                break
+            page += 1
+            time.sleep(0.3)
+
+        logger.info(f"Saldos reais de estoque sincronizados com sucesso para {count} produtos.")
+        return count
+
+    @staticmethod
+    def link_orphan_order_items():
+        """
+        Amarra retrospectivamente itens de pedido que estejam com product_id IS NULL
+        através de correspondência inteligente por SKU ou Nome do produto.
+        """
+        orphans = OrderItem.query.filter(OrderItem.product_id.is_(None)).all()
+        if not orphans:
+            return 0
+
+        products = Product.query.all()
+        sku_map = {p.sku.strip().upper(): p for p in products if p.sku}
+        name_map = {p.name.strip().upper(): p for p in products if p.name}
+
+        linked = 0
+        for item in orphans:
+            p = None
+            if item.sku and item.sku.strip().upper() in sku_map:
+                p = sku_map[item.sku.strip().upper()]
+            elif item.product_name and item.product_name.strip().upper() in name_map:
+                p = name_map[item.product_name.strip().upper()]
+
+            if p:
+                item.product_id = p.id
+                if not item.cost_price or item.cost_price == 0:
+                    item.cost_price = p.cost
+                linked += 1
+
+        if linked > 0:
+            try:
+                db.session.flush()
+            except Exception:
+                pass
+            logger.info(f"Auto-correção: {linked} itens de pedido órfãos foram amarrados aos seus produtos.")
+        return linked
 
     @staticmethod
     def sync_orders(client=None):
@@ -233,7 +337,10 @@ class SyncService:
         # Pré-carrega mapas em memória para evitar centenas de queries repetidas
         # e prevenir autoflush prematuro de deleção de itens no SQLite
         try:
-            product_map = {p.bling_id: p for p in Product.query.all() if p.bling_id}
+            products_all = Product.query.all()
+            product_map = {p.bling_id: p for p in products_all if p.bling_id}
+            product_sku_map = {p.sku.strip().upper(): p for p in products_all if p.sku}
+            product_name_map = {p.name.strip().upper(): p for p in products_all if p.name}
             customer_map = {c.bling_id: c.id for c in Customer.query.all() if c.bling_id}
             seller_map = {}
             try:
@@ -250,6 +357,8 @@ class SyncService:
             logger.warning(f"Aviso no pré-carregamento para sync de pedidos: {pre_err}")
             db.session.rollback()
             product_map = {}
+            product_sku_map = {}
+            product_name_map = {}
             customer_map = {}
             seller_map = {}
 
@@ -373,6 +482,14 @@ class SyncService:
                                     local_prod = Product.query.filter_by(bling_id=prod_bling_id).first()
                                     if local_prod:
                                         product_map[prod_bling_id] = local_prod
+
+                                # Fallback robusto por SKU ou Nome
+                                if not local_prod and it.get('codigo'):
+                                    sku_code = it.get('codigo').strip().upper()
+                                    local_prod = product_sku_map.get(sku_code)
+                                if not local_prod and it.get('descricao'):
+                                    desc_name = it.get('descricao').strip().upper()
+                                    local_prod = product_name_map.get(desc_name)
                                 
                                 qty = float(it.get('quantidade', 1.0) or 1.0)
                                 u_price = float(it.get('valor', 0.0) or 0.0)

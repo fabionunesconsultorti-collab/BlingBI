@@ -215,6 +215,13 @@ def get_inventory_catalog_analytics(start_date, end_date, q=None, size=None, col
     """
     from app.models.order import Order, OrderItem
     from sqlalchemy import func
+    from app.services.bi_analytics import BiAnalytics
+
+    # 0. Garante que itens órfãos estejam amarrados aos seus produtos
+    try:
+        BiAnalytics.link_orphan_order_items()
+    except Exception:
+        pass
 
     # 1. Agrega vendas por produto no período
     sold_rows = db.session.query(

@@ -209,11 +209,27 @@ class BiAnalytics:
         }
 
     @staticmethod
-    def get_products_analytics(start_date, end_date):
-        # Todos os produtos cadastrados
-        products = Product.query.all()
+    def link_orphan_order_items():
+        """Amarra retrospectivamente quaisquer itens de pedido com product_id IS NULL."""
+        from app.services.sync_service import SyncService
+        return SyncService.link_orphan_order_items()
 
-        # Vendas por produto no período
+    @staticmethod
+    def get_products_analytics(start_date, end_date):
+        # 0. Cura defensiva de itens órfãos antes do cálculo
+        try:
+            BiAnalytics.link_orphan_order_items()
+        except Exception:
+            pass
+
+        # 1. Carrega catálogo completo com índices multi-chave
+        products = Product.query.all()
+        prod_by_id = {p.id: p for p in products}
+        prod_by_bling_id = {p.bling_id: p for p in products if p.bling_id}
+        prod_by_sku = {p.sku.strip().upper(): p for p in products if p.sku}
+        prod_by_name = {p.name.strip().upper(): p for p in products if p.name}
+
+        # 2. Vendas por item no período filtrado
         sold_items = db.session.query(
             OrderItem.product_id,
             OrderItem.product_name,
@@ -225,20 +241,68 @@ class BiAnalytics:
             Order.order_date >= start_date,
             Order.order_date <= end_date,
             Order.status == 'Atendido'
-        ).group_by(OrderItem.product_id, OrderItem.product_name, OrderItem.sku).order_by(desc('revenue_sold')).all()
+        ).group_by(OrderItem.product_id, OrderItem.product_name, OrderItem.sku).all()
 
-        total_product_revenue = sum(float(item.revenue_sold or 0.0) for item in sold_items)
-
-        # Cálculo da Curva ABC (Pareto)
-        # Classe A: até 80% do faturamento acumulado
-        # Classe B: 80% a 95%
-        # Classe C: 95% a 100%
-        abc_products = []
-        accumulated_revenue = 0.0
+        # 3. Consolidação e cruzamento inteligente pelo produto real
+        consolidated = {}
+        unmatched_idx = 0
 
         for item in sold_items:
             rev = float(item.revenue_sold or 0.0)
             cost = float(item.total_cost or 0.0)
+            qty = float(item.qty_sold or 0.0)
+
+            # Resolução em cascata: ID interno -> Bling ID -> SKU -> Nome
+            prod_db = None
+            if item.product_id:
+                prod_db = prod_by_id.get(item.product_id) or prod_by_bling_id.get(item.product_id)
+            if not prod_db and item.sku:
+                prod_db = prod_by_sku.get(item.sku.strip().upper())
+            if not prod_db and item.product_name:
+                prod_db = prod_by_name.get(item.product_name.strip().upper())
+
+            if prod_db:
+                p_key = prod_db.id
+                if p_key not in consolidated:
+                    consolidated[p_key] = {
+                        'id': prod_db.id,
+                        'name': prod_db.name,
+                        'sku': prod_db.sku or item.sku or 'N/A',
+                        'category': prod_db.category or 'Geral',
+                        'qty_sold': 0.0,
+                        'revenue': 0.0,
+                        'cost': 0.0,
+                        'stock': float(prod_db.stock or 0.0)
+                    }
+                consolidated[p_key]['qty_sold'] += qty
+                consolidated[p_key]['revenue'] += rev
+                consolidated[p_key]['cost'] += cost
+                # Garante que o estoque seja o saldo real do produto no catálogo
+                consolidated[p_key]['stock'] = float(prod_db.stock or 0.0)
+            else:
+                unmatched_idx += 1
+                p_key = f"unmatched_{unmatched_idx}"
+                consolidated[p_key] = {
+                    'id': None,
+                    'name': item.product_name or 'Item sem cadastro',
+                    'sku': item.sku or 'N/A',
+                    'category': 'Geral',
+                    'qty_sold': qty,
+                    'revenue': rev,
+                    'cost': cost,
+                    'stock': 0.0
+                }
+
+        # 4. Ordenação por faturamento descrescente para Pareto (80/15/5)
+        sorted_products = sorted(consolidated.values(), key=lambda x: x['revenue'], reverse=True)
+        total_product_revenue = sum(p['revenue'] for p in sorted_products)
+
+        abc_products = []
+        accumulated_revenue = 0.0
+
+        for p in sorted_products:
+            rev = p['revenue']
+            cost = p['cost']
             margin = rev - cost
             margin_pct = (margin / rev * 100) if rev > 0 else 0.0
 
@@ -252,23 +316,34 @@ class BiAnalytics:
             else:
                 classe = 'C'
 
-            # Pega estoque atual do produto
-            prod_db = db.session.get(Product, item.product_id) if item.product_id else None
-            stock_current = prod_db.stock if prod_db else 0.0
+            p['margin'] = margin
+            p['margin_pct'] = margin_pct
+            p['accumulated_pct'] = accumulated_pct
+            p['class'] = classe
+            abc_products.append(p)
 
-            abc_products.append({
-                'id': item.product_id,
-                'name': item.product_name,
-                'sku': item.sku or 'N/A',
-                'qty_sold': float(item.qty_sold or 0),
-                'revenue': rev,
-                'cost': cost,
-                'margin': margin,
-                'margin_pct': margin_pct,
-                'accumulated_pct': accumulated_pct,
-                'class': classe,
-                'stock': stock_current
-            })
+        # 5. Identifica produtos do catálogo sem vendas no período filtrado
+        sold_prod_ids = {p['id'] for p in abc_products if p.get('id')}
+        zero_sales_products = []
+        for p in products:
+            if p.id not in sold_prod_ids and (p.status or 'A') == 'A':
+                zero_sales_products.append({
+                    'id': p.id,
+                    'name': p.name,
+                    'sku': p.sku or 'N/A',
+                    'category': p.category or 'Geral',
+                    'qty_sold': 0.0,
+                    'revenue': 0.0,
+                    'cost': 0.0,
+                    'margin': 0.0,
+                    'margin_pct': 0.0,
+                    'accumulated_pct': 100.0,
+                    'class': 'C',
+                    'stock': float(p.stock or 0.0)
+                })
+
+        # Ordena itens sem giro por maior saldo em estoque (capital parado)
+        zero_sales_products.sort(key=lambda x: x['stock'], reverse=True)
 
         # Contagem de classes ABC
         count_a = sum(1 for p in abc_products if p['class'] == 'A')
@@ -276,15 +351,20 @@ class BiAnalytics:
         count_c = sum(1 for p in abc_products if p['class'] == 'C')
 
         # Alertas de estoque crítico (menor ou igual a 5 unidades)
-        low_stock = [p.to_dict() for p in products if p.stock <= 5]
+        low_stock = [p.to_dict() for p in products if (p.stock or 0.0) <= 5]
+        in_stock_count = sum(1 for p in products if (p.stock or 0.0) > 0)
+        zero_stock_count = sum(1 for p in products if (p.stock or 0.0) <= 0)
 
         return {
             'abc_products': abc_products,
+            'zero_sales_products': zero_sales_products,
             'total_products': len(products),
             'total_revenue': total_product_revenue,
             'count_a': count_a,
             'count_b': count_b,
             'count_c': count_c,
+            'in_stock_count': in_stock_count,
+            'zero_stock_count': zero_stock_count,
             'low_stock': low_stock
         }
 

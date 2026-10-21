@@ -271,3 +271,20 @@ class BlingApiClient:
         if resp and resp.status_code == 200:
             return resp.json().get('data', [])
         return []
+
+    def get_stock_balances(self, page=1, limit=100, product_ids=None):
+        """
+        Consulta saldos de estoque físico e virtual da API v3 do Bling (/estoques/saldos).
+        Permite sincronizar os saldos de estoque consolidados (saldoFisicoTotal e saldoVirtualTotal).
+        """
+        params = {'pagina': page, 'limite': limit}
+        if product_ids:
+            if isinstance(product_ids, list):
+                params['idsProdutos'] = ','.join(str(i) for i in product_ids)
+            else:
+                params['idsProdutos'] = str(product_ids)
+        resp = self.request('GET', '/estoques/saldos', params=params)
+        if resp and resp.status_code == 200:
+            return resp.json().get('data', [])
+        return []
+
