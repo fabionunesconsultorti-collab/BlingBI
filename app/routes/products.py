@@ -434,19 +434,35 @@ def pricing_rules():
 
     try:
         data = request.get_json(silent=True) or request.form
-        rule_id = data.get('rule_id', type=int)
+        raw_rule_id = data.get('rule_id')
+        if not raw_rule_id:
+            return jsonify({'success': False, 'message': 'ID da regra não informado.'}), 400
+        try:
+            rule_id = int(raw_rule_id)
+        except (ValueError, TypeError):
+            return jsonify({'success': False, 'message': 'ID da regra inválido.'}), 400
+
         rule = MarketplaceRule.query.get(rule_id)
         if not rule:
             return jsonify({'success': False, 'message': 'Regra de canal não encontrada.'}), 404
 
-        rule.commission_percent = float(data.get('commission_percent', rule.commission_percent))
-        rule.fixed_fee = float(data.get('fixed_fee', rule.fixed_fee))
-        rule.fixed_fee_threshold = float(data.get('fixed_fee_threshold', rule.fixed_fee_threshold))
-        rule.free_shipping_threshold = float(data.get('free_shipping_threshold', rule.free_shipping_threshold))
-        rule.default_shipping_cost = float(data.get('default_shipping_cost', rule.default_shipping_cost))
-        rule.tax_percent = float(data.get('tax_percent', rule.tax_percent))
-        rule.operational_cost_percent = float(data.get('operational_cost_percent', rule.operational_cost_percent))
-        rule.target_margin_percent = float(data.get('target_margin_percent', rule.target_margin_percent))
+        def _get_float(key, current_val):
+            val = data.get(key)
+            if val is None or str(val).strip() == '':
+                return current_val
+            try:
+                return float(str(val).replace(',', '.'))
+            except (ValueError, TypeError):
+                return current_val
+
+        rule.commission_percent = _get_float('commission_percent', rule.commission_percent)
+        rule.fixed_fee = _get_float('fixed_fee', rule.fixed_fee)
+        rule.fixed_fee_threshold = _get_float('fixed_fee_threshold', rule.fixed_fee_threshold)
+        rule.free_shipping_threshold = _get_float('free_shipping_threshold', rule.free_shipping_threshold)
+        rule.default_shipping_cost = _get_float('default_shipping_cost', rule.default_shipping_cost)
+        rule.tax_percent = _get_float('tax_percent', rule.tax_percent)
+        rule.operational_cost_percent = _get_float('operational_cost_percent', rule.operational_cost_percent)
+        rule.target_margin_percent = _get_float('target_margin_percent', rule.target_margin_percent)
         rule.updated_at = datetime.utcnow()
 
         db.session.commit()
