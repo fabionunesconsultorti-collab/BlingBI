@@ -372,9 +372,20 @@ def stock_analysis_import_excel():
 @requires_feature('products.pricing', fallback_endpoint='products.index')
 def pricing():
     """Tela de Precificação Inteligente de Marketplaces com DRE Unitário e aplicação em lote."""
+    # Sincroniza automaticamente canais configurados no Bling e pedidos históricos
+    try:
+        PricingEngine.sync_channels_from_bling()
+    except Exception as e:
+        logger.warning(f"Aviso ao sincronizar canais no carregamento da precificação: {e}")
+
     rules = PricingEngine.get_all_rules()
     selected_channel = request.args.get('channel', rules[0].channel if rules else 'Mercado Livre Clássico')
     active_rule = PricingEngine.get_rule_by_channel(selected_channel) or (rules[0] if rules else None)
+
+    # Verificação de preços existentes no canal local
+    has_synced_prices = False
+    if active_rule:
+        has_synced_prices = ProductChannelPrice.query.filter_by(channel=active_rule.channel).count() > 0
 
     q = request.args.get('q', '').strip()
     category = request.args.get('category', 'all')
@@ -409,6 +420,7 @@ def pricing():
         selected_category=category,
         custom_margin=custom_margin,
         q=q,
+        has_synced_prices=has_synced_prices,
         active_tab='pricing'
     )
 
@@ -446,6 +458,45 @@ def pricing_rules():
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@bp.route('/pricing/sync-channels', methods=['POST'])
+def pricing_sync_channels():
+    """Endpoint para sincronizar/atualizar canais de venda e marketplaces do Bling sob demanda."""
+    try:
+        synced_rules = PricingEngine.sync_channels_from_bling()
+        return jsonify({
+            'success': True,
+            'message': f"{len(synced_rules)} canais de venda verificados e sincronizados com sucesso!",
+            'channels': [r.to_dict() for r in synced_rules]
+        })
+    except Exception as e:
+        logger.error(f"[Pricing] Erro ao sincronizar canais: {e}")
+        return jsonify({'success': False, 'message': f"Erro ao sincronizar canais: {str(e)}"}), 500
+
+
+@bp.route('/pricing/sync-store-prices', methods=['POST'])
+def pricing_sync_store_prices():
+    """Sincroniza sob demanda os preços já cadastrados no canal no Bling (/produtos/lojas)."""
+    try:
+        data = request.get_json(silent=True) or request.form
+        channel = data.get('channel', '').strip()
+        rule = PricingEngine.get_rule_by_channel(channel)
+        if not rule or not rule.bling_loja_id:
+            return jsonify({
+                'success': False,
+                'message': f"O canal '{channel}' não possui vínculo ativo com loja no Bling."
+            }), 400
+
+        count = PricingEngine.sync_channel_prices_from_bling(rule)
+        return jsonify({
+            'success': True,
+            'message': f"{count} preço(s) de produto sincronizado(s) com sucesso a partir do Bling para '{rule.base_marketplace_name}'!",
+            'synced_count': count
+        })
+    except Exception as e:
+        logger.error(f"[Pricing] Erro ao sincronizar preços do Bling: {e}")
+        return jsonify({'success': False, 'message': f"Erro ao sincronizar preços: {str(e)}"}), 500
 
 
 @bp.route('/pricing/simulate', methods=['POST'])

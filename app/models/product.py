@@ -62,6 +62,13 @@ class ProductChannelPrice(db.Model):
     markup = db.Column(db.Float, default=0.0) # Markup % em relação ao custo
     margin_percent = db.Column(db.Float, default=0.0) # Margem líquida estimada
     is_active = db.Column(db.Boolean, default=True)
+    
+    # Rastreabilidade com a API v3 do Bling (/produtos/lojas)
+    bling_produto_loja_id = db.Column(db.BigInteger, nullable=True, index=True) # ID único do vínculo do produto na loja (ex: 920233394)
+    bling_loja_id = db.Column(db.BigInteger, nullable=True) # ID da loja no Bling (ex: 205523454)
+    sync_status = db.Column(db.String(30), default='synced') # 'synced', 'pending', 'error'
+    last_sync_at = db.Column(db.DateTime, nullable=True) # Data da última atualização refletida no Bling
+
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     def to_dict(self):
@@ -73,5 +80,10 @@ class ProductChannelPrice(db.Model):
             'markup': self.markup,
             'margin_percent': self.margin_percent,
             'is_active': self.is_active,
+            'bling_produto_loja_id': self.bling_produto_loja_id,
+            'bling_loja_id': self.bling_loja_id,
+            'sync_status': self.sync_status,
+            'last_sync_at': self.last_sync_at.strftime('%Y-%m-%d %H:%M:%S') if self.last_sync_at else None,
             'updated_at': self.updated_at.strftime('%Y-%m-%d %H:%M:%S') if self.updated_at else None
         }
+

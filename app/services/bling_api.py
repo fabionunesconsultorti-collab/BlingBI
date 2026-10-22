@@ -172,10 +172,13 @@ class BlingApiClient:
 
         return False, "Falha ao renovar token Bling."
 
-    def request(self, method, endpoint, params=None, json_data=None, retries=1):
+    def request(self, method, endpoint, params=None, json_data=None, json=None, retries=1, **kwargs):
         """Executa requisição com tratamento de rate limit e renovação automática de token."""
         url = f"{self.BASE_URL}{endpoint}" if not endpoint.startswith('http') else endpoint
         headers = self._get_headers()
+        body = json if json is not None else json_data
+
+        req_timeout = kwargs.pop('timeout', 30)
 
         for attempt in range(retries + 1):
             try:
@@ -184,8 +187,9 @@ class BlingApiClient:
                     url=url,
                     headers=headers,
                     params=params,
-                    json=json_data,
-                    timeout=20
+                    json=body,
+                    timeout=req_timeout,
+                    **kwargs
                 )
 
                 # Token Expirado (401)
@@ -390,5 +394,129 @@ class BlingApiClient:
             'saldo_disponivel': saldo_virtual,
             'detalhes_depositos': saldos
         }
+
+    def get_sales_channels(self):
+        """
+        Obtém os canais de venda e lojas virtuais configurados no Bling (/canais-venda).
+        Retorna lista de dicionários com os dados de cada canal (id, descricao, tipo, situacao).
+        """
+        try:
+            resp = self.request('GET', '/canais-venda')
+            if resp and resp.status_code == 200:
+                data = resp.json().get('data', [])
+                logger.info(f"[BlingApiClient] {len(data)} canal(is) de venda recuperado(s) do Bling.")
+                return data
+            elif resp and resp.status_code != 404:
+                logger.warning(f"[BlingApiClient] Erro ao buscar canais de venda: HTTP {resp.status_code}")
+        except Exception as e:
+            logger.error(f"[BlingApiClient] Exceção ao consultar /canais-venda: {e}")
+        return []
+
+    def get_store_products(self, loja_id: int, max_items: int = 500) -> list[dict]:
+        """
+        Busca os produtos vinculados a uma loja virtual ou marketplace no Bling (/produtos/lojas?idLoja=...).
+        Retorna lista com IDs de vínculo (id), id do produto (produto.id), código e preço praticado na loja.
+        """
+        all_items = []
+        page = 1
+        limit = 100
+
+        try:
+            while len(all_items) < max_items:
+                resp = self.request('GET', f'/produtos/lojas?idLoja={loja_id}&limite={limit}&pagina={page}', timeout=45)
+                if not resp or resp.status_code != 200:
+                    break
+
+                data = resp.json().get('data', [])
+                if not data:
+                    break
+
+                all_items.extend(data)
+                if len(data) < limit:
+                    break
+
+                page += 1
+                time.sleep(0.3)
+
+            logger.info(f"[BlingApiClient] Loja {loja_id}: {len(all_items)} produto(s) recuperado(s) do Bling.")
+        except Exception as e:
+            logger.error(f"[BlingApiClient] Erro ao buscar produtos da loja {loja_id}: {e}")
+
+        return all_items
+
+    def get_product_store_link(self, loja_id: int, bling_product_id: int) -> dict | None:
+        """
+        Consulta o vínculo específico de um produto em uma loja (/produtos/lojas?idLoja=...&idProduto=...).
+        """
+        try:
+            resp = self.request('GET', f'/produtos/lojas?idLoja={loja_id}&idProduto={bling_product_id}')
+            if resp and resp.status_code == 200:
+                data = resp.json().get('data', [])
+                if data and len(data) > 0:
+                    return data[0]
+        except Exception as e:
+            logger.error(f"[BlingApiClient] Erro ao consultar vínculo de produto {bling_product_id} na loja {loja_id}: {e}")
+        return None
+
+    def update_product_store_price(self, bling_product_id: int, loja_id: int, price: float, produto_loja_id: int | None = None) -> tuple[bool, str, dict]:
+        """
+        Atualiza o preço de venda de um produto no canal/loja selecionado no Bling.
+        Utiliza PUT /produtos/lojas/{idProdutoLoja} ou POST /produtos/lojas se não houver vínculo.
+        """
+        try:
+            rounded_price = round(float(price), 2)
+            
+            # 1. Se não tiver o ID do vínculo, tenta localizar via API
+            if not produto_loja_id:
+                link = self.get_product_store_link(loja_id, bling_product_id)
+                if link and link.get('id'):
+                    produto_loja_id = link.get('id')
+
+            # 2. Se temos o ID do vínculo na loja, executa PUT
+            if produto_loja_id:
+                url = f'/produtos/lojas/{produto_loja_id}'
+                payload = {
+                    'id': int(produto_loja_id),
+                    'idProdutoLoja': int(produto_loja_id),
+                    'preco': rounded_price,
+                    'produto': {'id': int(bling_product_id)},
+                    'loja': {'id': int(loja_id)}
+                }
+                resp = self.request('PUT', url, json_data=payload)
+                if resp and resp.status_code in (200, 204):
+                    data = resp.json().get('data', {}) if resp.status_code == 200 else {'id': produto_loja_id}
+                    logger.info(f"[BlingApiClient] Preço do produto {bling_product_id} na loja {loja_id} atualizado para R$ {rounded_price:.2f} (idProdutoLoja: {produto_loja_id})")
+                    return True, "Preço atualizado no Bling com sucesso!", data
+                else:
+                    err_msg = resp.text if resp else "Sem resposta do Bling"
+                    try:
+                        err_json = resp.json().get('error', {})
+                        err_msg = err_json.get('message', err_msg)
+                        if 'fields' in err_json and err_json['fields']:
+                            err_msg += " - " + err_json['fields'][0].get('msg', '')
+                    except Exception:
+                        pass
+                    logger.warning(f"[BlingApiClient] Falha ao atualizar preço no Bling: {err_msg}")
+                    return False, f"Bling API: {err_msg}", {}
+
+            # 3. Se não existe vínculo prévio, tenta cadastrar vínculo com o preço via POST
+            post_payload = {
+                'preco': rounded_price,
+                'produto': {'id': int(bling_product_id)},
+                'loja': {'id': int(loja_id)}
+            }
+            resp_post = self.request('POST', '/produtos/lojas', json_data=post_payload)
+            if resp_post and resp_post.status_code in (200, 201):
+                data = resp_post.json().get('data', {})
+                return True, "Vínculo e preço cadastrados no Bling com sucesso!", data
+            else:
+                err_msg = resp_post.text if resp_post else "Sem resposta"
+                return False, f"Falha ao vincular produto na loja do Bling: {err_msg}", {}
+
+        except Exception as e:
+            logger.error(f"[BlingApiClient] Exceção ao atualizar preço de produto na loja {loja_id}: {e}")
+            return False, f"Erro interno ao atualizar preço no Bling: {str(e)}", {}
+
+
 
 
