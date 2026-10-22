@@ -64,6 +64,54 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+    // 0.1 Controle de Subcategorias / Dropdowns do Menu Lateral (Exibir e Ocultar)
+    const STORAGE_KEY_SIDEBAR_MENUS = 'blingbi_sidebar_menus_state';
+    
+    function getStoredMenuStates() {
+        try {
+            return JSON.parse(localStorage.getItem(STORAGE_KEY_SIDEBAR_MENUS)) || {};
+        } catch (e) {
+            return {};
+        }
+    }
+
+    function saveMenuState(menuId, isOpen) {
+        try {
+            const states = getStoredMenuStates();
+            states[menuId] = isOpen;
+            localStorage.setItem(STORAGE_KEY_SIDEBAR_MENUS, JSON.stringify(states));
+        } catch (e) {}
+    }
+
+    const dropdowns = document.querySelectorAll('.sidebar-dropdown');
+    const storedStates = getStoredMenuStates();
+
+    dropdowns.forEach(function(dropdown) {
+        const menuId = dropdown.getAttribute('data-menu-id');
+        const toggleBtn = dropdown.querySelector('.submenu-toggle-btn');
+        const isActiveParent = dropdown.classList.contains('active-parent');
+
+        // Se for o setor atualmente ativo, mantém aberto por padrão
+        // Caso contrário, respeita a preferência salva no localStorage
+        if (isActiveParent) {
+            dropdown.classList.add('open');
+        } else if (menuId && storedStates[menuId] !== undefined) {
+            dropdown.classList.toggle('open', !!storedStates[menuId]);
+        }
+
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                const willOpen = !dropdown.classList.contains('open');
+                dropdown.classList.toggle('open', willOpen);
+                if (menuId) {
+                    saveMenuState(menuId, willOpen);
+                }
+            });
+        }
+    });
+
     // 1. Manipulação do Seletor de Período
     const periodSelect = document.getElementById('periodSelect');
     const customDateRange = document.getElementById('customDateRange');

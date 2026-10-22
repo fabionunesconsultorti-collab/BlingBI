@@ -11,30 +11,50 @@
         </div>
     </div>
 
-    <!-- Abas de Navegação Interna do Setor -->
-    <nav class="sector-nav-tabs">
+    <!-- Botões Compactos de Navegação em 2 Linhas -->
+    <nav class="sector-nav-compact-grid">
         {% if is_feature_enabled('sales.overview') %}
-        <a href="{{ url_for('sales.index') }}" class="sector-nav-tab {% if active_tab == 'overview' %}active{% endif %}">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-            Visão Geral & Pedidos
+        <a href="{{ url_for('sales.index') }}" class="sector-nav-btn {% if active_tab == 'overview' %}active{% endif %}">
+            <span class="sector-nav-btn-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+            </span>
+            <span class="sector-nav-btn-text">
+                <span class="btn-line-main">Visão Geral & Pedidos</span>
+                <span class="btn-line-sub">Pedidos & Faturamento</span>
+            </span>
         </a>
         {% endif %}
         {% if is_feature_enabled('sales.multichannel') %}
-        <a href="{{ url_for('sales.multichannel') }}" class="sector-nav-tab {% if active_tab == 'multichannel' %}active{% endif %}">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
-            Performance Multicanal & Margem
+        <a href="{{ url_for('sales.multichannel') }}" class="sector-nav-btn {% if active_tab == 'multichannel' %}active{% endif %}">
+            <span class="sector-nav-btn-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+            </span>
+            <span class="sector-nav-btn-text">
+                <span class="btn-line-main">Performance Multicanal</span>
+                <span class="btn-line-sub">Canais & Margem</span>
+            </span>
         </a>
         {% endif %}
         {% if is_feature_enabled('sales.sellers') %}
-        <a href="{{ url_for('sales.sellers') }}" class="sector-nav-tab {% if active_tab == 'sellers' %}active{% endif %}">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg>
-            Produtividade & Vendedores
+        <a href="{{ url_for('sales.sellers') }}" class="sector-nav-btn {% if active_tab == 'sellers' %}active{% endif %}">
+            <span class="sector-nav-btn-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg>
+            </span>
+            <span class="sector-nav-btn-text">
+                <span class="btn-line-main">Produtividade & Vendedores</span>
+                <span class="btn-line-sub">Vendedores & Metas</span>
+            </span>
         </a>
         {% endif %}
         {% if is_feature_enabled('sales.conditional_bags') %}
-        <a href="{{ url_for('sales.conditional_bags') }}" class="sector-nav-tab {% if active_tab == 'conditional_bags' %}active{% endif %}">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
-            Malas Condicionais (Bags)
+        <a href="{{ url_for('sales.conditional_bags') }}" class="sector-nav-btn {% if active_tab == 'conditional_bags' %}active{% endif %}">
+            <span class="sector-nav-btn-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
+            </span>
+            <span class="sector-nav-btn-text">
+                <span class="btn-line-main">Malas Condicionais (Bags)</span>
+                <span class="btn-line-sub">Consignados Moda & Retorno</span>
+            </span>
         </a>
         {% endif %}
     </nav>

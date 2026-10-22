@@ -13,31 +13,61 @@
             </a>
         </div>
     </div>
-    <div class="sector-nav-tabs">
+    <nav class="sector-nav-compact-grid">
         {% if is_feature_enabled('finance.overview') %}
-        <a href="{{ url_for('finance.index') }}" class="sector-nav-tab {% if active_tab == 'overview' %}active{% endif %}">
-            Visão Geral Financeira
+        <a href="{{ url_for('finance.index') }}" class="sector-nav-btn {% if active_tab == 'overview' %}active{% endif %}">
+            <span class="sector-nav-btn-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+            </span>
+            <span class="sector-nav-btn-text">
+                <span class="btn-line-main">Visão Geral</span>
+                <span class="btn-line-sub">Resumo Financeiro</span>
+            </span>
         </a>
         {% endif %}
         {% if is_feature_enabled('finance.dre') %}
-        <a href="{{ url_for('finance.dre') }}" class="sector-nav-tab {% if active_tab == 'dre' %}active{% endif %}">
-            DRE Gerencial (Cascata)
+        <a href="{{ url_for('finance.dre') }}" class="sector-nav-btn {% if active_tab == 'dre' %}active{% endif %}">
+            <span class="sector-nav-btn-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+            </span>
+            <span class="sector-nav-btn-text">
+                <span class="btn-line-main">DRE Gerencial</span>
+                <span class="btn-line-sub">Resultado em Cascata</span>
+            </span>
         </a>
         {% endif %}
         {% if is_feature_enabled('finance.cash_flow') %}
-        <a href="{{ url_for('finance.cash_flow') }}" class="sector-nav-tab {% if active_tab == 'cash_flow' %}active{% endif %}">
-            Projeção de Fluxo de Caixa
+        <a href="{{ url_for('finance.cash_flow') }}" class="sector-nav-btn {% if active_tab == 'cash_flow' %}active{% endif %}">
+            <span class="sector-nav-btn-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
+            </span>
+            <span class="sector-nav-btn-text">
+                <span class="btn-line-main">Fluxo de Caixa</span>
+                <span class="btn-line-sub">Projeção Diária</span>
+            </span>
         </a>
         {% endif %}
         {% if is_feature_enabled('finance.aging') %}
-        <a href="{{ url_for('finance.aging') }}" class="sector-nav-tab {% if active_tab == 'aging' %}active{% endif %}">
-            Inadimplência & Aging List
+        <a href="{{ url_for('finance.aging') }}" class="sector-nav-btn {% if active_tab == 'aging' %}active{% endif %}">
+            <span class="sector-nav-btn-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            </span>
+            <span class="sector-nav-btn-text">
+                <span class="btn-line-main">Inadimplência</span>
+                <span class="btn-line-sub">Aging List & Cobrança</span>
+            </span>
         </a>
         {% endif %}
         {% if is_feature_enabled('finance.cash_statement') %}
-        <a href="{{ url_for('finance.cash_statement') }}" class="sector-nav-tab {% if active_tab == 'cash_statement' %}active{% endif %}">
-            Fechamento de Caixa & Extrato
+        <a href="{{ url_for('finance.cash_statement') }}" class="sector-nav-btn {% if active_tab == 'cash_statement' %}active{% endif %}">
+            <span class="sector-nav-btn-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"></rect><path d="M7 15h0M2 9.5h20"></path></svg>
+            </span>
+            <span class="sector-nav-btn-text">
+                <span class="btn-line-main">Fechamento de Caixa</span>
+                <span class="btn-line-sub">Extrato & Saldos</span>
+            </span>
         </a>
         {% endif %}
-    </div>
+    </nav>
 </div>

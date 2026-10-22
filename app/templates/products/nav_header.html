@@ -11,42 +11,72 @@
         </div>
     </div>
 
-    <!-- Abas de Navegação Interna do Setor -->
-    <nav class="sector-nav-tabs">
+    <!-- Botões Compactos de Navegação em 2 Linhas -->
+    <nav class="sector-nav-compact-grid">
         {% if is_feature_enabled('products.overview') %}
-        <a href="{{ url_for('products.index') }}" class="sector-nav-tab {% if active_tab == 'catalog' %}active{% endif %}">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
-            Inventário & Catálogo
+        <a href="{{ url_for('products.index') }}" class="sector-nav-btn {% if active_tab == 'catalog' %}active{% endif %}">
+            <span class="sector-nav-btn-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+            </span>
+            <span class="sector-nav-btn-text">
+                <span class="btn-line-main">Inventário & Catálogo</span>
+                <span class="btn-line-sub">Catálogo Geral de SKUs</span>
+            </span>
         </a>
         {% endif %}
         {% if is_feature_enabled('products.stock_analysis') %}
-        <a href="{{ url_for('products.stock_analysis') }}" class="sector-nav-tab {% if active_tab == 'stock_analysis' %}active{% endif %}">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
-            Análise de Estoque & Preços
+        <a href="{{ url_for('products.stock_analysis') }}" class="sector-nav-btn {% if active_tab == 'stock_analysis' %}active{% endif %}">
+            <span class="sector-nav-btn-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+            </span>
+            <span class="sector-nav-btn-text">
+                <span class="btn-line-main">Análise de Estoque</span>
+                <span class="btn-line-sub">Preços & Margens</span>
+            </span>
         </a>
         {% endif %}
         {% if is_feature_enabled('products.pricing') %}
-        <a href="{{ url_for('products.pricing') }}" class="sector-nav-tab {% if active_tab == 'pricing' %}active{% endif %}">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
-            Precificação Marketplaces
+        <a href="{{ url_for('products.pricing') }}" class="sector-nav-btn {% if active_tab == 'pricing' %}active{% endif %}">
+            <span class="sector-nav-btn-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+            </span>
+            <span class="sector-nav-btn-text">
+                <span class="btn-line-main">Precificação</span>
+                <span class="btn-line-sub">Cálculo Marketplaces</span>
+            </span>
         </a>
         {% endif %}
         {% if is_feature_enabled('products.abc') %}
-        <a href="{{ url_for('products.abc') }}" class="sector-nav-tab {% if active_tab == 'abc' %}active{% endif %}">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
-            Curva ABC (Pareto)
+        <a href="{{ url_for('products.abc') }}" class="sector-nav-btn {% if active_tab == 'abc' %}active{% endif %}">
+            <span class="sector-nav-btn-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
+            </span>
+            <span class="sector-nav-btn-text">
+                <span class="btn-line-main">Curva ABC (Pareto)</span>
+                <span class="btn-line-sub">Classificação 80/20</span>
+            </span>
         </a>
         {% endif %}
         {% if is_feature_enabled('products.stock_coverage') %}
-        <a href="{{ url_for('products.stock_coverage') }}" class="sector-nav-tab {% if active_tab == 'coverage' %}active{% endif %}">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-            Dias de Cobertura & Ruptura
+        <a href="{{ url_for('products.stock_coverage') }}" class="sector-nav-btn {% if active_tab == 'coverage' %}active{% endif %}">
+            <span class="sector-nav-btn-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            </span>
+            <span class="sector-nav-btn-text">
+                <span class="btn-line-main">Dias de Cobertura</span>
+                <span class="btn-line-sub">Ruptura & Giro de Estoque</span>
+            </span>
         </a>
         {% endif %}
         {% if is_feature_enabled('products.returns') %}
-        <a href="{{ url_for('products.returns') }}" class="sector-nav-tab {% if active_tab == 'returns' %}active{% endif %}">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 2v6h6M21.5 22v-6h-6"/><path d="M22 11.5A10 10 0 0 0 3.2 7.2M2 12.5a10 10 0 0 0 18.8 4.3"/></svg>
-            Trocas & Devoluções por SKU
+        <a href="{{ url_for('products.returns') }}" class="sector-nav-btn {% if active_tab == 'returns' %}active{% endif %}">
+            <span class="sector-nav-btn-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 2v6h6M21.5 22v-6h-6"/><path d="M22 11.5A10 10 0 0 0 3.2 7.2M2 12.5a10 10 0 0 0 18.8 4.3"/></svg>
+            </span>
+            <span class="sector-nav-btn-text">
+                <span class="btn-line-main">Trocas & Devoluções</span>
+                <span class="btn-line-sub">Índice por SKU</span>
+            </span>
         </a>
         {% endif %}
     </nav>

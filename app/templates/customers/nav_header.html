@@ -11,42 +11,72 @@
         </div>
     </div>
 
-    <!-- Abas de Navegação Interna do Setor -->
-    <nav class="sector-nav-tabs">
+    <!-- Botões Compactos de Navegação em 2 Linhas -->
+    <nav class="sector-nav-compact-grid">
         {% if is_feature_enabled('customers.overview') %}
-        <a href="{{ url_for('customers.index') }}" class="sector-nav-tab {% if active_tab == 'base' %}active{% endif %}">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
-            Base de Clientes
+        <a href="{{ url_for('customers.index') }}" class="sector-nav-btn {% if active_tab == 'base' %}active{% endif %}">
+            <span class="sector-nav-btn-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
+            </span>
+            <span class="sector-nav-btn-text">
+                <span class="btn-line-main">Base de Clientes</span>
+                <span class="btn-line-sub">Visão Geral & Cadastro</span>
+            </span>
         </a>
         {% endif %}
         {% if is_feature_enabled('customers.rfm') %}
-        <a href="{{ url_for('customers.rfm') }}" class="sector-nav-tab {% if active_tab == 'rfm' %}active{% endif %}">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polygon points="12 8 8 12 12 16 16 12 12 8"></polygon></svg>
-            Matriz RFM (Clusters)
+        <a href="{{ url_for('customers.rfm') }}" class="sector-nav-btn {% if active_tab == 'rfm' %}active{% endif %}">
+            <span class="sector-nav-btn-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polygon points="12 8 8 12 12 16 16 12 12 8"></polygon></svg>
+            </span>
+            <span class="sector-nav-btn-text">
+                <span class="btn-line-main">Matriz RFM</span>
+                <span class="btn-line-sub">Clusters & Segmentação</span>
+            </span>
         </a>
         {% endif %}
         {% if is_feature_enabled('customers.abc') %}
-        <a href="{{ url_for('customers.abc') }}" class="sector-nav-tab {% if active_tab == 'abc' %}active{% endif %}">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
-            Curva ABC de Clientes
+        <a href="{{ url_for('customers.abc') }}" class="sector-nav-btn {% if active_tab == 'abc' %}active{% endif %}">
+            <span class="sector-nav-btn-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
+            </span>
+            <span class="sector-nav-btn-text">
+                <span class="btn-line-main">Curva ABC</span>
+                <span class="btn-line-sub">Pareto de Compradores</span>
+            </span>
         </a>
         {% endif %}
         {% if is_feature_enabled('customers.profiles') %}
-        <a href="{{ url_for('customers.profiles') }}" class="sector-nav-tab {% if active_tab == 'profiles' %}active{% endif %}">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.38 3.46L16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"></path></svg>
-            Perfil & Preferências
+        <a href="{{ url_for('customers.profiles') }}" class="sector-nav-btn {% if active_tab == 'profiles' %}active{% endif %}">
+            <span class="sector-nav-btn-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.38 3.46L16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"></path></svg>
+            </span>
+            <span class="sector-nav-btn-text">
+                <span class="btn-line-main">Perfis & Hábitos</span>
+                <span class="btn-line-sub">Preferências de Compra</span>
+            </span>
         </a>
         {% endif %}
         {% if is_feature_enabled('customers.birthdays') %}
-        <a href="{{ url_for('customers.birthdays') }}" class="sector-nav-tab {% if active_tab == 'birthdays' %}active{% endif %}">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="8" width="18" height="4" rx="1"></rect><path d="M12 8v13"></path><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"></path><path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 4.8 0 0 1 12 8a4.8 4.8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5"></path></svg>
-            Aniversariantes do Mês
+        <a href="{{ url_for('customers.birthdays') }}" class="sector-nav-btn {% if active_tab == 'birthdays' %}active{% endif %}">
+            <span class="sector-nav-btn-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="8" width="18" height="4" rx="1"></rect><path d="M12 8v13"></path><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"></path><path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 4.8 0 0 1 12 8a4.8 4.8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5"></path></svg>
+            </span>
+            <span class="sector-nav-btn-text">
+                <span class="btn-line-main">Aniversariantes</span>
+                <span class="btn-line-sub">Campanhas do Mês</span>
+            </span>
         </a>
         {% endif %}
         {% if is_feature_enabled('customers.nps') %}
-        <a href="{{ url_for('customers.nps') }}" class="sector-nav-tab {% if active_tab == 'nps' %}active{% endif %}">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-            Satisfação & NPS
+        <a href="{{ url_for('customers.nps') }}" class="sector-nav-btn {% if active_tab == 'nps' %}active{% endif %}">
+            <span class="sector-nav-btn-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+            </span>
+            <span class="sector-nav-btn-text">
+                <span class="btn-line-main">Satisfação & NPS</span>
+                <span class="btn-line-sub">Avaliação & Pós-Venda</span>
+            </span>
         </a>
         {% endif %}
     </nav>

@@ -51,43 +51,278 @@
                 {% if is_screen_allowed('sales') or is_screen_allowed('products') or is_screen_allowed('customers') or is_screen_allowed('finance') or is_screen_allowed('fashion') %}
                     <li class="menu-category">Setores de Inteligência</li>
                     {% if is_screen_allowed('sales') %}
-                        <li class="menu-item {% if request.endpoint and request.endpoint.startswith('sales.') %}active{% endif %}">
-                            <a href="{{ url_for('sales.index') }}">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
-                                Vendas e Pedidos
-                            </a>
+                        <li class="sidebar-dropdown {% if request.endpoint and request.endpoint.startswith('sales.') %}open active-parent{% endif %}" data-menu-id="sales">
+                            <div class="menu-item-header">
+                                <a href="{{ url_for('sales.index') }}" class="menu-link-main">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
+                                    <span>Vendas e Pedidos</span>
+                                </a>
+                                <button type="button" class="submenu-toggle-btn" aria-label="Exibir ou ocultar subcategorias de Vendas">
+                                    <svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                                </button>
+                            </div>
+                            <ul class="sidebar-submenu">
+                                {% if is_feature_enabled('sales.overview') %}
+                                <li class="submenu-item {% if request.endpoint == 'sales.index' %}active{% endif %}">
+                                    <a href="{{ url_for('sales.index') }}">
+                                        <span class="submenu-dot"></span>
+                                        Visão Geral & Pedidos
+                                    </a>
+                                </li>
+                                {% endif %}
+                                {% if is_feature_enabled('sales.multichannel') %}
+                                <li class="submenu-item {% if request.endpoint == 'sales.multichannel' %}active{% endif %}">
+                                    <a href="{{ url_for('sales.multichannel') }}">
+                                        <span class="submenu-dot"></span>
+                                        Performance Multicanal
+                                    </a>
+                                </li>
+                                {% endif %}
+                                {% if is_feature_enabled('sales.sellers') %}
+                                <li class="submenu-item {% if request.endpoint == 'sales.sellers' %}active{% endif %}">
+                                    <a href="{{ url_for('sales.sellers') }}">
+                                        <span class="submenu-dot"></span>
+                                        Produtividade & Vendedores
+                                    </a>
+                                </li>
+                                {% endif %}
+                                {% if is_feature_enabled('sales.conditional_bags') %}
+                                <li class="submenu-item {% if request.endpoint == 'sales.conditional_bags' %}active{% endif %}">
+                                    <a href="{{ url_for('sales.conditional_bags') }}">
+                                        <span class="submenu-dot"></span>
+                                        Malas Condicionais (Bags)
+                                    </a>
+                                </li>
+                                {% endif %}
+                            </ul>
                         </li>
                     {% endif %}
                     {% if is_screen_allowed('products') %}
-                        <li class="menu-item {% if request.endpoint and request.endpoint.startswith('products.') %}active{% endif %}">
-                            <a href="{{ url_for('products.index') }}">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
-                                Produtos e Curva ABC
-                            </a>
+                        <li class="sidebar-dropdown {% if request.endpoint and request.endpoint.startswith('products.') %}open active-parent{% endif %}" data-menu-id="products">
+                            <div class="menu-item-header">
+                                <a href="{{ url_for('products.index') }}" class="menu-link-main">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                                    <span>Produtos e Curva ABC</span>
+                                </a>
+                                <button type="button" class="submenu-toggle-btn" aria-label="Exibir ou ocultar subcategorias de Produtos">
+                                    <svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                                </button>
+                            </div>
+                            <ul class="sidebar-submenu">
+                                {% if is_feature_enabled('products.overview') %}
+                                <li class="submenu-item {% if request.endpoint == 'products.index' %}active{% endif %}">
+                                    <a href="{{ url_for('products.index') }}">
+                                        <span class="submenu-dot"></span>
+                                        Inventário & Catálogo
+                                    </a>
+                                </li>
+                                {% endif %}
+                                {% if is_feature_enabled('products.stock_analysis') %}
+                                <li class="submenu-item {% if request.endpoint == 'products.stock_analysis' %}active{% endif %}">
+                                    <a href="{{ url_for('products.stock_analysis') }}">
+                                        <span class="submenu-dot"></span>
+                                        Análise de Estoque & Preços
+                                    </a>
+                                </li>
+                                {% endif %}
+                                {% if is_feature_enabled('products.pricing') %}
+                                <li class="submenu-item {% if request.endpoint == 'products.pricing' %}active{% endif %}">
+                                    <a href="{{ url_for('products.pricing') }}">
+                                        <span class="submenu-dot"></span>
+                                        Precificação Marketplaces
+                                    </a>
+                                </li>
+                                {% endif %}
+                                {% if is_feature_enabled('products.abc') %}
+                                <li class="submenu-item {% if request.endpoint == 'products.abc' %}active{% endif %}">
+                                    <a href="{{ url_for('products.abc') }}">
+                                        <span class="submenu-dot"></span>
+                                        Curva ABC (Pareto)
+                                    </a>
+                                </li>
+                                {% endif %}
+                                {% if is_feature_enabled('products.stock_coverage') %}
+                                <li class="submenu-item {% if request.endpoint == 'products.stock_coverage' %}active{% endif %}">
+                                    <a href="{{ url_for('products.stock_coverage') }}">
+                                        <span class="submenu-dot"></span>
+                                        Dias de Cobertura & Ruptura
+                                    </a>
+                                </li>
+                                {% endif %}
+                                {% if is_feature_enabled('products.returns') %}
+                                <li class="submenu-item {% if request.endpoint == 'products.returns' %}active{% endif %}">
+                                    <a href="{{ url_for('products.returns') }}">
+                                        <span class="submenu-dot"></span>
+                                        Trocas & Devoluções
+                                    </a>
+                                </li>
+                                {% endif %}
+                            </ul>
                         </li>
                     {% endif %}
                     {% if is_screen_allowed('customers') %}
-                        <li class="menu-item {% if request.endpoint and request.endpoint.startswith('customers.') %}active{% endif %}">
-                            <a href="{{ url_for('customers.index') }}">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-                                Clientes e CRM
-                            </a>
+                        <li class="sidebar-dropdown {% if request.endpoint and request.endpoint.startswith('customers.') %}open active-parent{% endif %}" data-menu-id="customers">
+                            <div class="menu-item-header">
+                                <a href="{{ url_for('customers.index') }}" class="menu-link-main">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                                    <span>Clientes e CRM</span>
+                                </a>
+                                <button type="button" class="submenu-toggle-btn" aria-label="Exibir ou ocultar subcategorias de Clientes">
+                                    <svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                                </button>
+                            </div>
+                            <ul class="sidebar-submenu">
+                                {% if is_feature_enabled('customers.overview') %}
+                                <li class="submenu-item {% if request.endpoint == 'customers.index' %}active{% endif %}">
+                                    <a href="{{ url_for('customers.index') }}">
+                                        <span class="submenu-dot"></span>
+                                        Base de Clientes
+                                    </a>
+                                </li>
+                                {% endif %}
+                                {% if is_feature_enabled('customers.rfm') %}
+                                <li class="submenu-item {% if request.endpoint == 'customers.rfm' %}active{% endif %}">
+                                    <a href="{{ url_for('customers.rfm') }}">
+                                        <span class="submenu-dot"></span>
+                                        Matriz RFM (Clusters)
+                                    </a>
+                                </li>
+                                {% endif %}
+                                {% if is_feature_enabled('customers.abc') %}
+                                <li class="submenu-item {% if request.endpoint == 'customers.abc' %}active{% endif %}">
+                                    <a href="{{ url_for('customers.abc') }}">
+                                        <span class="submenu-dot"></span>
+                                        Curva ABC de Clientes
+                                    </a>
+                                </li>
+                                {% endif %}
+                                {% if is_feature_enabled('customers.profiles') %}
+                                <li class="submenu-item {% if request.endpoint == 'customers.profiles' %}active{% endif %}">
+                                    <a href="{{ url_for('customers.profiles') }}">
+                                        <span class="submenu-dot"></span>
+                                        Perfil & Preferências
+                                    </a>
+                                </li>
+                                {% endif %}
+                                {% if is_feature_enabled('customers.birthdays') %}
+                                <li class="submenu-item {% if request.endpoint == 'customers.birthdays' %}active{% endif %}">
+                                    <a href="{{ url_for('customers.birthdays') }}">
+                                        <span class="submenu-dot"></span>
+                                        Aniversariantes do Mês
+                                    </a>
+                                </li>
+                                {% endif %}
+                                {% if is_feature_enabled('customers.nps') %}
+                                <li class="submenu-item {% if request.endpoint == 'customers.nps' %}active{% endif %}">
+                                    <a href="{{ url_for('customers.nps') }}">
+                                        <span class="submenu-dot"></span>
+                                        Satisfação & NPS
+                                    </a>
+                                </li>
+                                {% endif %}
+                            </ul>
                         </li>
                     {% endif %}
                     {% if is_screen_allowed('finance') %}
-                        <li class="menu-item {% if request.endpoint and request.endpoint.startswith('finance.') %}active{% endif %}">
-                            <a href="{{ url_for('finance.index') }}">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
-                                Financeiro e DRE
-                            </a>
+                        <li class="sidebar-dropdown {% if request.endpoint and request.endpoint.startswith('finance.') %}open active-parent{% endif %}" data-menu-id="finance">
+                            <div class="menu-item-header">
+                                <a href="{{ url_for('finance.index') }}" class="menu-link-main">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                                    <span>Financeiro e DRE</span>
+                                </a>
+                                <button type="button" class="submenu-toggle-btn" aria-label="Exibir ou ocultar subcategorias Financeiras">
+                                    <svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                                </button>
+                            </div>
+                            <ul class="sidebar-submenu">
+                                {% if is_feature_enabled('finance.overview') %}
+                                <li class="submenu-item {% if request.endpoint == 'finance.index' %}active{% endif %}">
+                                    <a href="{{ url_for('finance.index') }}">
+                                        <span class="submenu-dot"></span>
+                                        Visão Geral Financeira
+                                    </a>
+                                </li>
+                                {% endif %}
+                                {% if is_feature_enabled('finance.dre') %}
+                                <li class="submenu-item {% if request.endpoint == 'finance.dre' %}active{% endif %}">
+                                    <a href="{{ url_for('finance.dre') }}">
+                                        <span class="submenu-dot"></span>
+                                        DRE Gerencial (Cascata)
+                                    </a>
+                                </li>
+                                {% endif %}
+                                {% if is_feature_enabled('finance.cash_flow') %}
+                                <li class="submenu-item {% if request.endpoint == 'finance.cash_flow' %}active{% endif %}">
+                                    <a href="{{ url_for('finance.cash_flow') }}">
+                                        <span class="submenu-dot"></span>
+                                        Fluxo de Caixa
+                                    </a>
+                                </li>
+                                {% endif %}
+                                {% if is_feature_enabled('finance.aging') %}
+                                <li class="submenu-item {% if request.endpoint == 'finance.aging' %}active{% endif %}">
+                                    <a href="{{ url_for('finance.aging') }}">
+                                        <span class="submenu-dot"></span>
+                                        Inadimplência & Aging List
+                                    </a>
+                                </li>
+                                {% endif %}
+                                {% if is_feature_enabled('finance.cash_statement') %}
+                                <li class="submenu-item {% if request.endpoint == 'finance.cash_statement' %}active{% endif %}">
+                                    <a href="{{ url_for('finance.cash_statement') }}">
+                                        <span class="submenu-dot"></span>
+                                        Fechamento de Caixa
+                                    </a>
+                                </li>
+                                {% endif %}
+                            </ul>
                         </li>
                     {% endif %}
                     {% if is_screen_allowed('fashion') %}
-                        <li class="menu-item {% if request.endpoint and request.endpoint.startswith('fashion.') %}active{% endif %}">
-                            <a href="{{ url_for('fashion.index') }}">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
-                                Moda & Vestuário
-                            </a>
+                        <li class="sidebar-dropdown {% if request.endpoint and request.endpoint.startswith('fashion.') %}open active-parent{% endif %}" data-menu-id="fashion">
+                            <div class="menu-item-header">
+                                <a href="{{ url_for('fashion.index') }}" class="menu-link-main">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
+                                    <span>Moda & Vestuário</span>
+                                </a>
+                                <button type="button" class="submenu-toggle-btn" aria-label="Exibir ou ocultar subcategorias de Moda">
+                                    <svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                                </button>
+                            </div>
+                            <ul class="sidebar-submenu">
+                                {% if is_feature_enabled('fashion.block1') %}
+                                <li class="submenu-item {% if request.endpoint and request.endpoint.startswith('fashion.') and (request.args.get('tab') == 'block1' or not request.args.get('tab')) %}active{% endif %}">
+                                    <a href="{{ url_for('fashion.index', tab='block1') }}">
+                                        <span class="submenu-dot"></span>
+                                        1. Perfil & Comportamento
+                                    </a>
+                                </li>
+                                {% endif %}
+                                {% if is_feature_enabled('fashion.block2') %}
+                                <li class="submenu-item {% if request.endpoint and request.endpoint.startswith('fashion.') and request.args.get('tab') == 'block2' %}active{% endif %}">
+                                    <a href="{{ url_for('fashion.index', tab='block2') }}">
+                                        <span class="submenu-dot"></span>
+                                        2. Movimentação & Moda
+                                    </a>
+                                </li>
+                                {% endif %}
+                                {% if is_feature_enabled('fashion.block3') %}
+                                <li class="submenu-item {% if request.endpoint and request.endpoint.startswith('fashion.') and request.args.get('tab') == 'block3' %}active{% endif %}">
+                                    <a href="{{ url_for('fashion.index', tab='block3') }}">
+                                        <span class="submenu-dot"></span>
+                                        3. Desempenho Atendimento
+                                    </a>
+                                </li>
+                                {% endif %}
+                                {% if is_feature_enabled('fashion.block4') %}
+                                <li class="submenu-item {% if request.endpoint and request.endpoint.startswith('fashion.') and request.args.get('tab') == 'block4' %}active{% endif %}">
+                                    <a href="{{ url_for('fashion.index', tab='block4') }}">
+                                        <span class="submenu-dot"></span>
+                                        4. Relacionamento & CRM
+                                    </a>
+                                </li>
+                                {% endif %}
+                            </ul>
                         </li>
                     {% endif %}
                 {% endif %}
@@ -104,35 +339,48 @@
 
                 {% if session.get('is_admin') %}
                     <li class="menu-category" style="color: #6ee7b7;">Administração Geral</li>
-                    <li class="menu-item {% if request.endpoint == 'admin.index' %}active{% endif %}">
-                        <a href="{{ url_for('admin.index') }}" style="color: #d1fae5;">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>
-                            Painel Admin
-                        </a>
-                    </li>
-                    <li class="menu-item {% if request.endpoint and request.endpoint.startswith('admin.client') %}active{% endif %}">
-                        <a href="{{ url_for('admin.clients_list') }}" style="color: #d1fae5;">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-                            Gerenciar Clientes
-                        </a>
-                    </li>
-                    <li class="menu-item {% if request.endpoint and request.endpoint.startswith('admin.segment') %}active{% endif %}">
-                        <a href="{{ url_for('admin.segments_list') }}" style="color: #d1fae5;">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 21v-7m0-4V3m8 18v-9m0-4V3m8 18v-5m0-4V3M1 14h6m2-6h6m2 8h6"></path></svg>
-                            Segmentos & Telas
-                        </a>
-                    </li>
-                    <li class="menu-item {% if request.endpoint and request.endpoint.startswith('admin.backup') %}active{% endif %}">
-                        <a href="{{ url_for('admin.backups_index') }}" style="color: #d1fae5;">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
-                            Backup & Contingência
-                        </a>
-                    </li>
-                    <li class="menu-item {% if request.endpoint and request.endpoint.startswith('admin.migrate_supabase') %}active{% endif %}">
-                        <a href="{{ url_for('admin.migrate_supabase_index') }}" style="color: #6ee7b7; font-weight: 600;">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-                            Migrar p/ Supabase
-                        </a>
+                    <li class="sidebar-dropdown {% if request.endpoint and request.endpoint.startswith('admin.') %}open active-parent{% endif %}" data-menu-id="admin">
+                        <div class="menu-item-header">
+                            <a href="{{ url_for('admin.index') }}" class="menu-link-main" style="color: #d1fae5;">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>
+                                <span>Painel Administrativo</span>
+                            </a>
+                            <button type="button" class="submenu-toggle-btn" style="color: #6ee7b7;" aria-label="Exibir ou ocultar opções de Administração">
+                                <svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                            </button>
+                        </div>
+                        <ul class="sidebar-submenu">
+                            <li class="submenu-item {% if request.endpoint == 'admin.index' %}active{% endif %}">
+                                <a href="{{ url_for('admin.index') }}">
+                                    <span class="submenu-dot"></span>
+                                    Painel Geral Admin
+                                </a>
+                            </li>
+                            <li class="submenu-item {% if request.endpoint and request.endpoint.startswith('admin.client') %}active{% endif %}">
+                                <a href="{{ url_for('admin.clients_list') }}">
+                                    <span class="submenu-dot"></span>
+                                    Gerenciar Clientes
+                                </a>
+                            </li>
+                            <li class="submenu-item {% if request.endpoint and request.endpoint.startswith('admin.segment') %}active{% endif %}">
+                                <a href="{{ url_for('admin.segments_list') }}">
+                                    <span class="submenu-dot"></span>
+                                    Segmentos & Telas
+                                </a>
+                            </li>
+                            <li class="submenu-item {% if request.endpoint and request.endpoint.startswith('admin.backup') %}active{% endif %}">
+                                <a href="{{ url_for('admin.backups_index') }}">
+                                    <span class="submenu-dot"></span>
+                                    Backup & Contingência
+                                </a>
+                            </li>
+                            <li class="submenu-item {% if request.endpoint and request.endpoint.startswith('admin.migrate_supabase') %}active{% endif %}">
+                                <a href="{{ url_for('admin.migrate_supabase_index') }}" style="color: #6ee7b7; font-weight: 600;">
+                                    <span class="submenu-dot" style="background-color: #6ee7b7;"></span>
+                                    Migrar p/ Supabase
+                                </a>
+                            </li>
+                        </ul>
                     </li>
                 {% endif %}
             </ul>
