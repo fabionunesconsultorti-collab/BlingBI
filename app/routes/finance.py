@@ -1,8 +1,9 @@
-from flask import Blueprint, render_template, request, send_file
+from flask import Blueprint, render_template, request, send_file, jsonify, redirect, url_for, flash
 from app.services.bi_analytics import BiAnalytics
 from app.services.standard_reports import StandardReportsEngine
 from app.services.exporter import BiExporter
 from app.services.cash_statement import CashStatementService
+from app.services.accounts_service import AccountsService
 from app.core.feature_registry import requires_feature
 from datetime import datetime, date
 
@@ -257,3 +258,280 @@ def add_cash_movement_entry():
         flash(f'Erro ao registrar movimentação: {e}', 'danger')
 
     return redirect(url_for('finance.cash_statement'))
+
+
+# -----------------------------------------------------------------------------
+# 4.6 CONTAS A PAGAR & CONTAS A RECEBER (LANÇAMENTOS, CALENDÁRIO & BAIXAS)
+# -----------------------------------------------------------------------------
+@bp.route('/accounts')
+@requires_feature('finance.accounts')
+def accounts():
+    entry_type = request.args.get('entry_type', 'TODOS')
+    status = request.args.get('status', 'TODOS')
+    period = request.args.get('period', 'all')
+    start_str = request.args.get('start_date')
+    end_str = request.args.get('end_date')
+    date_basis = request.args.get('date_basis', 'due_date')
+    category = request.args.get('category', 'all')
+    payment_method = request.args.get('payment_method', 'all')
+    search = request.args.get('q', '').strip()
+    view = request.args.get('view', 'list')
+    cal_year = request.args.get('cal_year', type=int)
+    cal_month = request.args.get('cal_month', type=int)
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 25, type=int)
+
+    # Resolução de intervalo de datas
+    start_date, end_date = None, None
+    if period and period != 'all':
+        start_date, end_date = BiAnalytics.parse_date_filter(period, start_str, end_str)
+    elif start_str and end_str:
+        try:
+            start_date = datetime.strptime(start_str, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_str, '%Y-%m-%d').date()
+        except Exception:
+            start_date, end_date = None, None
+
+    filters = {
+        'entry_type': entry_type,
+        'status': status,
+        'start_date': start_date,
+        'end_date': end_date,
+        'date_basis': date_basis,
+        'category': category,
+        'payment_method': payment_method,
+        'search': search,
+        'period': period
+    }
+
+    accounts_data = AccountsService.get_accounts_data(filters=filters, page=page, per_page=per_page)
+    summary = AccountsService.get_summary_metrics(filters=filters)
+    calendar_data = AccountsService.get_calendar_events(year=cal_year, month=cal_month, filters=filters)
+    options = AccountsService.get_filter_options()
+
+    return render_template(
+        'finance/accounts.html',
+        entries=accounts_data['entries'],
+        pagination=accounts_data['pagination'],
+        summary=summary,
+        calendar_data=calendar_data,
+        options=options,
+        filters=filters,
+        current_view=view,
+        active_tab='accounts'
+    )
+
+@bp.route('/accounts/settle/<int:entry_id>', methods=['POST'])
+def settle_account_entry(entry_id):
+    is_json = request.is_json
+    data = request.get_json(silent=True) or request.form.to_dict()
+
+    p_date = data.get('payment_date')
+    p_method = data.get('payment_method')
+    notes = data.get('notes')
+    discount = data.get('discount')
+    fine_fee = data.get('fine_fee')
+
+    success, msg, entry = AccountsService.settle_entry(
+        entry_id=entry_id,
+        payment_date=p_date,
+        payment_method=p_method,
+        notes=notes,
+        discount=discount,
+        fine_fee=fine_fee
+    )
+
+    if is_json:
+        return jsonify({'success': success, 'message': msg, 'entry': entry.to_dict() if entry else None})
+    
+    if success:
+        flash(msg, 'success')
+    else:
+        flash(msg, 'danger')
+    return redirect(request.referrer or url_for('finance.accounts'))
+
+@bp.route('/accounts/unsettle/<int:entry_id>', methods=['POST'])
+def unsettle_account_entry(entry_id):
+    is_json = request.is_json
+    success, msg, entry = AccountsService.unsettle_entry(entry_id)
+
+    if is_json:
+        return jsonify({'success': success, 'message': msg, 'entry': entry.to_dict() if entry else None})
+
+    if success:
+        flash(msg, 'success')
+    else:
+        flash(msg, 'danger')
+    return redirect(request.referrer or url_for('finance.accounts'))
+
+@bp.route('/accounts/create', methods=['POST'])
+def create_account_entry():
+    is_json = request.is_json
+    data = request.get_json(silent=True) or request.form.to_dict()
+
+    success, msg, entry = AccountsService.create_entry(data)
+
+    if is_json:
+        return jsonify({'success': success, 'message': msg, 'entry': entry.to_dict() if entry else None})
+
+    if success:
+        flash(msg, 'success')
+    else:
+        flash(msg, 'danger')
+    return redirect(request.referrer or url_for('finance.accounts'))
+
+@bp.route('/accounts/update/<int:entry_id>', methods=['POST'])
+def update_account_entry(entry_id):
+    is_json = request.is_json
+    data = request.get_json(silent=True) or request.form.to_dict()
+
+    success, msg, entry = AccountsService.update_entry(entry_id, data)
+
+    if is_json:
+        return jsonify({'success': success, 'message': msg, 'entry': entry.to_dict() if entry else None})
+
+    if success:
+        flash(msg, 'success')
+    else:
+        flash(msg, 'danger')
+    return redirect(request.referrer or url_for('finance.accounts'))
+
+@bp.route('/accounts/delete/<int:entry_id>', methods=['POST'])
+def delete_account_entry(entry_id):
+    is_json = request.is_json
+    success, msg = AccountsService.delete_entry(entry_id)
+
+    if is_json:
+        return jsonify({'success': success, 'message': msg})
+
+    if success:
+        flash(msg, 'success')
+    else:
+        flash(msg, 'danger')
+    return redirect(request.referrer or url_for('finance.accounts'))
+
+@bp.route('/accounts/export/excel')
+def export_accounts_excel():
+    entry_type = request.args.get('entry_type', 'TODOS')
+    status = request.args.get('status', 'TODOS')
+    period = request.args.get('period', 'all')
+    start_str = request.args.get('start_date')
+    end_str = request.args.get('end_date')
+    date_basis = request.args.get('date_basis', 'due_date')
+    category = request.args.get('category', 'all')
+    payment_method = request.args.get('payment_method', 'all')
+    search = request.args.get('q', '').strip()
+
+    start_date, end_date = None, None
+    if period and period != 'all':
+        start_date, end_date = BiAnalytics.parse_date_filter(period, start_str, end_str)
+    elif start_str and end_str:
+        try:
+            start_date = datetime.strptime(start_str, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_str, '%Y-%m-%d').date()
+        except Exception:
+            start_date, end_date = None, None
+
+    filters = {
+        'entry_type': entry_type,
+        'status': status,
+        'start_date': start_date,
+        'end_date': end_date,
+        'date_basis': date_basis,
+        'category': category,
+        'payment_method': payment_method,
+        'search': search,
+        'period': period
+    }
+
+    accounts_data = AccountsService.get_accounts_data(filters=filters, page=1, per_page=10000)
+    summary = AccountsService.get_summary_metrics(filters=filters)
+
+    excel_stream = BiExporter.export_accounts_to_excel(
+        entries=accounts_data['entries'],
+        summary=summary,
+        filters=filters
+    )
+
+    return send_file(
+        excel_stream,
+        as_attachment=True,
+        download_name=f"BlingBI_Contas_Pagar_Receber_{date.today().strftime('%Y%m%d')}.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
+@bp.route('/accounts/export/pdf')
+def export_accounts_pdf():
+    entry_type = request.args.get('entry_type', 'TODOS')
+    status = request.args.get('status', 'TODOS')
+    period = request.args.get('period', 'all')
+    start_str = request.args.get('start_date')
+    end_str = request.args.get('end_date')
+    date_basis = request.args.get('date_basis', 'due_date')
+    category = request.args.get('category', 'all')
+    payment_method = request.args.get('payment_method', 'all')
+    search = request.args.get('q', '').strip()
+
+    start_date, end_date = None, None
+    if period and period != 'all':
+        start_date, end_date = BiAnalytics.parse_date_filter(period, start_str, end_str)
+    elif start_str and end_str:
+        try:
+            start_date = datetime.strptime(start_str, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_str, '%Y-%m-%d').date()
+        except Exception:
+            start_date, end_date = None, None
+
+    filters = {
+        'entry_type': entry_type,
+        'status': status,
+        'start_date': start_date,
+        'end_date': end_date,
+        'date_basis': date_basis,
+        'category': category,
+        'payment_method': payment_method,
+        'search': search,
+        'period': period
+    }
+
+    accounts_data = AccountsService.get_accounts_data(filters=filters, page=1, per_page=200)
+    summary = AccountsService.get_summary_metrics(filters=filters)
+
+    pdf_stream = BiExporter.export_accounts_to_pdf(
+        entries=accounts_data['entries'],
+        summary=summary,
+        filters=filters
+    )
+
+    return send_file(
+        pdf_stream,
+        as_attachment=True,
+        download_name=f"BlingBI_Contas_Pagar_Receber_{date.today().strftime('%Y%m%d')}.pdf",
+        mimetype="application/pdf"
+    )
+
+@bp.route('/accounts/sync', methods=['POST'])
+def sync_accounts():
+    from app.services.sync_service import SyncService
+    success = False
+    msg = ""
+    try:
+        success, msg = SyncService.sync_selected(options={
+            'customers': False,
+            'products': False,
+            'orders': False,
+            'receivables': True,
+            'payables': True
+        })
+        if success:
+            flash("Sincronização de Contas a Pagar e Receber concluída com sucesso!", "success")
+        else:
+            flash(f"Aviso durante a sincronização: {msg}", "warning")
+    except Exception as e:
+        msg = str(e)
+        flash(f"Erro ao sincronizar com Bling: {str(e)}", "danger")
+
+    if request.is_json:
+        return jsonify({'success': success, 'message': msg})
+    return redirect(url_for('finance.accounts'))
+

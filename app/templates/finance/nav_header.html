@@ -5,12 +5,21 @@
             <div class="sector-subtitle">Demonstrativo do Resultado do Exercício, Fluxo de Caixa, Inadimplência e Contas a Receber/Pagar</div>
         </div>
         <div style="display: flex; gap: 8px;">
+            {% if active_tab == 'accounts' %}
+            <a href="{{ url_for('finance.export_accounts_pdf', **request.args) }}" class="btn btn-secondary">
+                📄 Exportar PDF
+            </a>
+            <a href="{{ url_for('finance.export_accounts_excel', **request.args) }}" class="btn btn-secondary">
+                📊 Exportar Excel
+            </a>
+            {% else %}
             <a href="{{ url_for('finance.export_dre_pdf') }}" class="btn btn-secondary">
                 📄 Exportar DRE PDF
             </a>
             <a href="{{ url_for('finance.export_dre_excel') }}" class="btn btn-secondary">
                 📊 Exportar DRE Excel
             </a>
+            {% endif %}
         </div>
     </div>
     <nav class="sector-nav-compact-grid">
@@ -22,6 +31,17 @@
             <span class="sector-nav-btn-text">
                 <span class="btn-line-main">Visão Geral</span>
                 <span class="btn-line-sub">Resumo Financeiro</span>
+            </span>
+        </a>
+        {% endif %}
+        {% if is_feature_enabled('finance.accounts') %}
+        <a href="{{ url_for('finance.accounts') }}" class="sector-nav-btn {% if active_tab == 'accounts' %}active{% endif %}">
+            <span class="sector-nav-btn-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+            </span>
+            <span class="sector-nav-btn-text">
+                <span class="btn-line-main">Contas Pagar & Receber</span>
+                <span class="btn-line-sub">Lançamentos & Baixas</span>
             </span>
         </a>
         {% endif %}

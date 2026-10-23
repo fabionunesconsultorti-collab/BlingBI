@@ -243,6 +243,14 @@
                                     </a>
                                 </li>
                                 {% endif %}
+                                {% if is_feature_enabled('finance.accounts') %}
+                                <li class="submenu-item {% if request.endpoint == 'finance.accounts' %}active{% endif %}">
+                                    <a href="{{ url_for('finance.accounts') }}">
+                                        <span class="submenu-dot"></span>
+                                        Contas a Pagar & Receber
+                                    </a>
+                                </li>
+                                {% endif %}
                                 {% if is_feature_enabled('finance.dre') %}
                                 <li class="submenu-item {% if request.endpoint == 'finance.dre' %}active{% endif %}">
                                     <a href="{{ url_for('finance.dre') }}">

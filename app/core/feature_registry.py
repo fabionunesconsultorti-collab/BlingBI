@@ -236,10 +236,20 @@ FEATURES_CATALOG: List[Dict[str, Any]] = [
         'key': 'finance.overview',
         'sector': 'finance',
         'sector_name': 'Financeiro & Controladoria',
-        'name': 'Aba Contas a Pagar e Receber',
+        'name': 'Aba Visão Geral Financeira',
         'type': 'tab',
-        'description': 'Títulos financeiros em aberto, baixados e vencidos.',
+        'description': 'Resumo financeiro, fluxo realizado e DRE sintético.',
         'url': '/finance/',
+        'default': True
+    },
+    {
+        'key': 'finance.accounts',
+        'sector': 'finance',
+        'sector_name': 'Financeiro & Controladoria',
+        'name': 'Aba Contas a Pagar & Receber',
+        'type': 'tab',
+        'description': 'Lançamentos detalhados de contas a pagar e receber, baixas no BI e calendário de vencimentos.',
+        'url': '/finance/accounts',
         'default': True
     },
     {

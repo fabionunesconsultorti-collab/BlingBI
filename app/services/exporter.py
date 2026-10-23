@@ -2089,5 +2089,335 @@ class BiExporter:
         output.seek(0)
         return output
 
+    @staticmethod
+    def export_accounts_to_excel(entries, summary, filters=None):
+        """Gera planilha Excel (.xlsx) profissional de Contas a Pagar e Contas a Receber."""
+        wb = Workbook()
+        
+        # Aba 1: Lançamentos
+        ws = wb.active
+        ws.title = "Lançamentos"
+
+        filters = filters or {}
+        bling_green = PatternFill(start_color="008B54", end_color="008B54", fill_type="solid")
+        header_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
+        title_font = Font(name="Calibri", size=14, bold=True, color="008B54")
+        bold_font = Font(name="Calibri", size=10, bold=True)
+        gray_fill = PatternFill(start_color="F8FAFC", end_color="F8FAFC", fill_type="solid")
+        pay_font = Font(name="Calibri", size=10, color="991B1B", bold=True)
+        rec_font = Font(name="Calibri", size=10, color="008B54", bold=True)
+
+        thin_border = Border(
+            left=Side(style='thin', color='DDDDDD'),
+            right=Side(style='thin', color='DDDDDD'),
+            top=Side(style='thin', color='DDDDDD'),
+            bottom=Side(style='thin', color='DDDDDD')
+        )
+
+        ws.append(["BLING BI - RELATÓRIO DE CONTAS A PAGAR & RECEBER"])
+        ws.cell(row=1, column=1).font = title_font
+
+        tipo_filtro = filters.get('entry_type', 'TODOS')
+        status_filtro = filters.get('status', 'TODOS')
+        ini = filters.get('start_date', 'Início')
+        fim = filters.get('end_date', 'Fim')
+        ws.append([f"Período: {ini} até {fim} | Tipo: {tipo_filtro} | Situação: {status_filtro} | Emissão: {datetime.now().strftime('%d/%m/%Y %H:%M')}"])
+        ws.append([])
+
+        # KPIs no topo
+        ws.append([
+            "A Receber (Previsto)", summary.get('total_receber_pending', 0.0),
+            "A Pagar (Previsto)", summary.get('total_pagar_pending', 0.0),
+            "Saldo Previsto", summary.get('saldo_pending', 0.0),
+            "Em Atraso", summary.get('total_overdue', 0.0)
+        ])
+        kpi_row = 4
+        for c_idx in [1, 3, 5, 7]:
+            ws.cell(row=kpi_row, column=c_idx).font = bold_font
+            ws.cell(row=kpi_row, column=c_idx).fill = gray_fill
+        for c_idx in [2, 4, 6, 8]:
+            c = ws.cell(row=kpi_row, column=c_idx)
+            c.font = bold_font
+            c.number_format = 'R$ #,##0.00'
+        ws.append([])
+
+        headers = [
+            "Tipo", "Vencimento", "Descrição", "Favorecido / Pagador",
+            "Categoria", "Forma Pagto.", "Valor Nominal (R$)", "Desconto (R$)",
+            "Juros/Multa (R$)", "Valor Final (R$)", "Situação", "Data Pagto.", "ID / Bling", "Observações"
+        ]
+        ws.append(headers)
+        header_row = 6
+        for col_idx in range(1, len(headers) + 1):
+            cell = ws.cell(row=header_row, column=col_idx)
+            cell.fill = bling_green
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+
+        row_idx = 7
+        for e in entries:
+            if hasattr(e, 'to_dict'):
+                e = e.to_dict()
+            elif not isinstance(e, dict):
+                e = {
+                    'entry_type': getattr(e, 'entry_type', ''),
+                    'due_date_formatted': getattr(e, 'due_date_formatted', '') or str(getattr(e, 'due_date', '') or ''),
+                    'description': getattr(e, 'description', ''),
+                    'payee_payer': getattr(e, 'payee_payer', '') or getattr(e, 'entity_name', ''),
+                    'category': getattr(e, 'category', ''),
+                    'payment_method': getattr(e, 'payment_method', ''),
+                    'amount': getattr(e, 'amount', 0.0),
+                    'discount': getattr(e, 'discount', 0.0),
+                    'fine_fee': getattr(e, 'fine_fee', 0.0),
+                    'net_amount': getattr(e, 'net_amount', 0.0),
+                    'status': getattr(e, 'status', ''),
+                    'payment_date_formatted': getattr(e, 'payment_date_formatted', '') or str(getattr(e, 'payment_date', '') or ''),
+                    'bling_id': getattr(e, 'bling_id', None) or getattr(e, 'id', None),
+                    'notes': getattr(e, 'notes', '')
+                }
+            is_pagar = (e.get('entry_type') == 'PAGAR')
+            val_nom = float(e.get('amount') or 0.0)
+            desc = float(e.get('discount') or 0.0)
+            fine = float(e.get('fine_fee') or 0.0)
+            final_val = float(e.get('net_amount') or (val_nom - desc + fine))
+
+            ws.append([
+                'PAGAR' if is_pagar else 'RECEBER',
+                e.get('due_date_formatted') or e.get('due_date') or '',
+                e.get('description') or '',
+                e.get('payee_payer') or '',
+                e.get('category') or '',
+                e.get('payment_method') or '',
+                val_nom,
+                desc,
+                fine,
+                final_val,
+                e.get('status') or '',
+                e.get('payment_date_formatted') or e.get('payment_date') or '',
+                str(e.get('bling_id') or e.get('id') or ''),
+                e.get('notes') or ''
+            ])
+
+            for col_idx in range(1, len(headers) + 1):
+                c = ws.cell(row=row_idx, column=col_idx)
+                c.border = thin_border
+                if col_idx == 1:
+                    c.alignment = Alignment(horizontal="center")
+                    c.font = pay_font if is_pagar else rec_font
+                elif col_idx in [2, 11, 12, 13]:
+                    c.alignment = Alignment(horizontal="center")
+                elif col_idx in [7, 8, 9, 10]:
+                    c.number_format = 'R$ #,##0.00'
+                    c.alignment = Alignment(horizontal="right")
+            row_idx += 1
+
+        for col in ws.columns:
+            max_len = max(len(str(cell.value or '')) for cell in col)
+            col_letter = col[0].column_letter
+            ws.column_dimensions[col_letter].width = min(max(max_len + 3, 12), 40)
+
+        # Aba 2: Resumo Financeiro
+        ws2 = wb.create_sheet(title="Resumo & Alertas")
+        ws2.append(["RESUMO GERAL DE CONTAS A PAGAR E RECEBER"])
+        ws2.cell(row=1, column=1).font = title_font
+        ws2.append([])
+
+        resumo_items = [
+            ("Total a Receber (Previsto / Pendente)", summary.get('total_receber_pending', 0.0)),
+            ("Total a Receber (Liquidado / Pago)", summary.get('total_receber_paid', 0.0)),
+            ("Total Geral a Receber", summary.get('total_receber', 0.0)),
+            ("Total a Pagar (Previsto / Pendente)", summary.get('total_pagar_pending', 0.0)),
+            ("Total a Pagar (Liquidado / Pago)", summary.get('total_pagar_paid', 0.0)),
+            ("Total Geral a Pagar", summary.get('total_pagar', 0.0)),
+            ("Saldo Líquido Previsto (Pendente)", summary.get('saldo_pending', 0.0)),
+            ("Saldo Líquido Realizado (Pago)", summary.get('saldo_paid', 0.0)),
+            ("Saldo Líquido Total", summary.get('saldo_total', 0.0)),
+            ("Total de Títulos em Atraso (R$)", summary.get('total_overdue', 0.0)),
+            ("Quantidade de Títulos em Atraso", summary.get('count_overdue', 0)),
+            ("Títulos com Vencimento Hoje (Qtd)", summary.get('count_today', 0)),
+            ("Títulos com Vencimento Hoje (R$)", summary.get('total_today', 0.0)),
+            ("Títulos com Vencimento nos Próx. 7 Dias (Qtd)", summary.get('count_week', 0)),
+            ("Títulos com Vencimento nos Próx. 7 Dias (R$)", summary.get('total_week', 0.0)),
+            ("Títulos com Vencimento no Mês (Qtd)", summary.get('count_month', 0)),
+            ("Títulos com Vencimento no Mês (R$)", summary.get('total_month', 0.0)),
+        ]
+
+        ws2.append(["Indicador", "Valor"])
+        ws2.cell(row=3, column=1).fill = bling_green
+        ws2.cell(row=3, column=1).font = header_font
+        ws2.cell(row=3, column=2).fill = bling_green
+        ws2.cell(row=3, column=2).font = header_font
+
+        r_idx = 4
+        for label, val in resumo_items:
+            ws2.append([label, val])
+            c1 = ws2.cell(row=r_idx, column=1)
+            c2 = ws2.cell(row=r_idx, column=2)
+            c1.border = thin_border
+            c2.border = thin_border
+            if isinstance(val, float):
+                c2.number_format = 'R$ #,##0.00'
+                c2.alignment = Alignment(horizontal="right")
+            else:
+                c2.alignment = Alignment(horizontal="center")
+            r_idx += 1
+
+        ws2.column_dimensions['A'].width = 45
+        ws2.column_dimensions['B'].width = 22
+
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+        return output
+
+    @staticmethod
+    def export_accounts_to_pdf(entries, summary, filters=None):
+        """Exporta relatório executivo de Contas a Pagar & Receber em PDF (Landscape A4)."""
+        output = io.BytesIO()
+        doc = SimpleDocTemplate(
+            output,
+            pagesize=landscape(A4),
+            rightMargin=10 * mm,
+            leftMargin=10 * mm,
+            topMargin=10 * mm,
+            bottomMargin=10 * mm
+        )
+
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle(
+            'AccTitle',
+            parent=styles['Heading1'],
+            fontSize=15,
+            leading=18,
+            textColor=colors.HexColor('#1E293B'),
+            fontName='Helvetica-Bold'
+        )
+        subtitle_style = ParagraphStyle(
+            'AccSub',
+            parent=styles['Normal'],
+            fontSize=8.5,
+            leading=11,
+            textColor=colors.HexColor('#64748B')
+        )
+        kpi_label_style = ParagraphStyle('AccKpiL', fontSize=7.5, leading=9, textColor=colors.HexColor('#64748B'), alignment=1)
+        kpi_val_green = ParagraphStyle('AccKpiG', fontSize=10, leading=12, textColor=colors.HexColor('#008B54'), fontName='Helvetica-Bold', alignment=1)
+        kpi_val_red = ParagraphStyle('AccKpiR', fontSize=10, leading=12, textColor=colors.HexColor('#991B1B'), fontName='Helvetica-Bold', alignment=1)
+        kpi_val_blue = ParagraphStyle('AccKpiB', fontSize=10, leading=12, textColor=colors.HexColor('#2563EB'), fontName='Helvetica-Bold', alignment=1)
+
+        fmt_br = lambda v: f"R$ {float(v or 0):,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
+
+        filters = filters or {}
+        tipo = filters.get('entry_type', 'TODOS')
+        status = filters.get('status', 'TODOS')
+        ini = filters.get('start_date', 'Início')
+        fim = filters.get('end_date', 'Fim')
+
+        elements = []
+        elements.append(Paragraph("BlingBI — Relatório Executivo de Contas a Pagar & Receber", title_style))
+        elements.append(Paragraph(f"Período: <b>{ini} até {fim}</b> | Tipo: <b>{tipo}</b> | Situação: <b>{status}</b> | Emissão: {datetime.now().strftime('%d/%m/%Y %H:%M')}", subtitle_style))
+        elements.append(Spacer(1, 4 * mm))
+
+        # KPIs do Topo
+        kpi_data = [
+            [
+                Paragraph("A RECEBER (PREVISTO)", kpi_label_style),
+                Paragraph("A PAGAR (PREVISTO)", kpi_label_style),
+                Paragraph("SALDO PREVISTO", kpi_label_style),
+                Paragraph("SALDO REALIZADO", kpi_label_style),
+                Paragraph("EM ATRASO", kpi_label_style)
+            ],
+            [
+                Paragraph(fmt_br(summary.get('total_receber_pending', 0)), kpi_val_green),
+                Paragraph(fmt_br(summary.get('total_pagar_pending', 0)), kpi_val_red),
+                Paragraph(fmt_br(summary.get('saldo_pending', 0)), kpi_val_blue if summary.get('saldo_pending', 0) >= 0 else kpi_val_red),
+                Paragraph(fmt_br(summary.get('saldo_paid', 0)), kpi_val_green if summary.get('saldo_paid', 0) >= 0 else kpi_val_red),
+                Paragraph(fmt_br(summary.get('total_overdue', 0)), kpi_val_red)
+            ]
+        ]
+        kpi_table = Table(kpi_data, colWidths=[150, 150, 160, 150, 160])
+        kpi_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#F8FAFC')),
+            ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#CBD5E1')),
+            ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E2E8F0')),
+            ('TOPPADDING', (0, 0), (-1, -1), 3),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ]))
+        elements.append(kpi_table)
+        elements.append(Spacer(1, 4 * mm))
+
+        # Tabela de Títulos
+        headers = ["Tipo", "Vencimento", "Descrição / Histórico", "Favorecido / Pagador", "Categoria", "Valor Líquido (R$)", "Situação", "Pagamento"]
+        table_rows = [headers]
+
+        for e in entries[:150]:
+            if hasattr(e, 'to_dict'):
+                e = e.to_dict()
+            elif not isinstance(e, dict):
+                e = {
+                    'entry_type': getattr(e, 'entry_type', ''),
+                    'due_date_formatted': getattr(e, 'due_date_formatted', '') or str(getattr(e, 'due_date', '') or ''),
+                    'description': getattr(e, 'description', ''),
+                    'payee_payer': getattr(e, 'payee_payer', '') or getattr(e, 'entity_name', ''),
+                    'category': getattr(e, 'category', ''),
+                    'payment_method': getattr(e, 'payment_method', ''),
+                    'amount': getattr(e, 'amount', 0.0),
+                    'discount': getattr(e, 'discount', 0.0),
+                    'fine_fee': getattr(e, 'fine_fee', 0.0),
+                    'net_amount': getattr(e, 'net_amount', 0.0),
+                    'status': getattr(e, 'status', ''),
+                    'payment_date_formatted': getattr(e, 'payment_date_formatted', '') or str(getattr(e, 'payment_date', '') or ''),
+                    'bling_id': getattr(e, 'bling_id', None) or getattr(e, 'id', None),
+                    'notes': getattr(e, 'notes', '')
+                }
+            is_pagar = (e.get('entry_type') == 'PAGAR')
+            val_nom = float(e.get('amount') or 0.0)
+            desc = float(e.get('discount') or 0.0)
+            fine = float(e.get('fine_fee') or 0.0)
+            final_val = float(e.get('net_amount') or (val_nom - desc + fine))
+
+            desc_txt = e.get('description') or ''
+            if len(desc_txt) > 30:
+                desc_txt = desc_txt[:28] + '...'
+            ent_txt = e.get('payee_payer') or ''
+            if len(ent_txt) > 24:
+                ent_txt = ent_txt[:22] + '...'
+            cat_txt = e.get('category') or ''
+            if len(cat_txt) > 18:
+                cat_txt = cat_txt[:16] + '...'
+
+            table_rows.append([
+                'PAGAR' if is_pagar else 'RECEBER',
+                e.get('due_date_formatted') or e.get('due_date') or '',
+                desc_txt,
+                ent_txt,
+                cat_txt,
+                fmt_br(final_val),
+                e.get('status') or '',
+                e.get('payment_date_formatted') or e.get('payment_date') or '-'
+            ])
+
+        col_widths = [60, 65, 185, 150, 105, 85, 65, 65]
+        acc_table = Table(table_rows, colWidths=col_widths)
+        acc_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#008B54')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 7.5),
+            ('ALIGN', (0, 0), (1, -1), 'CENTER'),
+            ('ALIGN', (2, 0), (4, -1), 'LEFT'),
+            ('ALIGN', (5, 0), (5, -1), 'RIGHT'),
+            ('ALIGN', (6, 0), (7, -1), 'CENTER'),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+            ('TOPPADDING', (0, 0), (-1, -1), 3),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F8FAFC')]),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E2E8F0')),
+        ]))
+        elements.append(acc_table)
+
+        doc.build(elements)
+        output.seek(0)
+        return output
+
+
 
 

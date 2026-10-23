@@ -1,0 +1,962 @@
+{% extends "base.html" %}
+
+{% block title %}Contas a Pagar & Receber - Financeiro - BlingBI{% endblock %}
+{% block page_title %}Contas a Pagar & Receber{% endblock %}
+
+{% block content %}
+<!-- Cabeçalho Hierárquico do Setor -->
+{% include "finance/nav_header.html" %}
+
+<!-- 1. ALERTAS DE VENCIMENTO INTELIGENTES (Hoje, Semana, Em Atraso) -->
+{% if summary.count_overdue > 0 or summary.count_today > 0 or summary.count_week > 0 %}
+<div class="financial-alerts-container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; margin-bottom: 20px;">
+    {% if summary.count_overdue > 0 %}
+    <div class="alert-card overdue" style="background: #FEF2F2; border: 1px solid #FCA5A5; border-left: 5px solid #DC2626; border-radius: 8px; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="background: #FEE2E2; color: #DC2626; width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+                ⚠️
+            </div>
+            <div>
+                <div style="font-size: 13px; font-weight: 700; color: #991B1B; text-transform: uppercase; letter-spacing: 0.5px;">Títulos em Atraso</div>
+                <div style="font-size: 16px; font-weight: 800; color: #7F1D1D;">{{ summary.count_overdue }} pendência(s) • {{ summary.total_overdue | currency }}</div>
+                <div style="font-size: 11px; color: #B91C1C;">Vencimentos anteriores à data de hoje não liquidados</div>
+            </div>
+        </div>
+        <a href="{{ url_for('finance.accounts', status='Atrasado') }}" class="btn btn-sm" style="background: #DC2626; color: white; border: none; font-size: 12px; font-weight: 600; border-radius: 6px; padding: 6px 12px; text-decoration: none;">
+            Ver Títulos
+        </a>
+    </div>
+    {% endif %}
+
+    {% if summary.count_today > 0 %}
+    <div class="alert-card today" style="background: #FFFBEB; border: 1px solid #FCD34D; border-left: 5px solid #D97706; border-radius: 8px; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="background: #FEF3C7; color: #D97706; width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+                🔔
+            </div>
+            <div>
+                <div style="font-size: 13px; font-weight: 700; color: #92400E; text-transform: uppercase; letter-spacing: 0.5px;">Vencimento Hoje</div>
+                <div style="font-size: 16px; font-weight: 800; color: #78350F;">{{ summary.count_today }} título(s) • {{ summary.total_today | currency }}</div>
+                <div style="font-size: 11px; color: #B45309;">Vencem na data atual — atente-se às liquidações</div>
+            </div>
+        </div>
+        <a href="{{ url_for('finance.accounts', period='today') }}" class="btn btn-sm" style="background: #D97706; color: white; border: none; font-size: 12px; font-weight: 600; border-radius: 6px; padding: 6px 12px; text-decoration: none;">
+            Ver de Hoje
+        </a>
+    </div>
+    {% endif %}
+
+    {% if summary.count_week > 0 %}
+    <div class="alert-card week" style="background: #F0FDF4; border: 1px solid #86EFAC; border-left: 5px solid #16A34A; border-radius: 8px; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="background: #DCFCE7; color: #16A34A; width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+                📅
+            </div>
+            <div>
+                <div style="font-size: 13px; font-weight: 700; color: #166534; text-transform: uppercase; letter-spacing: 0.5px;">Próximos 7 Dias</div>
+                <div style="font-size: 16px; font-weight: 800; color: #14532D;">{{ summary.count_week }} título(s) • {{ summary.total_week | currency }}</div>
+                <div style="font-size: 11px; color: #15803D;">Compromissos e recebíveis da semana</div>
+            </div>
+        </div>
+        <a href="{{ url_for('finance.accounts', period='last_7_days') }}" class="btn btn-sm" style="background: #16A34A; color: white; border: none; font-size: 12px; font-weight: 600; border-radius: 6px; padding: 6px 12px; text-decoration: none;">
+            Ver Semana
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- 2. PAINEL DE KPIS EXECUTIVOS FINANCEIROS -->
+<div class="kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); margin-bottom: 20px;">
+    <!-- Total a Receber Previsto -->
+    <div class="kpi-card" style="border-left: 4px solid #16A34A; background: #FFFFFF;">
+        <span class="kpi-title" style="display: flex; justify-content: space-between; align-items: center;">
+            <span>A Receber (Previsto)</span>
+            <span class="badge" style="background: #DCFCE7; color: #166534; font-size: 10px;">{{ summary.count_receber_pending }} pendentes</span>
+        </span>
+        <div class="kpi-value" style="color: #16A34A;">{{ summary.total_receber_pending | currency }}</div>
+        <div class="kpi-subtext" style="display: flex; justify-content: space-between;">
+            <span>Liquidado: {{ summary.total_receber_paid | currency }}</span>
+        </div>
+    </div>
+
+    <!-- Total a Pagar Previsto -->
+    <div class="kpi-card" style="border-left: 4px solid #DC2626; background: #FFFFFF;">
+        <span class="kpi-title" style="display: flex; justify-content: space-between; align-items: center;">
+            <span>A Pagar (Previsto)</span>
+            <span class="badge" style="background: #FEE2E2; color: #991B1B; font-size: 10px;">{{ summary.count_pagar_pending }} pendentes</span>
+        </span>
+        <div class="kpi-value" style="color: #DC2626;">{{ summary.total_pagar_pending | currency }}</div>
+        <div class="kpi-subtext" style="display: flex; justify-content: space-between;">
+            <span>Quitado: {{ summary.total_pagar_paid | currency }}</span>
+        </div>
+    </div>
+
+    <!-- Saldo Líquido Previsto -->
+    <div class="kpi-card" style="border-left: 4px solid {% if summary.saldo_pending >= 0 %}#2563EB{% else %}#DC2626{% endif %}; background: #FFFFFF;">
+        <span class="kpi-title">Saldo Líquido Previsto</span>
+        <div class="kpi-value" style="color: {% if summary.saldo_pending >= 0 %}#2563EB{% else %}#DC2626{% endif %};">
+            {% if summary.saldo_pending >= 0 %}+{% endif %}{{ summary.saldo_pending | currency }}
+        </div>
+        <div class="kpi-subtext">Receber Pendente - Pagar Pendente</div>
+    </div>
+
+    <!-- Saldo Realizado (Caixa Efetivo) -->
+    <div class="kpi-card" style="border-left: 4px solid {% if summary.saldo_paid >= 0 %}#008B54{% else %}#DC2626{% endif %}; background: #F8FAFC;">
+        <span class="kpi-title">Saldo Realizado (Liquidado)</span>
+        <div class="kpi-value" style="color: {% if summary.saldo_paid >= 0 %}#008B54{% else %}#DC2626{% endif %};">
+            {% if summary.saldo_paid >= 0 %}+{% endif %}{{ summary.saldo_paid | currency }}
+        </div>
+        <div class="kpi-subtext">Total Recebido - Total Pago</div>
+    </div>
+
+    <!-- Inadimplência / Atraso Geral -->
+    <div class="kpi-card" style="border-left: 4px solid #B91C1C; background: #FFFFFF;">
+        <span class="kpi-title" style="display: flex; justify-content: space-between; align-items: center;">
+            <span>Inadimplência Geral</span>
+            <span class="badge badge-danger" style="font-size: 10px;">{{ summary.count_overdue }} atrasados</span>
+        </span>
+        <div class="kpi-value" style="color: #B91C1C;">{{ summary.total_overdue | currency }}</div>
+        <div class="kpi-subtext">Taxa: {{ summary.rate_overdue | percent }} dos títulos</div>
+    </div>
+</div>
+
+<!-- 3. BARRA DE CONTROLE, FILTROS AVANÇADOS E AÇÕES -->
+<div class="card" style="margin-bottom: 20px;">
+    <div class="card-body" style="padding: 16px 20px;">
+        <form method="GET" id="accountsFilterForm" action="{{ url_for('finance.accounts') }}">
+            <!-- Preserva visualização ativa -->
+            <input type="hidden" name="view" id="currentViewInput" value="{{ current_view }}">
+            {% if calendar_data.year %}
+            <input type="hidden" name="cal_year" value="{{ calendar_data.year }}">
+            <input type="hidden" name="cal_month" value="{{ calendar_data.month }}">
+            {% endif %}
+
+            <!-- Linha 1: Alternador de Visualização (Lista vs Calendário) + Ações Rápidas -->
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid #E2E8F0;">
+                <!-- View Toggle Buttons -->
+                <div style="display: flex; background: #F1F5F9; padding: 3px; border-radius: 8px; gap: 4px;">
+                    <button type="button" onclick="switchView('list')" class="btn btn-sm {% if current_view == 'list' %}btn-primary{% else %}btn-ghost{% endif %}" style="display: flex; align-items: center; gap: 6px; font-weight: 600; border-radius: 6px;">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+                        Lista de Títulos
+                    </button>
+                    <button type="button" onclick="switchView('calendar')" class="btn btn-sm {% if current_view == 'calendar' %}btn-primary{% else %}btn-ghost{% endif %}" style="display: flex; align-items: center; gap: 6px; font-weight: 600; border-radius: 6px;">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                        Calendário de Vencimentos
+                    </button>
+                </div>
+
+                <!-- Botões de Ação do Topo -->
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button type="button" onclick="openEntryModal()" class="btn btn-primary" style="display: flex; align-items: center; gap: 6px; font-weight: 600;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                        Novo Lançamento
+                    </button>
+
+                    <button type="button" onclick="triggerBlingSync()" class="btn btn-outline" style="display: flex; align-items: center; gap: 6px;">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+                        Sincronizar Bling
+                    </button>
+
+                    <a href="{{ url_for('finance.export_accounts_excel', **request.args) }}" class="btn btn-secondary" title="Exportar planilha Excel">
+                        📊 Excel
+                    </a>
+                    <a href="{{ url_for('finance.export_accounts_pdf', **request.args) }}" class="btn btn-secondary" title="Exportar relatório PDF executivo">
+                        📄 PDF
+                    </a>
+                </div>
+            </div>
+
+            <!-- Linha 2: Filtros de Seleção (Tipo, Situação, Período, Categoria, Meio, Busca) -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; align-items: end;">
+                <!-- Tipo de Entrada -->
+                <div>
+                    <label style="font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase;">Tipo</label>
+                    <select name="entry_type" class="form-control" onchange="this.form.submit()" style="font-size: 13px; height: 38px;">
+                        <option value="TODOS" {% if filters.entry_type == 'TODOS' %}selected{% endif %}>Todos os Tipos</option>
+                        <option value="PAGAR" {% if filters.entry_type == 'PAGAR' %}selected{% endif %}>🔴 A Pagar</option>
+                        <option value="RECEBER" {% if filters.entry_type == 'RECEBER' %}selected{% endif %}>🟢 A Receber</option>
+                    </select>
+                </div>
+
+                <!-- Situação -->
+                <div>
+                    <label style="font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase;">Situação</label>
+                    <select name="status" class="form-control" onchange="this.form.submit()" style="font-size: 13px; height: 38px;">
+                        <option value="TODOS" {% if filters.status == 'TODOS' %}selected{% endif %}>Todas as Situações</option>
+                        <option value="Pendente" {% if filters.status == 'Pendente' %}selected{% endif %}>⏳ Pendente (A Vencer)</option>
+                        <option value="Atrasado" {% if filters.status == 'Atrasado' %}selected{% endif %}>⚠️ Em Atraso</option>
+                        <option value="Pago" {% if filters.status == 'Pago' %}selected{% endif %}>✅ Pago / Liquidado</option>
+                        <option value="Cancelado" {% if filters.status == 'Cancelado' %}selected{% endif %}>🚫 Cancelado</option>
+                    </select>
+                </div>
+
+                <!-- Período -->
+                <div>
+                    <label style="font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase;">Período</label>
+                    <select name="period" id="periodSelect" class="form-control" onchange="handlePeriodChange(this.value)" style="font-size: 13px; height: 38px;">
+                        <option value="all" {% if filters.period == 'all' %}selected{% endif %}>Todo o Histórico</option>
+                        <option value="today" {% if filters.period == 'today' %}selected{% endif %}>Hoje</option>
+                        <option value="last_7_days" {% if filters.period == 'last_7_days' %}selected{% endif %}>Próximos 7 Dias</option>
+                        <option value="this_month" {% if filters.period == 'this_month' %}selected{% endif %}>Este Mês</option>
+                        <option value="next_month" {% if filters.period == 'next_month' %}selected{% endif %}>Próximo Mês</option>
+                        <option value="custom" {% if filters.period == 'custom' or (filters.start_date and filters.period not in ['today','last_7_days','this_month','next_month','all']) %}selected{% endif %}>Personalizado...</option>
+                    </select>
+                </div>
+
+                <!-- Base de Data -->
+                <div>
+                    <label style="font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase;">Base de Data</label>
+                    <select name="date_basis" class="form-control" onchange="this.form.submit()" style="font-size: 13px; height: 38px;">
+                        <option value="due_date" {% if filters.date_basis == 'due_date' %}selected{% endif %}>Data de Vencimento</option>
+                        <option value="issue_date" {% if filters.date_basis == 'issue_date' %}selected{% endif %}>Data de Emissão</option>
+                        <option value="payment_date" {% if filters.date_basis == 'payment_date' %}selected{% endif %}>Data de Liquidação</option>
+                    </select>
+                </div>
+
+                <!-- Categoria -->
+                <div>
+                    <label style="font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase;">Categoria</label>
+                    <select name="category" class="form-control" onchange="this.form.submit()" style="font-size: 13px; height: 38px;">
+                        <option value="all">Todas as Categorias</option>
+                        {% for cat in options.categories %}
+                        <option value="{{ cat }}" {% if filters.category == cat %}selected{% endif %}>{{ cat }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Forma de Pagamento -->
+                <div>
+                    <label style="font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase;">Forma de Pagto.</label>
+                    <select name="payment_method" class="form-control" onchange="this.form.submit()" style="font-size: 13px; height: 38px;">
+                        <option value="all">Todas as Formas</option>
+                        {% for pm in options.payment_methods %}
+                        <option value="{{ pm }}" {% if filters.payment_method == pm %}selected{% endif %}>{{ pm }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Busca por Texto -->
+                <div style="grid-column: span 2;">
+                    <label style="font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase;">Pesquisar Título</label>
+                    <div style="position: relative;">
+                        <input type="text" name="q" value="{{ filters.search }}" placeholder="Buscar por favorecido, descrição, nota fiscal..." class="form-control" style="font-size: 13px; height: 38px; padding-left: 32px;">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2" style="position: absolute; left: 10px; top: 11px;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    </div>
+                </div>
+
+                <!-- Botões de Ação do Filtro -->
+                <div style="display: flex; gap: 6px;">
+                    <button type="submit" class="btn btn-primary" style="height: 38px; font-size: 13px; font-weight: 600; flex: 1;">
+                        Filtrar
+                    </button>
+                    <a href="{{ url_for('finance.accounts') }}" class="btn btn-outline" style="height: 38px; display: flex; align-items: center; justify-content: center;" title="Limpar Filtros">
+                        Limpar
+                    </a>
+                </div>
+            </div>
+
+            <!-- Linha Opcional: Datas Personalizadas -->
+            <div id="customDateRow" style="display: {% if filters.period == 'custom' or (filters.start_date and filters.period not in ['today','last_7_days','this_month','next_month','all']) %}flex{% else %}none{% endif %}; gap: 12px; margin-top: 12px; align-items: center; background: #F8FAFC; padding: 10px 14px; border-radius: 6px;">
+                <span style="font-size: 12px; font-weight: 700; color: #475569;">Intervalo Customizado:</span>
+                <input type="date" name="start_date" value="{{ filters.start_date.strftime('%Y-%m-%d') if filters.start_date else '' }}" class="form-control" style="width: 160px; height: 34px; font-size: 12px;">
+                <span style="font-size: 12px; color: #64748B;">até</span>
+                <input type="date" name="end_date" value="{{ filters.end_date.strftime('%Y-%m-%d') if filters.end_date else '' }}" class="form-control" style="width: 160px; height: 34px; font-size: 12px;">
+                <button type="submit" class="btn btn-sm btn-primary" style="height: 34px;">Aplicar Datas</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- VISÃO 1: LISTA DE LANÇAMENTOS COM BAIXA DIRETA & GESTÃO COMPLETA -->
+<!-- ========================================================================= -->
+<div id="viewListContainer" style="display: {% if current_view == 'list' %}block{% else %}none{% endif %};">
+    <div class="card">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                <span class="card-title" style="margin: 0;">Lançamentos de Contas a Pagar & Receber</span>
+            </div>
+            <div style="font-size: 12px; color: var(--text-muted);">
+                Exibindo <b>{{ entries | length }}</b> de <b>{{ pagination.total }}</b> registros
+            </div>
+        </div>
+
+        <div class="card-body" style="padding: 0;">
+            <div class="table-responsive">
+                <table class="table" style="margin: 0; width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background: #F8FAFC; border-bottom: 2px solid #E2E8F0; font-size: 11px; text-transform: uppercase; color: #475569;">
+                            <th style="padding: 12px 14px; text-align: center; width: 90px;">Tipo</th>
+                            <th style="padding: 12px 14px; text-align: center; width: 120px;">Vencimento</th>
+                            <th style="padding: 12px 14px; text-align: left;">Descrição / Favorecido</th>
+                            <th style="padding: 12px 14px; text-align: left; width: 140px;">Categoria</th>
+                            <th style="padding: 12px 14px; text-align: center; width: 110px;">Forma Pagto.</th>
+                            <th style="padding: 12px 14px; text-align: right; width: 130px;">Valor Líquido</th>
+                            <th style="padding: 12px 14px; text-align: center; width: 100px;">Situação</th>
+                            <th style="padding: 12px 14px; text-align: center; width: 110px;">Pagamento</th>
+                            <th style="padding: 12px 14px; text-align: center; width: 140px;">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for e in entries %}
+                        {% set is_pagar = (e.entry_type == 'PAGAR') %}
+                        <tr class="account-row" style="border-bottom: 1px solid #E2E8F0; transition: background 0.15s ease;" onmouseover="this.style.background='#F8FAFC'" onmouseout="this.style.background='transparent'">
+                            <!-- Tipo -->
+                            <td style="padding: 12px 14px; text-align: center;">
+                                {% if is_pagar %}
+                                <span class="badge" style="background: #FEE2E2; color: #991B1B; font-weight: 700; font-size: 11px; padding: 3px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px;">
+                                    🔴 PAGAR
+                                </span>
+                                {% else %}
+                                <span class="badge" style="background: #DCFCE7; color: #166534; font-weight: 700; font-size: 11px; padding: 3px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px;">
+                                    🟢 RECEBER
+                                </span>
+                                {% endif %}
+                            </td>
+
+                            <!-- Vencimento + Alerta Relativo -->
+                            <td style="padding: 12px 14px; text-align: center; font-size: 13px;">
+                                <div style="font-weight: 700; color: #1E293B;">{{ e.due_date_formatted or e.due_date }}</div>
+                                {% if e.status == 'Pago' %}
+                                    <span style="font-size: 10px; color: #16A34A;">Liquidado</span>
+                                {% elif e.is_overdue %}
+                                    <span style="font-size: 10px; font-weight: 700; color: #DC2626; background: #FEE2E2; padding: 1px 5px; border-radius: 4px;">
+                                        Atrasado {{ e.days_until_due | abs }}d
+                                    </span>
+                                {% elif e.days_until_due == 0 %}
+                                    <span style="font-size: 10px; font-weight: 700; color: #D97706; background: #FEF3C7; padding: 1px 5px; border-radius: 4px;">
+                                        Vence Hoje
+                                    </span>
+                                {% elif e.days_until_due == 1 %}
+                                    <span style="font-size: 10px; color: #475569;">Amanhã</span>
+                                {% else %}
+                                    <span style="font-size: 10px; color: #64748B;">Em {{ e.days_until_due }} dias</span>
+                                {% endif %}
+                            </td>
+
+                            <!-- Descrição / Favorecido -->
+                            <td style="padding: 12px 14px;">
+                                <div style="font-weight: 600; color: #0F172A; font-size: 13px;">
+                                    {{ e.description }}
+                                </div>
+                                <div style="font-size: 12px; color: #475569; display: flex; align-items: center; gap: 6px; margin-top: 2px;">
+                                    <span style="font-weight: 500;">{{ e.payee_payer or 'Consumidor / Fornecedor Padrão' }}</span>
+                                    {% if e.bling_id %}
+                                    <span style="font-size: 10px; background: #F1F5F9; color: #64748B; padding: 1px 5px; border-radius: 3px;" title="ID Bling">
+                                        #{{ e.bling_id }}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                {% if e.notes %}
+                                <div style="font-size: 11px; color: #64748B; font-style: italic; margin-top: 2px;">
+                                    📝 {{ e.notes }}
+                                </div>
+                                {% endif %}
+                            </td>
+
+                            <!-- Categoria -->
+                            <td style="padding: 12px 14px; font-size: 12px; color: #334155;">
+                                <span style="background: #F8FAFC; border: 1px solid #E2E8F0; padding: 3px 8px; border-radius: 4px; display: inline-block;">
+                                    {{ e.category or 'Sem Categoria' }}
+                                </span>
+                            </td>
+
+                            <!-- Forma de Pagamento -->
+                            <td style="padding: 12px 14px; text-align: center; font-size: 12px; color: #475569;">
+                                {{ e.payment_method or 'Boleto' }}
+                            </td>
+
+                            <!-- Valor Líquido -->
+                            <td style="padding: 12px 14px; text-align: right; font-size: 13px;">
+                                <div style="font-weight: 800; color: {% if is_pagar %}#991B1B{% else %}#166534{% endif %};">
+                                    {{ e.net_amount | currency }}
+                                </div>
+                                {% if e.discount > 0 or e.fine_fee > 0 %}
+                                <div style="font-size: 10px; color: #64748B;">
+                                    {% if e.discount > 0 %}Desc: -{{ e.discount | currency }} {% endif %}
+                                    {% if e.fine_fee > 0 %}Juros: +{{ e.fine_fee | currency }}{% endif %}
+                                </div>
+                                {% endif %}
+                            </td>
+
+                            <!-- Situação -->
+                            <td style="padding: 12px 14px; text-align: center;">
+                                {% if e.status == 'Pago' %}
+                                <span class="badge" style="background: #DCFCE7; color: #166534; font-weight: 600; font-size: 11px; padding: 3px 8px; border-radius: 4px;">
+                                    ✅ Pago
+                                </span>
+                                {% elif e.status == 'Atrasado' or e.is_overdue %}
+                                <span class="badge" style="background: #FEE2E2; color: #991B1B; font-weight: 600; font-size: 11px; padding: 3px 8px; border-radius: 4px;">
+                                    ⚠️ Atrasado
+                                </span>
+                                {% elif e.status == 'Cancelado' %}
+                                <span class="badge" style="background: #F1F5F9; color: #64748B; font-weight: 600; font-size: 11px; padding: 3px 8px; border-radius: 4px;">
+                                    🚫 Cancelado
+                                </span>
+                                {% else %}
+                                <span class="badge" style="background: #FEF3C7; color: #92400E; font-weight: 600; font-size: 11px; padding: 3px 8px; border-radius: 4px;">
+                                    ⏳ Pendente
+                                </span>
+                                {% endif %}
+                            </td>
+
+                            <!-- Data Pagamento -->
+                            <td style="padding: 12px 14px; text-align: center; font-size: 12px; color: #475569;">
+                                {{ e.payment_date_formatted or '-' }}
+                            </td>
+
+                            <!-- Ações: Baixa, Estorno, Edição, Exclusão -->
+                            <td style="padding: 12px 14px; text-align: center;">
+                                <div style="display: flex; gap: 4px; justify-content: center; align-items: center;">
+                                    {% if e.status != 'Pago' and e.status != 'Cancelado' %}
+                                    <!-- Botão Baixar / Liquidar Direto do BI -->
+                                    <button type="button" 
+                                            class="btn btn-sm btn-primary" 
+                                            style="padding: 4px 8px; font-size: 11px; font-weight: 700; border-radius: 4px; background: #008B54; border-color: #008B54;" 
+                                            onclick='openSettleModal({{ e.to_dict() | tojson }})'
+                                            title="Baixar título diretamente no BI">
+                                        ⚡ Baixar
+                                    </button>
+                                    {% elif e.status == 'Pago' %}
+                                    <!-- Botão Estornar / Reabrir -->
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline" 
+                                            style="padding: 4px 6px; font-size: 11px; border-radius: 4px; color: #475569;" 
+                                            onclick="confirmUnsettle({{ e.id }}, '{{ e.description }}')"
+                                            title="Estornar baixa e reabrir pendência">
+                                        ↩️ Estornar
+                                    </button>
+                                    {% endif %}
+
+                                    <!-- Botão Editar -->
+                                    <button type="button" 
+                                            class="btn btn-sm btn-ghost" 
+                                            style="padding: 4px 6px; font-size: 11px;" 
+                                            onclick='openEditModal({{ e.to_dict() | tojson }})'
+                                            title="Editar Lançamento">
+                                        ✏️
+                                    </button>
+
+                                    <!-- Botão Excluir -->
+                                    <button type="button" 
+                                            class="btn btn-sm btn-ghost" 
+                                            style="padding: 4px 6px; font-size: 11px; color: #DC2626;" 
+                                            onclick="confirmDelete({{ e.id }}, '{{ e.description }}')"
+                                            title="Excluir Lançamento">
+                                        🗑️
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="9" style="text-align: center; padding: 40px 20px; color: var(--text-muted);">
+                                <div style="font-size: 32px; margin-bottom: 8px;">📂</div>
+                                <div style="font-size: 15px; font-weight: 700; color: #334155;">Nenhum lançamento financeiro encontrado</div>
+                                <div style="font-size: 13px; color: #64748B; margin-top: 4px;">Ajuste os filtros de pesquisa ou crie um novo lançamento manual.</div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Paginação -->
+            {% if pagination.pages > 1 %}
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; border-top: 1px solid #E2E8F0; background: #F8FAFC; flex-wrap: wrap; gap: 10px;">
+                <div style="font-size: 13px; color: #64748B;">
+                    Página <b>{{ pagination.page }}</b> de <b>{{ pagination.pages }}</b>
+                </div>
+
+                <div style="display: flex; gap: 6px;">
+                    {% if pagination.has_prev %}
+                    <a href="{{ url_for('finance.accounts', entry_type=filters.entry_type, status=filters.status, period=filters.period, category=filters.category, payment_method=filters.payment_method, q=filters.search, view=current_view, page=pagination.prev_num) }}" class="btn btn-sm btn-outline">
+                        ← Anterior
+                    </a>
+                    {% endif %}
+
+                    {% for p in range(1, pagination.pages + 1) %}
+                        {% if p == pagination.page %}
+                        <span class="btn btn-sm btn-primary" style="font-weight: 700;">{{ p }}</span>
+                        {% elif p <= 3 or p >= pagination.pages - 2 or (p >= pagination.page - 1 and p <= pagination.page + 1) %}
+                        <a href="{{ url_for('finance.accounts', entry_type=filters.entry_type, status=filters.status, period=filters.period, category=filters.category, payment_method=filters.payment_method, q=filters.search, view=current_view, page=p) }}" class="btn btn-sm btn-outline">
+                            {{ p }}
+                        </a>
+                        {% elif p == 4 or p == pagination.pages - 3 %}
+                        <span style="padding: 4px 8px; color: #94A3B8;">...</span>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if pagination.has_next %}
+                    <a href="{{ url_for('finance.accounts', entry_type=filters.entry_type, status=filters.status, period=filters.period, category=filters.category, payment_method=filters.payment_method, q=filters.search, view=current_view, page=pagination.next_num) }}" class="btn btn-sm btn-outline">
+                        Próxima →
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- VISÃO 2: CALENDÁRIO INTERATIVO MENSAL DE VENCIMENTOS -->
+<!-- ========================================================================= -->
+<div id="viewCalendarContainer" style="display: {% if current_view == 'calendar' %}block{% else %}none{% endif %};">
+    <div class="card">
+        <!-- Cabeçalho do Calendário com Navegação Mês Anterior / Seguinte -->
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <a href="{{ url_for('finance.accounts', view='calendar', cal_year=calendar_data.prev_year, cal_month=calendar_data.prev_month, entry_type=filters.entry_type, status=filters.status) }}" 
+                   class="btn btn-sm btn-outline" style="border-radius: 6px;">
+                    ← Mês Anterior
+                </a>
+                <span style="font-size: 18px; font-weight: 800; color: #1E293B;">
+                    {{ calendar_data.month_name }} de {{ calendar_data.year }}
+                </span>
+                <a href="{{ url_for('finance.accounts', view='calendar', cal_year=calendar_data.next_year, cal_month=calendar_data.next_month, entry_type=filters.entry_type, status=filters.status) }}" 
+                   class="btn btn-sm btn-outline" style="border-radius: 6px;">
+                    Próximo Mês →
+                </a>
+            </div>
+
+            <!-- Resumo Financeiro do Mês no Calendário -->
+            <div style="display: flex; gap: 14px; font-size: 13px;">
+                <span style="color: #166534; font-weight: 700;">
+                    🟢 A Receber: {{ calendar_data.month_totals.receber | currency }}
+                </span>
+                <span style="color: #991B1B; font-weight: 700;">
+                    🔴 A Pagar: {{ calendar_data.month_totals.pagar | currency }}
+                </span>
+                <span style="color: #2563EB; font-weight: 700;">
+                    Saldo: {{ (calendar_data.month_totals.receber - calendar_data.month_totals.pagar) | currency }}
+                </span>
+            </div>
+        </div>
+
+        <div class="card-body" style="padding: 16px;">
+            <!-- Grid de Dias da Semana -->
+            <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; text-align: center; font-weight: 700; font-size: 12px; color: #475569; text-transform: uppercase; margin-bottom: 8px;">
+                <div style="padding: 6px; background: #F8FAFC; border-radius: 4px;">Dom</div>
+                <div style="padding: 6px; background: #F8FAFC; border-radius: 4px;">Seg</div>
+                <div style="padding: 6px; background: #F8FAFC; border-radius: 4px;">Ter</div>
+                <div style="padding: 6px; background: #F8FAFC; border-radius: 4px;">Qua</div>
+                <div style="padding: 6px; background: #F8FAFC; border-radius: 4px;">Qui</div>
+                <div style="padding: 6px; background: #F8FAFC; border-radius: 4px;">Sex</div>
+                <div style="padding: 6px; background: #F8FAFC; border-radius: 4px;">Sáb</div>
+            </div>
+
+            <!-- Grid de Células dos Dias -->
+            <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px;">
+                {% for week in calendar_data.weeks %}
+                    {% for day in week %}
+                    <div style="min-height: 110px; border: 1px solid {% if day.is_today %}#008B54{% else %}#E2E8F0{% endif %}; border-radius: 8px; padding: 8px; background: {% if not day.is_current_month %}#F8FAFC{% elif day.is_today %}#F0FDF4{% else %}#FFFFFF{% endif %}; display: flex; flex-direction: column; justify-content: space-between;">
+                        <!-- Número do Dia + Indicador Hoje -->
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                            <span style="font-size: 13px; font-weight: {% if day.is_today %}800{% else %}600{% endif %}; color: {% if not day.is_current_month %}#94A3B8{% elif day.is_today %}#008B54{% else %}#1E293B{% endif %};">
+                                {{ day.day }}
+                            </span>
+                            {% if day.is_today %}
+                            <span style="font-size: 9px; font-weight: 800; background: #008B54; color: white; padding: 1px 4px; border-radius: 3px;">HOJE</span>
+                            {% endif %}
+                        </div>
+
+                        <!-- Balões de Lançamento no Dia -->
+                        <div style="display: flex; flex-direction: column; gap: 4px;">
+                            {% if day.count_receber > 0 %}
+                            <a href="{{ url_for('finance.accounts', view='list', period='custom', start_date=day.date_str, end_date=day.date_str, entry_type='RECEBER') }}" 
+                               style="background: #DCFCE7; border: 1px solid #86EFAC; color: #166534; font-size: 10px; font-weight: 700; padding: 2px 5px; border-radius: 4px; text-decoration: none; display: flex; justify-content: space-between;" 
+                               title="Ver títulos a receber de {{ day.date_str }}">
+                                <span>+ Rec ({{ day.count_receber }})</span>
+                                <span>{{ day.receber | currency }}</span>
+                            </a>
+                            {% endif %}
+
+                            {% if day.count_pagar > 0 %}
+                            <a href="{{ url_for('finance.accounts', view='list', period='custom', start_date=day.date_str, end_date=day.date_str, entry_type='PAGAR') }}" 
+                               style="background: #FEE2E2; border: 1px solid #FCA5A5; color: #991B1B; font-size: 10px; font-weight: 700; padding: 2px 5px; border-radius: 4px; text-decoration: none; display: flex; justify-content: space-between;" 
+                               title="Ver títulos a pagar de {{ day.date_str }}">
+                                <span>- Pag ({{ day.count_pagar }})</span>
+                                <span>{{ day.pagar | currency }}</span>
+                            </a>
+                            {% endif %}
+
+                            {% if day.has_overdue %}
+                            <div style="font-size: 9px; color: #DC2626; font-weight: 700; display: flex; align-items: center; gap: 2px;">
+                                ⚠️ pendência(s)
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Rodapé da Célula -->
+                        <div style="text-align: right; margin-top: 4px;">
+                            {% if day.count_total > 0 %}
+                            <a href="{{ url_for('finance.accounts', view='list', period='custom', start_date=day.date_str, end_date=day.date_str) }}" 
+                               style="font-size: 10px; color: #64748B; text-decoration: none;" title="Ver todos deste dia">
+                                <b>{{ day.count_total }}</b> título(s) →
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL 1: BAIXA / LIQUIDAÇÃO DIRETA DO TÍTULO NO BI -->
+<!-- ========================================================================= -->
+<div id="settleModalBackdrop" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(2px); z-index: 1050; align-items: center; justify-content: center; padding: 16px;">
+    <div style="background: white; border-radius: 12px; width: 100%; max-width: 520px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); overflow: hidden; animation: popIn 0.2s ease;">
+        <div style="background: #008B54; color: white; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 20px;">⚡</span>
+                <span style="font-size: 16px; font-weight: 700;" id="settleModalTitle">Baixar / Liquidar Título</span>
+            </div>
+            <button type="button" onclick="closeSettleModal()" style="background: none; border: none; color: white; font-size: 20px; cursor: pointer;">&times;</button>
+        </div>
+
+        <form id="settleForm" method="POST" action="" style="padding: 20px;">
+            <!-- Resumo do Título Selecionado -->
+            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px; margin-bottom: 16px;">
+                <div style="font-size: 11px; text-transform: uppercase; color: #64748B; font-weight: 700;" id="settleSummaryType">CONTA A PAGAR</div>
+                <div style="font-size: 14px; font-weight: 800; color: #1E293B; margin-top: 2px;" id="settleSummaryDesc">Descrição do Título</div>
+                <div style="display: flex; justify-content: space-between; font-size: 12px; color: #475569; margin-top: 4px;">
+                    <span>Favorecido: <b id="settleSummaryPayee">-</b></span>
+                    <span>Nominal: <b id="settleSummaryNominal">R$ 0,00</b></span>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;">
+                <!-- Data de Pagamento / Liquidação -->
+                <div>
+                    <label style="font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 4px; display: block;">Data da Baixa *</label>
+                    <input type="date" name="payment_date" id="settlePaymentDate" required class="form-control" style="font-size: 13px; height: 38px;">
+                </div>
+
+                <!-- Forma de Pagamento Efetiva -->
+                <div>
+                    <label style="font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 4px; display: block;">Forma de Pagto.</label>
+                    <select name="payment_method" id="settlePaymentMethod" class="form-control" style="font-size: 13px; height: 38px;">
+                        <option value="Boleto">Boleto Bancário</option>
+                        <option value="PIX">PIX</option>
+                        <option value="Cartão de Crédito">Cartão de Crédito</option>
+                        <option value="Cartão de Débito">Cartão de Débito</option>
+                        <option value="Transferência Bancária">Transferência Bancária</option>
+                        <option value="Dinheiro">Dinheiro</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;">
+                <!-- Desconto -->
+                <div>
+                    <label style="font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 4px; display: block;">Desconto (R$)</label>
+                    <input type="number" step="0.01" name="discount" id="settleDiscount" value="0.00" oninput="recalcSettleNet()" class="form-control" style="font-size: 13px; height: 38px;">
+                </div>
+
+                <!-- Juros / Multa -->
+                <div>
+                    <label style="font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 4px; display: block;">Juros / Multa (R$)</label>
+                    <input type="number" step="0.01" name="fine_fee" id="settleFine" value="0.00" oninput="recalcSettleNet()" class="form-control" style="font-size: 13px; height: 38px;">
+                </div>
+            </div>
+
+            <!-- Valor Líquido Final -->
+            <div style="background: #F0FDF4; border: 1px dashed #86EFAC; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 12px; font-weight: 700; color: #166534;">VALOR FINAL A LIQUIDAR:</span>
+                <span style="font-size: 18px; font-weight: 800; color: #166534;" id="settleFinalAmount">R$ 0,00</span>
+            </div>
+
+            <!-- Observações da Liquidação -->
+            <div style="margin-bottom: 18px;">
+                <label style="font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 4px; display: block;">Observações / Comprovante</label>
+                <textarea name="notes" id="settleNotes" rows="2" placeholder="Autenticação bancária, ID da transação ou detalhes..." class="form-control" style="font-size: 13px;"></textarea>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                <button type="button" onclick="closeSettleModal()" class="btn btn-outline" style="font-size: 13px;">Cancelar</button>
+                <button type="submit" class="btn btn-primary" style="background: #008B54; border-color: #008B54; font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 6px;">
+                    ✅ Confirmar Baixa
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL 2: NOVO LANÇAMENTO / EDIÇÃO MANUAL NO BI -->
+<!-- ========================================================================= -->
+<div id="entryModalBackdrop" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(2px); z-index: 1050; align-items: center; justify-content: center; padding: 16px;">
+    <div style="background: white; border-radius: 12px; width: 100%; max-width: 580px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); overflow: hidden; animation: popIn 0.2s ease;">
+        <div style="background: #1E293B; color: white; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 18px;" id="entryModalIcon">➕</span>
+                <span style="font-size: 16px; font-weight: 700;" id="entryModalHeading">Novo Lançamento Financeiro</span>
+            </div>
+            <button type="button" onclick="closeEntryModal()" style="background: none; border: none; color: white; font-size: 20px; cursor: pointer;">&times;</button>
+        </div>
+
+        <form id="entryForm" method="POST" action="{{ url_for('finance.create_account_entry') }}" style="padding: 20px;">
+            <input type="hidden" name="entry_id" id="formEntryId" value="">
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;">
+                <!-- Tipo de Entrada -->
+                <div>
+                    <label style="font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 4px; display: block;">Tipo *</label>
+                    <select name="entry_type" id="formEntryType" required class="form-control" style="font-size: 13px; height: 38px;">
+                        <option value="PAGAR">🔴 Conta a Pagar (Despesa / Fornecedor)</option>
+                        <option value="RECEBER">🟢 Conta a Receber (Receita / Cliente)</option>
+                    </select>
+                </div>
+
+                <!-- Situação Inicial -->
+                <div>
+                    <label style="font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 4px; display: block;">Situação *</label>
+                    <select name="status" id="formStatus" required class="form-control" style="font-size: 13px; height: 38px;">
+                        <option value="Pendente">⏳ Pendente</option>
+                        <option value="Pago">✅ Pago / Liquidado</option>
+                        <option value="Atrasado">⚠️ Em Atraso</option>
+                        <option value="Cancelado">🚫 Cancelado</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Descrição -->
+            <div style="margin-bottom: 14px;">
+                <label style="font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 4px; display: block;">Descrição do Título *</label>
+                <input type="text" name="description" id="formDescription" required placeholder="Ex: Fornecedor Madeiras Silva - NF 1290" class="form-control" style="font-size: 13px; height: 38px;">
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;">
+                <!-- Favorecido / Pagador -->
+                <div>
+                    <label style="font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 4px; display: block;">Favorecido / Pagador</label>
+                    <input type="text" name="payee_payer" id="formPayee" placeholder="Nome do Cliente ou Fornecedor" class="form-control" style="font-size: 13px; height: 38px;">
+                </div>
+
+                <!-- Categoria -->
+                <div>
+                    <label style="font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 4px; display: block;">Categoria</label>
+                    <input type="text" name="category" id="formCategory" placeholder="Ex: Matéria Prima, Aluguel, Vendas" class="form-control" style="font-size: 13px; height: 38px;">
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+                <!-- Valor Nominal -->
+                <div>
+                    <label style="font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 4px; display: block;">Valor (R$) *</label>
+                    <input type="number" step="0.01" name="amount" id="formAmount" required placeholder="0.00" class="form-control" style="font-size: 13px; height: 38px;">
+                </div>
+
+                <!-- Vencimento -->
+                <div>
+                    <label style="font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 4px; display: block;">Vencimento *</label>
+                    <input type="date" name="due_date" id="formDueDate" required class="form-control" style="font-size: 13px; height: 38px;">
+                </div>
+
+                <!-- Emissão -->
+                <div>
+                    <label style="font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 4px; display: block;">Emissão</label>
+                    <input type="date" name="issue_date" id="formIssueDate" class="form-control" style="font-size: 13px; height: 38px;">
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;">
+                <!-- Forma de Pagamento -->
+                <div>
+                    <label style="font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 4px; display: block;">Forma de Pagto.</label>
+                    <select name="payment_method" id="formPaymentMethod" class="form-control" style="font-size: 13px; height: 38px;">
+                        <option value="Boleto">Boleto Bancário</option>
+                        <option value="PIX">PIX</option>
+                        <option value="Cartão de Crédito">Cartão de Crédito</option>
+                        <option value="Cartão de Débito">Cartão de Débito</option>
+                        <option value="Transferência Bancária">Transferência Bancária</option>
+                        <option value="Dinheiro">Dinheiro</option>
+                    </select>
+                </div>
+
+                <!-- Data de Pagamento (se liquidado) -->
+                <div>
+                    <label style="font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 4px; display: block;">Data Pagamento (se Pago)</label>
+                    <input type="date" name="payment_date" id="formPaymentDate" class="form-control" style="font-size: 13px; height: 38px;">
+                </div>
+            </div>
+
+            <!-- Observações -->
+            <div style="margin-bottom: 18px;">
+                <label style="font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 4px; display: block;">Observações</label>
+                <textarea name="notes" id="formNotes" rows="2" placeholder="Histórico, dados adicionais..." class="form-control" style="font-size: 13px;"></textarea>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                <button type="button" onclick="closeEntryModal()" class="btn btn-outline" style="font-size: 13px;">Cancelar</button>
+                <button type="submit" class="btn btn-primary" style="font-weight: 700; font-size: 13px;">Salvar Lançamento</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+@keyframes popIn {
+    from { opacity: 0; transform: scale(0.96); }
+    to { opacity: 1; transform: scale(1); }
+}
+.account-row:hover {
+    background-color: #F8FAFC !important;
+}
+</style>
+
+<script>
+let currentNominalAmount = 0.0;
+
+function switchView(viewName) {
+    document.getElementById('currentViewInput').value = viewName;
+    document.getElementById('viewListContainer').style.display = (viewName === 'list') ? 'block' : 'none';
+    document.getElementById('viewCalendarContainer').style.display = (viewName === 'calendar') ? 'block' : 'none';
+    
+    // Atualiza URL sem recarregar ou submete form
+    const url = new URL(window.location);
+    url.searchParams.set('view', viewName);
+    window.history.replaceState({}, '', url);
+}
+
+function handlePeriodChange(val) {
+    const customRow = document.getElementById('customDateRow');
+    if (val === 'custom') {
+        customRow.style.display = 'flex';
+    } else {
+        customRow.style.display = 'none';
+        document.getElementById('accountsFilterForm').submit();
+    }
+}
+
+// Modal de Baixa / Liquidação
+function openSettleModal(entry) {
+    const backdrop = document.getElementById('settleModalBackdrop');
+    const form = document.getElementById('settleForm');
+    form.action = `/finance/accounts/settle/${entry.id}`;
+
+    document.getElementById('settleSummaryType').textContent = (entry.entry_type === 'PAGAR') ? '🔴 CONTA A PAGAR' : '🟢 CONTA A RECEBER';
+    document.getElementById('settleSummaryType').style.color = (entry.entry_type === 'PAGAR') ? '#991B1B' : '#166534';
+    document.getElementById('settleSummaryDesc').textContent = entry.description || 'Sem descrição';
+    document.getElementById('settleSummaryPayee').textContent = entry.payee_payer || 'Padrão';
+    
+    currentNominalAmount = parseFloat(entry.amount || 0);
+    document.getElementById('settleSummaryNominal').textContent = formatCurrency(currentNominalAmount);
+    
+    // Defaults
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('settlePaymentDate').value = today;
+    document.getElementById('settlePaymentMethod').value = entry.payment_method || 'Boleto';
+    document.getElementById('settleDiscount').value = (entry.discount || 0).toFixed(2);
+    document.getElementById('settleFine').value = (entry.fine_fee || 0).toFixed(2);
+    document.getElementById('settleNotes').value = entry.notes || '';
+
+    recalcSettleNet();
+    backdrop.style.display = 'flex';
+}
+
+function closeSettleModal() {
+    document.getElementById('settleModalBackdrop').style.display = 'none';
+}
+
+function recalcSettleNet() {
+    const disc = parseFloat(document.getElementById('settleDiscount').value || 0);
+    const fine = parseFloat(document.getElementById('settleFine').value || 0);
+    const net = Math.max(0, currentNominalAmount - disc + fine);
+    document.getElementById('settleFinalAmount').textContent = formatCurrency(net);
+}
+
+function formatCurrency(v) {
+    return 'R$ ' + v.toFixed(2).replace('.', ',').replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.');
+}
+
+// Modal de Criação / Edição
+function openEntryModal() {
+    const backdrop = document.getElementById('entryModalBackdrop');
+    const form = document.getElementById('entryForm');
+    form.action = "{{ url_for('finance.create_account_entry') }}";
+    document.getElementById('entryModalHeading').textContent = "Novo Lançamento Financeiro";
+    document.getElementById('entryModalIcon').textContent = "➕";
+    document.getElementById('formEntryId').value = "";
+    
+    form.reset();
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('formIssueDate').value = today;
+    document.getElementById('formDueDate').value = today;
+    backdrop.style.display = 'flex';
+}
+
+function openEditModal(entry) {
+    const backdrop = document.getElementById('entryModalBackdrop');
+    const form = document.getElementById('entryForm');
+    form.action = `/finance/accounts/update/${entry.id}`;
+    document.getElementById('entryModalHeading').textContent = "Editar Lançamento #" + (entry.bling_id || entry.id);
+    document.getElementById('entryModalIcon').textContent = "✏️";
+    document.getElementById('formEntryId').value = entry.id;
+
+    document.getElementById('formEntryType').value = entry.entry_type;
+    document.getElementById('formStatus').value = entry.status;
+    document.getElementById('formDescription').value = entry.description || '';
+    document.getElementById('formPayee').value = entry.payee_payer || '';
+    document.getElementById('formCategory').value = entry.category || '';
+    document.getElementById('formAmount').value = entry.amount;
+    document.getElementById('formDueDate').value = entry.due_date || '';
+    document.getElementById('formIssueDate').value = entry.issue_date || '';
+    document.getElementById('formPaymentMethod').value = entry.payment_method || 'Boleto';
+    document.getElementById('formPaymentDate').value = entry.payment_date || '';
+    document.getElementById('formNotes').value = entry.notes || '';
+
+    backdrop.style.display = 'flex';
+}
+
+function closeEntryModal() {
+    document.getElementById('entryModalBackdrop').style.display = 'none';
+}
+
+// Estorno / Reabertura
+function confirmUnsettle(id, desc) {
+    if (confirm(`Deseja estornar a baixa de "${desc}"?\nO título retornará à situação 'Pendente'.`)) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/finance/accounts/unsettle/${id}`;
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+// Exclusão
+function confirmDelete(id, desc) {
+    if (confirm(`Tem certeza que deseja excluir o lançamento "${desc}"?`)) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/finance/accounts/delete/${id}`;
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+// Sincronização Bling
+function triggerBlingSync() {
+    if (confirm('Deseja iniciar a sincronização de Contas a Pagar e Receber com o Bling ERP?')) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = "{{ url_for('finance.sync_accounts') }}";
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeSettleModal();
+        closeEntryModal();
+    }
+});
+</script>
+{% endblock %}

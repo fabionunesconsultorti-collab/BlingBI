@@ -93,12 +93,24 @@ def check_and_apply_migrations():
                     if 'last_sync_at' not in pcp_cols:
                         conn.execute(text("ALTER TABLE product_channel_prices ADD COLUMN last_sync_at TIMESTAMP;"))
 
+                # Colunas em financial_entries
+                if 'financial_entries' in tables:
+                    fe_cols = [row[1] for row in conn.execute(text("PRAGMA table_info(financial_entries);")).fetchall()]
+                    if 'notes' not in fe_cols:
+                        conn.execute(text("ALTER TABLE financial_entries ADD COLUMN notes TEXT;"))
+                    if 'discount' not in fe_cols:
+                        conn.execute(text("ALTER TABLE financial_entries ADD COLUMN discount FLOAT DEFAULT 0.0;"))
+                    if 'fine_fee' not in fe_cols:
+                        conn.execute(text("ALTER TABLE financial_entries ADD COLUMN fine_fee FLOAT DEFAULT 0.0;"))
+
                 # Tabelas product_channel_prices e marketplace_rules se não existirem
                 from app.models.marketplace_rule import MarketplaceRule
                 from app.models.product import ProductChannelPrice
+                from app.models.financial import FinancialEntry
                 db.metadata.create_all(bind=engine, tables=[
                     db.metadata.tables['product_channel_prices'],
-                    db.metadata.tables['marketplace_rules']
+                    db.metadata.tables['marketplace_rules'],
+                    db.metadata.tables['financial_entries']
                 ])
 
                 conn.commit()
@@ -156,7 +168,10 @@ def check_and_apply_migrations():
                             f'ALTER TABLE "{schema}".product_channel_prices ADD COLUMN IF NOT EXISTS bling_produto_loja_id BIGINT;',
                             f'ALTER TABLE "{schema}".product_channel_prices ADD COLUMN IF NOT EXISTS bling_loja_id BIGINT;',
                             f'ALTER TABLE "{schema}".product_channel_prices ADD COLUMN IF NOT EXISTS sync_status VARCHAR(30) DEFAULT \'synced\';',
-                            f'ALTER TABLE "{schema}".product_channel_prices ADD COLUMN IF NOT EXISTS last_sync_at TIMESTAMP;'
+                            f'ALTER TABLE "{schema}".product_channel_prices ADD COLUMN IF NOT EXISTS last_sync_at TIMESTAMP;',
+                            f'ALTER TABLE "{schema}".financial_entries ADD COLUMN IF NOT EXISTS notes TEXT;',
+                            f'ALTER TABLE "{schema}".financial_entries ADD COLUMN IF NOT EXISTS discount FLOAT DEFAULT 0.0;',
+                            f'ALTER TABLE "{schema}".financial_entries ADD COLUMN IF NOT EXISTS fine_fee FLOAT DEFAULT 0.0;'
                         ]:
                             try:
                                 pg_conn.execute(text(q))
