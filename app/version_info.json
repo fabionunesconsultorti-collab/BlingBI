@@ -2,11 +2,11 @@
   "version": "1.0.30",
   "tag": "v1.0.30",
   "commit_count": 30,
-  "short_hash": "aa4ab70",
+  "short_hash": "1524b95",
   "changelog": [
     {
       "index": 1,
-      "hash": "aa4ab70",
+      "hash": "1524b95",
       "message": "preservar histórico e contagem em clones rasos (Render --depth 1) e otimizar com cache em memória",
       "raw_message": "fix(version): preservar histórico e contagem em clones rasos (Render --depth 1) e otimizar com cache em memória",
       "type": "fix",
