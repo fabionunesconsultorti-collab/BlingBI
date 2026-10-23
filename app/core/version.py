@@ -169,17 +169,93 @@ def save_version_cache(data: dict) -> bool:
         logger.warning(f"[Version] Erro ao salvar cache de versão: {e}")
         return False
 
-def get_version_info() -> dict:
+def is_git_shallow() -> bool:
+    """Verifica se o repositório Git local é um shallow clone (ex: Render, CI/CD)."""
+    try:
+        base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+        if os.path.exists(os.path.join(base_dir, '.git', 'shallow')):
+            return True
+        out = _run_git_cmd(['rev-parse', '--is-shallow-repository'])
+        if out.lower() == 'true':
+            return True
+    except Exception:
+        pass
+    return False
+
+_CACHED_VERSION_DATA = None
+
+def get_version_info(force_refresh: bool = False) -> dict:
     """
     Retorna as informações completas de versão da aplicação.
     A versão é calculada automaticamente como: v{MAJOR}.{MINOR}.{COMMIT_COUNT}
     Garantindo incremento automático a cada commit realizado no repositório.
+    Protegido contra clones rasos (shallow clone com --depth 1 no Render/CI).
+    Utiliza cache em memória para não penalizar performance das requisições HTTP.
     """
+    global _CACHED_VERSION_DATA
+    if _CACHED_VERSION_DATA is not None and not force_refresh:
+        return _CACHED_VERSION_DATA
+
+    # 1. Carrega dados estáticos versionados no repositório (base confiável)
+    cached = load_version_cache() or {}
+    cached_count = cached.get('commit_count', 0)
+    cached_hash = cached.get('short_hash', '')
+    cached_changelog = cached.get('changelog', [])
+
+    # 2. Inspeciona o ambiente Git
     git_count = get_git_commit_count()
     git_hash = get_git_short_hash()
-    changelog = get_git_changelog(50)
+    is_shallow = is_git_shallow() or (0 < git_count < cached_count)
 
-    if git_count > 0:
+    # 3. Decide a melhor estratégia entre Git e Cache
+    if is_shallow or (git_count == 0 and cached_count > 0):
+        # No Render ou container com clone raso (--depth 1):
+        # O histórico completo do Git não está disponível no disco.
+        # Preserva o commit_count e o changelog histórico do cache.
+        final_count = cached_count if cached_count > 0 else max(git_count, 1)
+        final_hash = git_hash if git_hash and git_hash != 'latest' else (cached_hash or 'prod')
+
+        merged_changelog = list(cached_changelog)
+        top_cached_hash = cached_changelog[0].get('hash', '') if cached_changelog else ''
+
+        # Se o commit atual do Git for diferente do commit em cache, temos commits novos
+        if git_hash and top_cached_hash and git_hash != top_cached_hash and git_hash != cached_hash:
+            git_recent = get_git_changelog(5)
+            new_commits = []
+            for commit in git_recent:
+                c_hash = commit.get('hash', '')
+                if c_hash and c_hash != top_cached_hash and not any(item.get('hash') == c_hash for item in merged_changelog):
+                    new_commits.append(commit)
+                else:
+                    break
+            if new_commits:
+                for commit in reversed(new_commits):
+                    merged_changelog.insert(0, commit)
+                    final_count += 1
+        elif not merged_changelog:
+            merged_changelog = get_git_changelog(5)
+
+        # Reindexa os itens do changelog
+        for idx, item in enumerate(merged_changelog):
+            item['index'] = idx + 1
+            item['is_latest'] = (idx == 0)
+
+        version_str = f"{BASE_VERSION_MAJOR_MINOR}.{final_count}"
+        info = {
+            'version': version_str,
+            'tag': f"v{version_str}",
+            'commit_count': final_count,
+            'short_hash': final_hash,
+            'changelog': merged_changelog[:50],
+            'total_releases': len(merged_changelog[:50])
+        }
+        _CACHED_VERSION_DATA = info
+        return info
+
+    elif git_count > 0 and git_count >= cached_count:
+        # Repositório Git completo (desenvolvimento local):
+        # O Git possui o histórico íntegro e atualizado.
+        changelog = get_git_changelog(50)
         version_str = f"{BASE_VERSION_MAJOR_MINOR}.{git_count}"
         info = {
             'version': version_str,
@@ -189,25 +265,27 @@ def get_version_info() -> dict:
             'changelog': changelog,
             'total_releases': len(changelog)
         }
-        # Atualiza o arquivo estático silenciosamente se mudou
         try:
             save_version_cache(info)
         except Exception:
             pass
+        _CACHED_VERSION_DATA = info
         return info
 
-    # Fallback para o arquivo estático (ex: container de produção sem .git)
-    cached = load_version_cache()
-    if cached and 'version' in cached:
+    elif cached and 'version' in cached:
+        # Fallback confiável para o cache estático
+        _CACHED_VERSION_DATA = cached
         return cached
 
     # Fallback padrão mínimo
-    default_version = f"{BASE_VERSION_MAJOR_MINOR}.0"
-    return {
+    default_version = f"{BASE_VERSION_MAJOR_MINOR}.1"
+    info = {
         'version': default_version,
         'tag': f"v{default_version}",
-        'commit_count': 0,
-        'short_hash': 'prod',
+        'commit_count': 1,
+        'short_hash': git_hash or 'prod',
         'changelog': [],
         'total_releases': 0
     }
+    _CACHED_VERSION_DATA = info
+    return info

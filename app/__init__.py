@@ -121,9 +121,10 @@ def create_app(config_class=Config):
     # Endpoint para consulta do changelog via API / AJAX
     @app.route('/api/changelog', methods=['GET'])
     def api_changelog():
-        from flask import jsonify
+        from flask import jsonify, request
         from app.core.version import get_version_info
-        return jsonify(get_version_info())
+        refresh = request.args.get('refresh', '0').lower() in ('1', 'true', 'yes')
+        return jsonify(get_version_info(force_refresh=refresh))
 
     # Registro de Blueprints de Negócio & BI
     from app.routes.auth import bp as auth_bp

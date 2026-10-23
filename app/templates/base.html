@@ -501,7 +501,7 @@
                 <div class="system-footer-right">
                     <button type="button" class="system-version-btn" onclick="openVersionModal()" title="Clique para ver o histórico de atualizações">
                         <span class="version-dot"></span>
-                        <span class="version-label">Versão {{ app_version.tag if app_version else 'v1.0.1' }}</span>
+                        <span class="version-label">Versão {{ app_version.version if app_version else '1.0.1' }}</span>
                         <span class="version-build-badge">Build #{{ app_version.commit_count if app_version else '1' }}</span>
                         <span class="version-news-badge">Histórico</span>
                     </button>
