@@ -212,3 +212,121 @@ def test_accounts_routes(client):
     resp_del = client.post(f'/finance/accounts/delete/{entry_id}', json={})
     assert resp_del.status_code == 200
     assert resp_del.get_json()['success'] is True
+
+    # 9. Test Auxiliary Options Route (JSON)
+    resp_aux = client.get('/finance/accounts/auxiliary-options')
+    assert resp_aux.status_code == 200
+    aux_data = resp_aux.get_json()
+    assert 'payment_methods' in aux_data
+    assert 'categories' in aux_data
+
+
+def test_accounts_bling_mirroring_success(app, monkeypatch):
+    """Testa espelhamento bem-sucedido de baixa para o Bling ERP via API v3."""
+    with app.app_context():
+        from app.services.bling_api import BlingApiClient
+        monkeypatch.setattr(BlingApiClient, 'is_configured', lambda self: True)
+        
+        called_payload = {}
+        def mock_settle_payable(self, bling_id, payload):
+            called_payload.update(payload)
+            return True, "Baixa registrada no Bling com sucesso!", {'id': bling_id}
+
+        monkeypatch.setattr(BlingApiClient, 'settle_payable', mock_settle_payable)
+
+        # Cria entrada com bling_id real do ERP (< 9000000000)
+        entry = FinancialEntry(
+            bling_id=884422,
+            entry_type='PAGAR',
+            description='Duplicata Fornecedor Bling Teste',
+            amount=2500.0,
+            due_date=date.today(),
+            status='Pendente'
+        )
+        db.session.add(entry)
+        db.session.commit()
+
+        res = AccountsService.settle_entry(
+            entry_id=entry.id,
+            payment_date=date.today().strftime('%Y-%m-%d'),
+            payment_method='PIX',
+            bling_payment_method_id=9876,
+            notes='Comprovante ABC-123'
+        )
+
+        assert res.get('success') is True
+        assert 'espelhado no Bling ERP com sucesso' in res.get('message')
+        assert entry.status == 'Pago'
+        assert entry.sync_status == 'synced'
+        assert entry.last_sync_at is not None
+        assert entry.sync_error_msg is None
+        assert called_payload.get('valor') == 2500.0
+        assert called_payload.get('idFormaPagamento') == 9876
+
+
+def test_accounts_bling_mirroring_graceful_error(app, monkeypatch):
+    """Testa tratamento gracioso quando a API do Bling rejeita ou falha no espelhamento."""
+    with app.app_context():
+        from app.services.bling_api import BlingApiClient
+        monkeypatch.setattr(BlingApiClient, 'is_configured', lambda self: True)
+        
+        def mock_settle_receivable(self, bling_id, payload):
+            return False, "Bling API: HTTP 422 - data de pagamento posterior ao limite", {}
+
+        monkeypatch.setattr(BlingApiClient, 'settle_receivable', mock_settle_receivable)
+
+        entry = FinancialEntry(
+            bling_id=773311,
+            entry_type='RECEBER',
+            description='Mensalidade Cliente Bling Teste',
+            amount=450.0,
+            due_date=date.today(),
+            status='Pendente'
+        )
+        db.session.add(entry)
+        db.session.commit()
+
+        res = AccountsService.settle_entry(
+            entry_id=entry.id,
+            payment_date=date.today().strftime('%Y-%m-%d'),
+            notes='Tentativa de baixa com erro simulado'
+        )
+
+        assert res.get('success') is True  # No BI a operação não trava
+        assert entry.status == 'Pago'
+        assert entry.sync_status == 'sync_error'
+        assert '422' in entry.sync_error_msg
+        assert 'Aviso Bling' in res.get('message')
+
+
+def test_accounts_sync_single_entry_retry(app, monkeypatch):
+    """Testa retentativa de sincronização de um título pendente ou com erro."""
+    with app.app_context():
+        from app.services.bling_api import BlingApiClient
+        monkeypatch.setattr(BlingApiClient, 'is_configured', lambda self: True)
+
+        def mock_create_payable(self, payload):
+            return True, "OK", {'id': 55667788}
+
+        monkeypatch.setattr(BlingApiClient, 'create_payable', mock_create_payable)
+
+        # Lançamento local com ID sintético (>= 9000000000)
+        entry = FinancialEntry(
+            bling_id=9991234567,
+            entry_type='PAGAR',
+            description='Lançamento Local Pendente de Envio',
+            amount=320.0,
+            due_date=date.today(),
+            status='Pendente',
+            sync_status='pending_sync'
+        )
+        db.session.add(entry)
+        db.session.commit()
+
+        # Força sincronização
+        res = AccountsService.sync_single_entry(entry.id)
+        assert res.get('success') is True
+        assert entry.bling_id == 55667788
+        assert entry.sync_status == 'synced'
+        assert entry.last_sync_at is not None
+

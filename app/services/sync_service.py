@@ -662,7 +662,26 @@ class SyncService:
                     entry.amount = float(item.get('valor', 0.0) or 0.0)
                     
                     contato_info = item.get('contato', {})
-                    entry.entity_name = contato_info.get('nome') if isinstance(contato_info, dict) else 'Cliente'
+                    if isinstance(contato_info, dict):
+                        entry.entity_name = contato_info.get('nome') or 'Cliente'
+                        if contato_info.get('id'):
+                            entry.bling_contact_id = int(contato_info['id'])
+                    else:
+                        entry.entity_name = 'Cliente'
+
+                    categoria_info = item.get('categoria', {})
+                    if isinstance(categoria_info, dict):
+                        if categoria_info.get('id'):
+                            entry.bling_category_id = int(categoria_info['id'])
+                        if categoria_info.get('descricao'):
+                            entry.category = categoria_info['descricao']
+
+                    forma_pgto_info = item.get('formaPagamento', {})
+                    if isinstance(forma_pgto_info, dict):
+                        if forma_pgto_info.get('id'):
+                            entry.bling_payment_method_id = int(forma_pgto_info['id'])
+                        if forma_pgto_info.get('descricao'):
+                            entry.payment_method = forma_pgto_info['descricao']
 
                     venc = item.get('vencimento')
                     if venc:
@@ -680,6 +699,9 @@ class SyncService:
                     
                     situacao = item.get('situacao')
                     entry.status = 'Pago' if situacao == 2 else ('Cancelado' if situacao == 3 else 'Pendente')
+                    entry.sync_status = 'synced'
+                    entry.last_sync_at = datetime.utcnow()
+                    entry.sync_error_msg = None
                     count += 1
                 except Exception as rec_err:
                     logger.warning(f"Erro em conta a receber {item.get('id')}: {rec_err}")
@@ -714,7 +736,26 @@ class SyncService:
                     entry.amount = float(item.get('valor', 0.0) or 0.0)
                     
                     fornecedor_info = item.get('contato', {}) or item.get('fornecedor', {})
-                    entry.entity_name = fornecedor_info.get('nome') if isinstance(fornecedor_info, dict) else 'Fornecedor'
+                    if isinstance(fornecedor_info, dict):
+                        entry.entity_name = fornecedor_info.get('nome') or 'Fornecedor'
+                        if fornecedor_info.get('id'):
+                            entry.bling_contact_id = int(fornecedor_info['id'])
+                    else:
+                        entry.entity_name = 'Fornecedor'
+
+                    categoria_info = item.get('categoria', {})
+                    if isinstance(categoria_info, dict):
+                        if categoria_info.get('id'):
+                            entry.bling_category_id = int(categoria_info['id'])
+                        if categoria_info.get('descricao'):
+                            entry.category = categoria_info['descricao']
+
+                    forma_pgto_info = item.get('formaPagamento', {})
+                    if isinstance(forma_pgto_info, dict):
+                        if forma_pgto_info.get('id'):
+                            entry.bling_payment_method_id = int(forma_pgto_info['id'])
+                        if forma_pgto_info.get('descricao'):
+                            entry.payment_method = forma_pgto_info['descricao']
 
                     venc = item.get('vencimento')
                     if venc:
@@ -732,6 +773,9 @@ class SyncService:
                     
                     situacao = item.get('situacao')
                     entry.status = 'Pago' if situacao == 2 else ('Cancelado' if situacao == 3 else 'Pendente')
+                    entry.sync_status = 'synced'
+                    entry.last_sync_at = datetime.utcnow()
+                    entry.sync_error_msg = None
                     count += 1
                 except Exception as pay_err:
                     logger.warning(f"Erro em conta a pagar {item.get('id')}: {pay_err}")
@@ -742,3 +786,4 @@ class SyncService:
             db.session.rollback()
             raise e
         return count
+

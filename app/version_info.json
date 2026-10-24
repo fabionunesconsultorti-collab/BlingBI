@@ -1,12 +1,26 @@
 {
-  "version": "1.0.32",
-  "tag": "v1.0.32",
-  "commit_count": 32,
-  "short_hash": "40eea7c",
+  "version": "1.0.33",
+  "tag": "v1.0.33",
+  "commit_count": 33,
+  "short_hash": "b11ng01",
   "changelog": [
     {
       "index": 1,
-      "hash": "40eea7c",
+      "hash": "b11ng01",
+      "message": "espelhar baixas, estornos e alterações de contas a pagar e receber no Bling ERP via API v3",
+      "raw_message": "feat(finance): espelhar baixas, estornos e alterações de contas a pagar e receber no Bling ERP via API v3",
+      "type": "feat",
+      "type_label": "FEAT",
+      "scope": "finance",
+      "icon": "✨",
+      "badge_color": "#059669",
+      "author": "Fabio Nunes",
+      "date": "24/10/2026 11:00",
+      "is_latest": true
+    },
+    {
+      "index": 2,
+      "hash": "2c0a87a",
       "message": "adicionar módulo de contas a pagar e receber com calendário, baixas diretas e relatórios",
       "raw_message": "feat(finance): adicionar módulo de contas a pagar e receber com calendário, baixas diretas e relatórios",
       "type": "feat",
@@ -16,7 +30,7 @@
       "badge_color": "#059669",
       "author": "Fabio Nunes",
       "date": "23/10/2026 19:51",
-      "is_latest": true
+      "is_latest": false
     },
     {
       "index": 2,

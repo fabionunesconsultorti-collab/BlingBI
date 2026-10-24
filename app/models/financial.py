@@ -21,6 +21,15 @@ class FinancialEntry(db.Model):
     notes = db.Column(db.Text, nullable=True)
     discount = db.Column(db.Float, default=0.0)
     fine_fee = db.Column(db.Float, default=0.0)
+    
+    # Campos de vínculo e espelhamento oficial com a API v3 do Bling
+    bling_contact_id = db.Column(db.BigInteger, nullable=True, index=True)
+    bling_category_id = db.Column(db.BigInteger, nullable=True)
+    bling_payment_method_id = db.Column(db.BigInteger, nullable=True)
+    sync_status = db.Column(db.String(30), default='synced', index=True) # synced, pending_sync, sync_error, local_only
+    last_sync_at = db.Column(db.DateTime, nullable=True)
+    sync_error_msg = db.Column(db.Text, nullable=True)
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -58,6 +67,10 @@ class FinancialEntry(db.Model):
     def payment_date_formatted(self) -> str:
         return self.payment_date.strftime('%d/%m/%Y') if self.payment_date else ''
 
+    @property
+    def last_sync_at_formatted(self) -> str:
+        return self.last_sync_at.strftime('%d/%m/%Y %H:%M') if self.last_sync_at else ''
+
     def to_dict(self):
         return {
             'id': self.id,
@@ -80,7 +93,15 @@ class FinancialEntry(db.Model):
             'notes': self.notes or '',
             'discount': self.discount or 0.0,
             'fine_fee': self.fine_fee or 0.0,
+            'bling_contact_id': self.bling_contact_id,
+            'bling_category_id': self.bling_category_id,
+            'bling_payment_method_id': self.bling_payment_method_id,
+            'sync_status': self.sync_status or 'synced',
+            'last_sync_at': self.last_sync_at.strftime('%Y-%m-%d %H:%M:%S') if self.last_sync_at else None,
+            'last_sync_at_formatted': self.last_sync_at_formatted,
+            'sync_error_msg': self.sync_error_msg or '',
             'is_overdue': self.is_overdue,
             'days_until_due': self.days_until_due
         }
+
 

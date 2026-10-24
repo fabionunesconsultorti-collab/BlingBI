@@ -102,6 +102,18 @@ def check_and_apply_migrations():
                         conn.execute(text("ALTER TABLE financial_entries ADD COLUMN discount FLOAT DEFAULT 0.0;"))
                     if 'fine_fee' not in fe_cols:
                         conn.execute(text("ALTER TABLE financial_entries ADD COLUMN fine_fee FLOAT DEFAULT 0.0;"))
+                    if 'bling_contact_id' not in fe_cols:
+                        conn.execute(text("ALTER TABLE financial_entries ADD COLUMN bling_contact_id BIGINT;"))
+                    if 'bling_category_id' not in fe_cols:
+                        conn.execute(text("ALTER TABLE financial_entries ADD COLUMN bling_category_id BIGINT;"))
+                    if 'bling_payment_method_id' not in fe_cols:
+                        conn.execute(text("ALTER TABLE financial_entries ADD COLUMN bling_payment_method_id BIGINT;"))
+                    if 'sync_status' not in fe_cols:
+                        conn.execute(text("ALTER TABLE financial_entries ADD COLUMN sync_status VARCHAR(30) DEFAULT 'synced';"))
+                    if 'last_sync_at' not in fe_cols:
+                        conn.execute(text("ALTER TABLE financial_entries ADD COLUMN last_sync_at TIMESTAMP;"))
+                    if 'sync_error_msg' not in fe_cols:
+                        conn.execute(text("ALTER TABLE financial_entries ADD COLUMN sync_error_msg TEXT;"))
 
                 # Tabelas product_channel_prices e marketplace_rules se não existirem
                 from app.models.marketplace_rule import MarketplaceRule
@@ -171,7 +183,13 @@ def check_and_apply_migrations():
                             f'ALTER TABLE "{schema}".product_channel_prices ADD COLUMN IF NOT EXISTS last_sync_at TIMESTAMP;',
                             f'ALTER TABLE "{schema}".financial_entries ADD COLUMN IF NOT EXISTS notes TEXT;',
                             f'ALTER TABLE "{schema}".financial_entries ADD COLUMN IF NOT EXISTS discount FLOAT DEFAULT 0.0;',
-                            f'ALTER TABLE "{schema}".financial_entries ADD COLUMN IF NOT EXISTS fine_fee FLOAT DEFAULT 0.0;'
+                            f'ALTER TABLE "{schema}".financial_entries ADD COLUMN IF NOT EXISTS fine_fee FLOAT DEFAULT 0.0;',
+                            f'ALTER TABLE "{schema}".financial_entries ADD COLUMN IF NOT EXISTS bling_contact_id BIGINT;',
+                            f'ALTER TABLE "{schema}".financial_entries ADD COLUMN IF NOT EXISTS bling_category_id BIGINT;',
+                            f'ALTER TABLE "{schema}".financial_entries ADD COLUMN IF NOT EXISTS bling_payment_method_id BIGINT;',
+                            f'ALTER TABLE "{schema}".financial_entries ADD COLUMN IF NOT EXISTS sync_status VARCHAR(30) DEFAULT \'synced\';',
+                            f'ALTER TABLE "{schema}".financial_entries ADD COLUMN IF NOT EXISTS last_sync_at TIMESTAMP;',
+                            f'ALTER TABLE "{schema}".financial_entries ADD COLUMN IF NOT EXISTS sync_error_msg TEXT;'
                         ]:
                             try:
                                 pg_conn.execute(text(q))

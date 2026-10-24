@@ -517,6 +517,230 @@ class BlingApiClient:
             logger.error(f"[BlingApiClient] Exceção ao atualizar preço de produto na loja {loja_id}: {e}")
             return False, f"Erro interno ao atualizar preço no Bling: {str(e)}", {}
 
+    @staticmethod
+    def _extract_error_message(resp) -> str:
+        """Extrai mensagem de erro legível da resposta do Bling v3."""
+        if not resp:
+            return "Sem resposta do servidor Bling."
+        msg = f"HTTP {resp.status_code}"
+        try:
+            err_data = resp.json().get('error', {})
+            if isinstance(err_data, dict):
+                description = err_data.get('description') or err_data.get('message')
+                if description:
+                    msg = description
+                fields = err_data.get('fields', [])
+                if fields and isinstance(fields, list):
+                    field_msgs = [f"{f.get('element', '')}: {f.get('msg', '')}" for f in fields if isinstance(f, dict)]
+                    if field_msgs:
+                        msg += f" ({'; '.join(field_msgs)})"
+            elif isinstance(err_data, str):
+                msg = err_data
+        except Exception:
+            if resp.text:
+                msg = resp.text[:200]
+        return msg
+
+    def get_payment_methods(self) -> list:
+        """
+        Consulta as formas de pagamento ativas no Bling (/formas-pagamentos).
+        Retorna lista com id, descricao, tipoPagamento, etc.
+        """
+        try:
+            resp = self.request('GET', '/formas-pagamentos')
+            if resp and resp.status_code == 200:
+                data = resp.json().get('data', [])
+                logger.info(f"[BlingApiClient] {len(data)} forma(s) de pagamento recuperada(s).")
+                return data
+        except Exception as e:
+            logger.error(f"[BlingApiClient] Erro ao consultar formas de pagamento: {e}")
+        return []
+
+    def get_revenue_expense_categories(self, tipo: int = None) -> list:
+        """
+        Consulta as categorias de receitas e despesas no Bling (/categorias/receitas-despesas).
+        tipo: 1 para receitas, 2 para despesas (ou None para todas).
+        """
+        try:
+            params = {}
+            if tipo is not None:
+                params['tipo'] = tipo
+            resp = self.request('GET', '/categorias/receitas-despesas', params=params)
+            if resp and resp.status_code == 200:
+                data = resp.json().get('data', [])
+                logger.info(f"[BlingApiClient] {len(data)} categoria(s) financeira(s) recuperada(s).")
+                return data
+        except Exception as e:
+            logger.error(f"[BlingApiClient] Erro ao consultar categorias de receitas/despesas: {e}")
+        return []
+
+    # -------------------------------------------------------------------------
+    # OPERAÇÕES DE CONTAS A PAGAR (/contas/pagar)
+    # -------------------------------------------------------------------------
+    def create_payable(self, payload: dict) -> tuple:
+        """
+        Cria uma nova conta a pagar no Bling ERP (POST /contas/pagar).
+        Retorna (sucesso: bool, mensagem: str, dados: dict).
+        """
+        try:
+            resp = self.request('POST', '/contas/pagar', json_data=payload)
+            if not resp or resp.status_code == 404:
+                resp = self.request('POST', '/contas-pagar', json_data=payload)
+            if resp and resp.status_code in (200, 201):
+                data = resp.json().get('data', {})
+                return True, "Conta a pagar cadastrada no Bling com sucesso!", data
+            err_msg = self._extract_error_message(resp)
+            return False, f"Bling API: {err_msg}", {}
+        except Exception as e:
+            logger.error(f"[BlingApiClient] Exceção ao cadastrar conta a pagar: {e}")
+            return False, str(e), {}
+
+    def update_payable(self, bling_id: int, payload: dict) -> tuple:
+        """
+        Atualiza dados de uma conta a pagar no Bling ERP (PUT /contas/pagar/{id}).
+        """
+        try:
+            resp = self.request('PUT', f'/contas/pagar/{bling_id}', json_data=payload)
+            if not resp or resp.status_code == 404:
+                resp = self.request('PUT', f'/contas-pagar/{bling_id}', json_data=payload)
+            if resp and resp.status_code in (200, 204):
+                data = resp.json().get('data', {}) if resp.status_code == 200 else {'id': bling_id}
+                return True, "Conta a pagar atualizada no Bling com sucesso!", data
+            err_msg = self._extract_error_message(resp)
+            return False, f"Bling API: {err_msg}", {}
+        except Exception as e:
+            logger.error(f"[BlingApiClient] Exceção ao atualizar conta a pagar {bling_id}: {e}")
+            return False, str(e), {}
+
+    def settle_payable(self, bling_id: int, payload: dict) -> tuple:
+        """
+        Baixa / liquida uma conta a pagar no Bling ERP (POST /contas/pagar/{id}/baixar).
+        Payload: { 'data': 'YYYY-MM-DD', 'valor': 100.0, 'idFormaPagamento': ... }
+        """
+        try:
+            resp = self.request('POST', f'/contas/pagar/{bling_id}/baixar', json_data=payload)
+            if not resp or resp.status_code == 404:
+                resp = self.request('POST', f'/contas-pagar/{bling_id}/baixar', json_data=payload)
+            if resp and resp.status_code in (200, 201, 204):
+                data = resp.json().get('data', {}) if resp.content else {'id': bling_id}
+                return True, "Baixa registrada no Bling com sucesso!", data
+            err_msg = self._extract_error_message(resp)
+            return False, f"Bling API: {err_msg}", {}
+        except Exception as e:
+            logger.error(f"[BlingApiClient] Exceção ao baixar conta a pagar {bling_id}: {e}")
+            return False, str(e), {}
+
+    def delete_payable(self, bling_id: int) -> tuple:
+        """
+        Exclui uma conta a pagar no Bling ERP (DELETE /contas/pagar/{id}).
+        """
+        try:
+            resp = self.request('DELETE', f'/contas/pagar/{bling_id}')
+            if not resp or resp.status_code == 404:
+                resp = self.request('DELETE', f'/contas-pagar/{bling_id}')
+            if resp and resp.status_code in (200, 204):
+                return True, "Conta a pagar excluída no Bling com sucesso!"
+            err_msg = self._extract_error_message(resp)
+            return False, f"Bling API: {err_msg}"
+        except Exception as e:
+            logger.error(f"[BlingApiClient] Exceção ao excluir conta a pagar {bling_id}: {e}")
+            return False, str(e)
+
+    # -------------------------------------------------------------------------
+    # OPERAÇÕES DE CONTAS A RECEBER (/contas/receber)
+    # -------------------------------------------------------------------------
+    def create_receivable(self, payload: dict) -> tuple:
+        """
+        Cria uma nova conta a receber no Bling ERP (POST /contas/receber).
+        Retorna (sucesso: bool, mensagem: str, dados: dict).
+        """
+        try:
+            resp = self.request('POST', '/contas/receber', json_data=payload)
+            if not resp or resp.status_code == 404:
+                resp = self.request('POST', '/contas-receber', json_data=payload)
+            if resp and resp.status_code in (200, 201):
+                data = resp.json().get('data', {})
+                return True, "Conta a receber cadastrada no Bling com sucesso!", data
+            err_msg = self._extract_error_message(resp)
+            return False, f"Bling API: {err_msg}", {}
+        except Exception as e:
+            logger.error(f"[BlingApiClient] Exceção ao cadastrar conta a receber: {e}")
+            return False, str(e), {}
+
+    def update_receivable(self, bling_id: int, payload: dict) -> tuple:
+        """
+        Atualiza dados de uma conta a receber no Bling ERP (PUT /contas/receber/{id}).
+        """
+        try:
+            resp = self.request('PUT', f'/contas/receber/{bling_id}', json_data=payload)
+            if not resp or resp.status_code == 404:
+                resp = self.request('PUT', f'/contas-receber/{bling_id}', json_data=payload)
+            if resp and resp.status_code in (200, 204):
+                data = resp.json().get('data', {}) if resp.status_code == 200 else {'id': bling_id}
+                return True, "Conta a receber atualizada no Bling com sucesso!", data
+            err_msg = self._extract_error_message(resp)
+            return False, f"Bling API: {err_msg}", {}
+        except Exception as e:
+            logger.error(f"[BlingApiClient] Exceção ao atualizar conta a receber {bling_id}: {e}")
+            return False, str(e), {}
+
+    def settle_receivable(self, bling_id: int, payload: dict) -> tuple:
+        """
+        Baixa / liquida uma conta a receber no Bling ERP (POST /contas/receber/{id}/baixar).
+        """
+        try:
+            resp = self.request('POST', f'/contas/receber/{bling_id}/baixar', json_data=payload)
+            if not resp or resp.status_code == 404:
+                resp = self.request('POST', f'/contas-receber/{bling_id}/baixar', json_data=payload)
+            if resp and resp.status_code in (200, 201, 204):
+                data = resp.json().get('data', {}) if resp.content else {'id': bling_id}
+                return True, "Recebimento registrado no Bling com sucesso!", data
+            err_msg = self._extract_error_message(resp)
+            return False, f"Bling API: {err_msg}", {}
+        except Exception as e:
+            logger.error(f"[BlingApiClient] Exceção ao liquidar conta a receber {bling_id}: {e}")
+            return False, str(e), {}
+
+    def delete_receivable(self, bling_id: int) -> tuple:
+        """
+        Exclui uma conta a receber no Bling ERP (DELETE /contas/receber/{id}).
+        """
+        try:
+            resp = self.request('DELETE', f'/contas/receber/{bling_id}')
+            if not resp or resp.status_code == 404:
+                resp = self.request('DELETE', f'/contas-receber/{bling_id}')
+            if resp and resp.status_code in (200, 204):
+                return True, "Conta a receber excluída no Bling com sucesso!"
+            err_msg = self._extract_error_message(resp)
+            return False, f"Bling API: {err_msg}"
+        except Exception as e:
+            logger.error(f"[BlingApiClient] Exceção ao excluir conta a receber {bling_id}: {e}")
+            return False, str(e)
+
+    def unsettle_account(self, entry_type: str, bling_id: int) -> tuple:
+        """
+        Estorna ou reabre uma conta baixada no Bling ERP (restabelece situação para Em Aberto).
+        """
+        try:
+            base_route = '/contas/pagar' if entry_type == 'PAGAR' else '/contas/receber'
+            # Tentativa 1: Endpoint de estorno direto
+            resp = self.request('POST', f"{base_route}/{bling_id}/estornar")
+            if resp and resp.status_code in (200, 204):
+                return True, "Baixa estornada no Bling com sucesso!"
+
+            # Tentativa 2: Atualização de situação para Em Aberto (situacao: 1)
+            reopen_payload = {'situacao': 1}
+            resp_reopen = self.request('PUT', f"{base_route}/{bling_id}", json_data=reopen_payload)
+            if resp_reopen and resp_reopen.status_code in (200, 204):
+                return True, "Título reaberto no Bling com sucesso!"
+
+            err_msg = self._extract_error_message(resp or resp_reopen)
+            return False, f"Bling API: {err_msg}"
+        except Exception as e:
+            logger.error(f"[BlingApiClient] Exceção ao estornar baixa da conta {bling_id}: {e}")
+            return False, str(e)
+
+
 
 
 

@@ -331,6 +331,7 @@ def settle_account_entry(entry_id):
     notes = data.get('notes')
     discount = data.get('discount')
     fine_fee = data.get('fine_fee')
+    bling_pm_id = data.get('bling_payment_method_id')
 
     success, msg, entry = AccountsService.settle_entry(
         entry_id=entry_id,
@@ -338,7 +339,8 @@ def settle_account_entry(entry_id):
         payment_method=p_method,
         notes=notes,
         discount=discount,
-        fine_fee=fine_fee
+        fine_fee=fine_fee,
+        bling_payment_method_id=bling_pm_id
     )
 
     if is_json:
@@ -409,6 +411,28 @@ def delete_account_entry(entry_id):
     else:
         flash(msg, 'danger')
     return redirect(request.referrer or url_for('finance.accounts'))
+
+@bp.route('/accounts/sync-entry/<int:entry_id>', methods=['POST'])
+def sync_single_account_entry(entry_id):
+    """Retenta ou força a sincronização de um lançamento com o Bling ERP."""
+    is_json = request.is_json
+    success, msg, entry = AccountsService.sync_single_entry(entry_id)
+
+    if is_json:
+        return jsonify({'success': success, 'message': msg, 'entry': entry.to_dict() if entry else None})
+
+    if success:
+        flash(msg, 'success')
+    else:
+        flash(msg, 'danger')
+    return redirect(request.referrer or url_for('finance.accounts'))
+
+@bp.route('/accounts/auxiliary-options')
+def get_accounts_auxiliary_options():
+    """Retorna JSON das formas de pagamento e categorias ativas no Bling para preenchimento de modais."""
+    options = AccountsService.get_auxiliary_options()
+    return jsonify(options)
+
 
 @bp.route('/accounts/export/excel')
 def export_accounts_excel():

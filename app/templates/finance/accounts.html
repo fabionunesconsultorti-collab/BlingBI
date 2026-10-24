@@ -291,11 +291,12 @@
                             <th style="padding: 12px 14px; text-align: center; width: 90px;">Tipo</th>
                             <th style="padding: 12px 14px; text-align: center; width: 120px;">Vencimento</th>
                             <th style="padding: 12px 14px; text-align: left;">Descrição / Favorecido</th>
-                            <th style="padding: 12px 14px; text-align: left; width: 140px;">Categoria</th>
+                            <th style="padding: 12px 14px; text-align: left; width: 130px;">Categoria</th>
                             <th style="padding: 12px 14px; text-align: center; width: 110px;">Forma Pagto.</th>
-                            <th style="padding: 12px 14px; text-align: right; width: 130px;">Valor Líquido</th>
+                            <th style="padding: 12px 14px; text-align: right; width: 120px;">Valor Líquido</th>
                             <th style="padding: 12px 14px; text-align: center; width: 100px;">Situação</th>
-                            <th style="padding: 12px 14px; text-align: center; width: 110px;">Pagamento</th>
+                            <th style="padding: 12px 14px; text-align: center; width: 105px;">Pagamento</th>
+                            <th style="padding: 12px 14px; text-align: center; width: 125px;">Espelhamento Bling</th>
                             <th style="padding: 12px 14px; text-align: center; width: 140px;">Ações</th>
                         </tr>
                     </thead>
@@ -407,6 +408,42 @@
                                 {{ e.payment_date_formatted or '-' }}
                             </td>
 
+                            <!-- Espelhamento Bling -->
+                            <td style="padding: 12px 14px; text-align: center;">
+                                {% if e.sync_status == 'synced' %}
+                                <span class="badge" style="background: #ECFDF5; color: #047857; font-weight: 700; font-size: 11px; padding: 3px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px;" title="Espelhado no Bling ERP{% if e.last_sync_at_formatted %} em {{ e.last_sync_at_formatted }}{% endif %}">
+                                    🟢 Espelhado
+                                </span>
+                                {% elif e.sync_status == 'pending_sync' %}
+                                <div style="display: flex; align-items: center; justify-content: center; gap: 4px;">
+                                    <span class="badge" style="background: #FEF3C7; color: #B45309; font-weight: 700; font-size: 11px; padding: 3px 8px; border-radius: 4px;" title="Pendente de envio ao Bling">
+                                        🟡 Pendente
+                                    </span>
+                                    <button type="button" class="btn btn-sm btn-ghost" style="padding: 2px 4px; font-size: 11px;" onclick="retrySyncEntry({{ e.id }})" title="Enviar agora ao Bling">
+                                        🔄
+                                    </button>
+                                </div>
+                                {% elif e.sync_status == 'sync_error' %}
+                                <div style="display: flex; align-items: center; justify-content: center; gap: 4px;">
+                                    <span class="badge" style="background: #FEE2E2; color: #B91C1C; font-weight: 700; font-size: 11px; padding: 3px 8px; border-radius: 4px; cursor: help;" title="Erro Bling: {{ e.sync_error_msg or 'Falha ao sincronizar' }}">
+                                        🔴 Erro Bling
+                                    </span>
+                                    <button type="button" class="btn btn-sm btn-ghost" style="padding: 2px 4px; font-size: 11px; color: #DC2626;" onclick="retrySyncEntry({{ e.id }})" title="Retentar Sincronização Bling">
+                                        🔄
+                                    </button>
+                                </div>
+                                {% else %}
+                                <div style="display: flex; align-items: center; justify-content: center; gap: 4px;">
+                                    <span class="badge" style="background: #F1F5F9; color: #64748B; font-weight: 600; font-size: 11px; padding: 3px 8px; border-radius: 4px;" title="Lançamento apenas local no BI">
+                                        ⚪ Local
+                                    </span>
+                                    <button type="button" class="btn btn-sm btn-ghost" style="padding: 2px 4px; font-size: 11px;" onclick="retrySyncEntry({{ e.id }})" title="Enviar para o Bling ERP">
+                                        🚀
+                                    </button>
+                                </div>
+                                {% endif %}
+                            </td>
+
                             <!-- Ações: Baixa, Estorno, Edição, Exclusão -->
                             <td style="padding: 12px 14px; text-align: center;">
                                 <div style="display: flex; gap: 4px; justify-content: center; align-items: center;">
@@ -452,7 +489,7 @@
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="9" style="text-align: center; padding: 40px 20px; color: var(--text-muted);">
+                            <td colspan="10" style="text-align: center; padding: 40px 20px; color: var(--text-muted);">
                                 <div style="font-size: 32px; margin-bottom: 8px;">📂</div>
                                 <div style="font-size: 15px; font-weight: 700; color: #334155;">Nenhum lançamento financeiro encontrado</div>
                                 <div style="font-size: 13px; color: #64748B; margin-top: 4px;">Ajuste os filtros de pesquisa ou crie um novo lançamento manual.</div>
@@ -640,15 +677,14 @@
 
                 <!-- Forma de Pagamento Efetiva -->
                 <div>
-                    <label style="font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 4px; display: block;">Forma de Pagto.</label>
-                    <select name="payment_method" id="settlePaymentMethod" class="form-control" style="font-size: 13px; height: 38px;">
-                        <option value="Boleto">Boleto Bancário</option>
-                        <option value="PIX">PIX</option>
-                        <option value="Cartão de Crédito">Cartão de Crédito</option>
-                        <option value="Cartão de Débito">Cartão de Débito</option>
-                        <option value="Transferência Bancária">Transferência Bancária</option>
-                        <option value="Dinheiro">Dinheiro</option>
+                    <label style="font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 4px; display: block;">Forma de Pagto. (Bling ERP)</label>
+                    <select name="bling_payment_method_id" id="settleBlingPaymentMethod" onchange="syncSettlePaymentMethodText(this)" class="form-control" style="font-size: 13px; height: 38px;">
+                        <option value="">-- Padrão / Automático --</option>
+                        {% for bpm in options.bling_payment_methods %}
+                            <option value="{{ bpm.id or '' }}" data-name="{{ bpm.name }}">{{ bpm.name }}</option>
+                        {% endfor %}
                     </select>
+                    <input type="hidden" name="payment_method" id="settlePaymentMethod" value="Boleto">
                 </div>
             </div>
 
@@ -670,6 +706,12 @@
             <div style="background: #F0FDF4; border: 1px dashed #86EFAC; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;">
                 <span style="font-size: 12px; font-weight: 700; color: #166534;">VALOR FINAL A LIQUIDAR:</span>
                 <span style="font-size: 18px; font-weight: 800; color: #166534;" id="settleFinalAmount">R$ 0,00</span>
+            </div>
+
+            <!-- Aviso de Espelhamento em Tempo Real -->
+            <div style="background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 8px; padding: 9px 12px; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; font-size: 12px; color: #166534;">
+                <span style="font-size: 15px;">⚡</span>
+                <span>A liquidação será <b>instantaneamente transmitida e espelhada</b> na API v3 do Bling ERP.</span>
             </div>
 
             <!-- Observações da Liquidação -->
@@ -741,8 +783,14 @@
 
                 <!-- Categoria -->
                 <div>
-                    <label style="font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 4px; display: block;">Categoria</label>
-                    <input type="text" name="category" id="formCategory" placeholder="Ex: Matéria Prima, Aluguel, Vendas" class="form-control" style="font-size: 13px; height: 38px;">
+                    <label style="font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 4px; display: block;">Categoria (Bling ERP)</label>
+                    <select name="bling_category_id" id="formBlingCategory" onchange="syncCategoryText(this)" class="form-control" style="font-size: 13px; height: 38px;">
+                        <option value="">-- Categoria Operacional --</option>
+                        {% for bcat in options.bling_categories %}
+                            <option value="{{ bcat.id or '' }}" data-name="{{ bcat.name }}">{{ bcat.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <input type="hidden" name="category" id="formCategory" value="Operacional">
                 </div>
             </div>
 
@@ -769,15 +817,14 @@
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;">
                 <!-- Forma de Pagamento -->
                 <div>
-                    <label style="font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 4px; display: block;">Forma de Pagto.</label>
-                    <select name="payment_method" id="formPaymentMethod" class="form-control" style="font-size: 13px; height: 38px;">
-                        <option value="Boleto">Boleto Bancário</option>
-                        <option value="PIX">PIX</option>
-                        <option value="Cartão de Crédito">Cartão de Crédito</option>
-                        <option value="Cartão de Débito">Cartão de Débito</option>
-                        <option value="Transferência Bancária">Transferência Bancária</option>
-                        <option value="Dinheiro">Dinheiro</option>
+                    <label style="font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 4px; display: block;">Forma de Pagto. (Bling ERP)</label>
+                    <select name="bling_payment_method_id" id="formBlingPaymentMethod" onchange="syncFormPaymentMethodText(this)" class="form-control" style="font-size: 13px; height: 38px;">
+                        <option value="">-- Boleto Bancário --</option>
+                        {% for bpm in options.bling_payment_methods %}
+                            <option value="{{ bpm.id or '' }}" data-name="{{ bpm.name }}">{{ bpm.name }}</option>
+                        {% endfor %}
                     </select>
+                    <input type="hidden" name="payment_method" id="formPaymentMethod" value="Boleto">
                 </div>
 
                 <!-- Data de Pagamento (se liquidado) -->
@@ -785,6 +832,12 @@
                     <label style="font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 4px; display: block;">Data Pagamento (se Pago)</label>
                     <input type="date" name="payment_date" id="formPaymentDate" class="form-control" style="font-size: 13px; height: 38px;">
                 </div>
+            </div>
+
+            <!-- Aviso de Espelhamento ERP -->
+            <div style="background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 8px; padding: 9px 12px; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; font-size: 12px; color: #166534;">
+                <span style="font-size: 15px;">🔄</span>
+                <span>O lançamento será <b>cadastrado e sincronizado diretamente no Bling ERP</b>.</span>
             </div>
 
             <!-- Observações -->
@@ -852,6 +905,7 @@ function openSettleModal(entry) {
     // Defaults
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('settlePaymentDate').value = today;
+    document.getElementById('settleBlingPaymentMethod').value = entry.bling_payment_method_id || '';
     document.getElementById('settlePaymentMethod').value = entry.payment_method || 'Boleto';
     document.getElementById('settleDiscount').value = (entry.discount || 0).toFixed(2);
     document.getElementById('settleFine').value = (entry.fine_fee || 0).toFixed(2);
@@ -863,6 +917,21 @@ function openSettleModal(entry) {
 
 function closeSettleModal() {
     document.getElementById('settleModalBackdrop').style.display = 'none';
+}
+
+function syncSettlePaymentMethodText(selectEl) {
+    const selected = selectEl.options[selectEl.selectedIndex];
+    document.getElementById('settlePaymentMethod').value = selected.getAttribute('data-name') || selected.text || 'Boleto';
+}
+
+function syncCategoryText(selectEl) {
+    const selected = selectEl.options[selectEl.selectedIndex];
+    document.getElementById('formCategory').value = selected.getAttribute('data-name') || selected.text || 'Operacional';
+}
+
+function syncFormPaymentMethodText(selectEl) {
+    const selected = selectEl.options[selectEl.selectedIndex];
+    document.getElementById('formPaymentMethod').value = selected.getAttribute('data-name') || selected.text || 'Boleto';
 }
 
 function recalcSettleNet() {
@@ -886,6 +955,11 @@ function openEntryModal() {
     document.getElementById('formEntryId').value = "";
     
     form.reset();
+    document.getElementById('formBlingCategory').value = "";
+    document.getElementById('formBlingPaymentMethod').value = "";
+    document.getElementById('formCategory').value = "Operacional";
+    document.getElementById('formPaymentMethod').value = "Boleto";
+
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('formIssueDate').value = today;
     document.getElementById('formDueDate').value = today;
@@ -904,7 +978,7 @@ function openEditModal(entry) {
     document.getElementById('formStatus').value = entry.status;
     document.getElementById('formDescription').value = entry.description || '';
     document.getElementById('formPayee').value = entry.payee_payer || '';
-    document.getElementById('formCategory').value = entry.category || '';
+    document.getElementById('formCategory').value = entry.category || 'Operacional';
     document.getElementById('formAmount').value = entry.amount;
     document.getElementById('formDueDate').value = entry.due_date || '';
     document.getElementById('formIssueDate').value = entry.issue_date || '';
@@ -912,11 +986,23 @@ function openEditModal(entry) {
     document.getElementById('formPaymentDate').value = entry.payment_date || '';
     document.getElementById('formNotes').value = entry.notes || '';
 
+    document.getElementById('formBlingCategory').value = entry.bling_category_id || '';
+    document.getElementById('formBlingPaymentMethod').value = entry.bling_payment_method_id || '';
+
     backdrop.style.display = 'flex';
 }
 
 function closeEntryModal() {
     document.getElementById('entryModalBackdrop').style.display = 'none';
+}
+
+// Retentativa de sincronização individual
+function retrySyncEntry(id) {
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = `/finance/accounts/sync-entry/${id}`;
+    document.body.appendChild(form);
+    form.submit();
 }
 
 // Estorno / Reabertura
@@ -941,7 +1027,7 @@ function confirmDelete(id, desc) {
     }
 }
 
-// Sincronização Bling
+// Sincronização Bling Geral
 function triggerBlingSync() {
     if (confirm('Deseja iniciar a sincronização de Contas a Pagar e Receber com o Bling ERP?')) {
         const form = document.createElement('form');
