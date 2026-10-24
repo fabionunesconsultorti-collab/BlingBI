@@ -388,3 +388,73 @@ def test_bling_api_request_429_returns_response_not_none(monkeypatch):
     assert res.status_code == 429
     assert attempts_count == 3  # 0, 1, 2 = 3 tentativas
 
+
+def test_accounts_competence_date_payload_and_sync(app, monkeypatch):
+    """Garante que competencia (YYYY-MM-DD) é sempre enviada na API Bling e lida na sincronização."""
+    with app.app_context():
+        from app.services.bling_api import BlingApiClient
+        from app.services.sync_service import SyncService
+        monkeypatch.setattr(BlingApiClient, 'is_configured', lambda self: True)
+        monkeypatch.setattr(BlingApiClient, 'get_contacts', lambda self, **kw: [{'id': 112233, 'nome': 'Enel Energia'}])
+
+        captured_create_payload = {}
+        def mock_create_payable(self, payload):
+            nonlocal captured_create_payload
+            captured_create_payload = payload
+            return True, "OK", {'id': 991122}
+
+        monkeypatch.setattr(BlingApiClient, 'create_payable', mock_create_payable)
+
+        # 1. Criação avulsa enviando competencia_date
+        res = AccountsService.create_entry({
+            'entry_type': 'PAGAR',
+            'description': 'Conta Luz Escritório',
+            'amount': 280.0,
+            'due_date': '2026-11-10',
+            'issue_date': '2026-10-20',
+            'competence_date': '2026-10-01',
+            'payee_payer': 'Enel Energia'
+        })
+        assert res.get('success') is True
+        assert captured_create_payload.get('competencia') == '2026-10-01'
+        assert captured_create_payload.get('vencimento') == '2026-11-10'
+        assert captured_create_payload.get('dataEmissao') == '2026-10-20'
+
+        entry = res.get('entry')
+        assert entry.competence_date == date(2026, 10, 1)
+
+        # 2. Atualização enviando nova competência
+        captured_update_payload = {}
+        def mock_update_payable(self, bling_id, payload):
+            nonlocal captured_update_payload
+            captured_update_payload = payload
+            return True, "OK", {'id': bling_id}
+
+        monkeypatch.setattr(BlingApiClient, 'update_payable', mock_update_payable)
+
+        res_upd = AccountsService.update_entry(entry.id, {
+            'competence_date': '2026-10-15'
+        })
+        assert res_upd.get('success') is True
+        assert captured_update_payload.get('competencia') == '2026-10-15'
+        assert entry.competence_date == date(2026, 10, 15)
+
+        # 3. Sincronização vinda do Bling popula competence_date
+        mock_raw_item = [{
+            'id': 884422,
+            'historico': 'Serviço de Nuvem',
+            'valor': 199.90,
+            'vencimento': '2026-11-05',
+            'dataEmissao': '2026-10-05',
+            'competencia': '2026-10-01',
+            'situacao': 1
+        }]
+        monkeypatch.setattr(BlingApiClient, 'get_payables', lambda self, **kw: mock_raw_item)
+
+        count = SyncService.sync_payables(BlingApiClient())
+        assert count == 1
+        synced_e = FinancialEntry.query.filter_by(bling_id=884422).first()
+        assert synced_e is not None
+        assert synced_e.competence_date == date(2026, 10, 1)
+
+

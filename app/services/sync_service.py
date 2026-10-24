@@ -696,6 +696,15 @@ class SyncService:
                             entry.issue_date = date_parser.parse(str(emissao)[:10]).date()
                         except Exception:
                             pass
+
+                    competencia = item.get('competencia')
+                    if competencia:
+                        try:
+                            entry.competence_date = date_parser.parse(str(competencia)[:10]).date()
+                        except Exception:
+                            pass
+                    elif not entry.competence_date:
+                        entry.competence_date = entry.issue_date or entry.due_date
                     
                     situacao = item.get('situacao')
                     entry.status = 'Pago' if situacao == 2 else ('Cancelado' if situacao == 3 else 'Pendente')
@@ -770,6 +779,15 @@ class SyncService:
                             entry.issue_date = date_parser.parse(str(emissao)[:10]).date()
                         except Exception:
                             pass
+
+                    competencia = item.get('competencia')
+                    if competencia:
+                        try:
+                            entry.competence_date = date_parser.parse(str(competencia)[:10]).date()
+                        except Exception:
+                            pass
+                    elif not entry.competence_date:
+                        entry.competence_date = entry.issue_date or entry.due_date
                     
                     situacao = item.get('situacao')
                     entry.status = 'Pago' if situacao == 2 else ('Cancelado' if situacao == 3 else 'Pendente')

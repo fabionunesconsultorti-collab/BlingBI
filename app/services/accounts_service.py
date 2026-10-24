@@ -66,13 +66,15 @@ class AccountsService:
         elif status == 'EM_ABERTO':
             query = query.filter(FinancialEntry.status.in_(['Pendente', 'Atrasado']))
 
-        # 3. Campo de Data Base (vencimento, emissão ou pagamento)
+        # 3. Campo de Data Base (vencimento, emissão, competência ou pagamento)
         date_field_name = filters.get('date_basis') or filters.get('date_field') or 'due_date'
         date_col = FinancialEntry.due_date
         if date_field_name == 'issue_date':
             date_col = FinancialEntry.issue_date
         elif date_field_name == 'payment_date':
             date_col = FinancialEntry.payment_date
+        elif date_field_name == 'competence_date':
+            date_col = FinancialEntry.competence_date
 
         # 4. Filtro por Período
         period = filters.get('period', 'all')
@@ -170,6 +172,8 @@ class AccountsService:
             order_col = FinancialEntry.entity_name
         elif sort_by == 'issue_date':
             order_col = FinancialEntry.issue_date
+        elif sort_by == 'competence_date':
+            order_col = FinancialEntry.competence_date
         elif sort_by == 'status':
             order_col = FinancialEntry.status
         elif sort_by == 'entry_type':
@@ -739,6 +743,13 @@ class AccountsService:
             except Exception:
                 bling_pm_id = None
 
+        # Data de competência: se não informada, assume a data de emissão ou vencimento
+        competence_date_raw = data.get('competence_date')
+        if competence_date_raw:
+            comp_dt = datetime.strptime(competence_date_raw[:10], '%Y-%m-%d').date() if isinstance(competence_date_raw, str) else competence_date_raw
+        else:
+            comp_dt = issue_dt or due_dt or date.today()
+
         # Tentativa de criar no Bling ERP via API v3
         bling_id = None
         sync_status = 'local_only'
@@ -750,11 +761,22 @@ class AccountsService:
             from app.services.bling_api import BlingApiClient
             client = BlingApiClient()
             if client.is_configured():
+                if not bling_contact_id and payee:
+                    try:
+                        contacts = client.get_contacts(limit=100)
+                        for ct in contacts:
+                            if ct.get('nome', '').strip().lower() == payee.strip().lower():
+                                bling_contact_id = int(ct['id'])
+                                break
+                    except Exception:
+                        pass
+
                 payload = {
                     'vencimento': due_dt.strftime('%Y-%m-%d'),
                     'valor': float(amount),
                     'historico': description,
                     'dataEmissao': issue_dt.strftime('%Y-%m-%d'),
+                    'competencia': comp_dt.strftime('%Y-%m-%d'),
                     'observacoes': data.get('notes') or ''
                 }
                 if bling_contact_id:
@@ -800,6 +822,7 @@ class AccountsService:
             amount=amount,
             issue_date=issue_dt,
             due_date=due_dt,
+            competence_date=comp_dt,
             payment_date=payment_date,
             status=status,
             payment_method=data.get('payment_method') or 'Boleto',
@@ -876,6 +899,10 @@ class AccountsService:
             raw_i = data['issue_date']
             entry.issue_date = datetime.strptime(raw_i[:10], '%Y-%m-%d').date() if isinstance(raw_i, str) else raw_i
 
+        if 'competence_date' in data and data['competence_date']:
+            raw_c = data['competence_date']
+            entry.competence_date = datetime.strptime(raw_c[:10], '%Y-%m-%d').date() if isinstance(raw_c, str) else raw_c
+
         entry.updated_at = datetime.utcnow()
 
         # Espelhamento no Bling ERP via PUT se o ID for do Bling
@@ -884,11 +911,14 @@ class AccountsService:
             from app.services.bling_api import BlingApiClient
             client = BlingApiClient()
             if client.is_configured() and entry.bling_id and entry.bling_id < 9000000000:
+                issue_val = entry.issue_date or date.today()
+                comp_val = getattr(entry, 'competence_date', None) or entry.issue_date or entry.due_date or date.today()
                 payload = {
                     'vencimento': entry.due_date.strftime('%Y-%m-%d'),
                     'valor': float(entry.amount),
                     'historico': entry.description,
-                    'dataEmissao': entry.issue_date.strftime('%Y-%m-%d') if entry.issue_date else None,
+                    'dataEmissao': issue_val.strftime('%Y-%m-%d'),
+                    'competencia': comp_val.strftime('%Y-%m-%d'),
                     'observacoes': entry.notes or ''
                 }
                 if entry.bling_contact_id:
@@ -993,11 +1023,25 @@ class AccountsService:
         try:
             # Caso 1: Lançamento local que ainda não foi criado no Bling
             if not entry.bling_id or entry.bling_id >= 9000000000:
+                if not entry.bling_contact_id and entry.entity_name:
+                    try:
+                        contacts = client.get_contacts(limit=100)
+                        for ct in contacts:
+                            if ct.get('nome', '').strip().lower() == entry.entity_name.strip().lower():
+                                entry.bling_contact_id = int(ct['id'])
+                                db.session.commit()
+                                break
+                    except Exception:
+                        pass
+
+                issue_val = entry.issue_date or date.today()
+                comp_val = getattr(entry, 'competence_date', None) or entry.issue_date or entry.due_date or date.today()
                 payload = {
                     'vencimento': entry.due_date.strftime('%Y-%m-%d'),
                     'valor': float(entry.amount),
                     'historico': entry.description,
-                    'dataEmissao': entry.issue_date.strftime('%Y-%m-%d') if entry.issue_date else date.today().strftime('%Y-%m-%d'),
+                    'dataEmissao': issue_val.strftime('%Y-%m-%d'),
+                    'competencia': comp_val.strftime('%Y-%m-%d'),
                     'observacoes': entry.notes or ''
                 }
                 if entry.bling_contact_id:
@@ -1038,11 +1082,14 @@ class AccountsService:
             if entry.status == 'Pago':
                 return cls.settle_entry(entry.id, payment_date=entry.payment_date, payment_method=entry.payment_method, notes=entry.notes)
             else:
+                issue_val = entry.issue_date or date.today()
+                comp_val = getattr(entry, 'competence_date', None) or entry.issue_date or entry.due_date or date.today()
                 payload = {
                     'vencimento': entry.due_date.strftime('%Y-%m-%d'),
                     'valor': float(entry.amount),
                     'historico': entry.description,
-                    'dataEmissao': entry.issue_date.strftime('%Y-%m-%d') if entry.issue_date else None,
+                    'dataEmissao': issue_val.strftime('%Y-%m-%d'),
+                    'competencia': comp_val.strftime('%Y-%m-%d'),
                     'observacoes': entry.notes or ''
                 }
                 if entry.bling_contact_id:
@@ -1101,13 +1148,14 @@ class AccountsService:
             'categories': sorted(categories),
             'payment_methods': sorted(methods),
             'bling_payment_methods': bling_options.get('payment_methods', []),
-            'bling_categories': bling_options.get('categories', [])
+            'bling_categories': bling_options.get('categories', []),
+            'bling_contacts': bling_options.get('contacts', [])
         }
 
     @classmethod
     def get_auxiliary_options(cls) -> Dict[str, Any]:
         """
-        Retorna listas estruturadas de formas de pagamento e categorias obtidas
+        Retorna listas estruturadas de formas de pagamento, categorias e contatos obtidos
         diretamente da API v3 do Bling ou da base local.
         """
         from app.services.bling_api import BlingApiClient
@@ -1115,6 +1163,7 @@ class AccountsService:
         
         bling_methods = []
         bling_categories = []
+        bling_contacts = []
         
         if client.is_configured():
             try:
@@ -1140,6 +1189,17 @@ class AccountsService:
             except Exception as e:
                 logger.debug(f"[AccountsService] Aviso ao buscar categorias Bling: {e}")
 
+            try:
+                raw_contacts = client.get_contacts(limit=100)
+                for ct in raw_contacts:
+                    if ct.get('id') and ct.get('nome'):
+                        bling_contacts.append({
+                            'id': ct['id'],
+                            'name': ct['nome']
+                        })
+            except Exception as e:
+                logger.debug(f"[AccountsService] Aviso ao buscar contatos Bling: {e}")
+
         if not bling_methods:
             default_methods = ['Boleto', 'Pix', 'Cartão de Crédito', 'Cartão de Débito', 'Transferência', 'Dinheiro']
             bling_methods = [{'id': None, 'name': m} for m in default_methods]
@@ -1150,6 +1210,7 @@ class AccountsService:
 
         return {
             'payment_methods': bling_methods,
-            'categories': bling_categories
+            'categories': bling_categories,
+            'contacts': bling_contacts
         }
 

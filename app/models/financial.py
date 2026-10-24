@@ -16,6 +16,7 @@ class FinancialEntry(db.Model):
     issue_date = db.Column(db.Date, nullable=False, default=date.today, index=True)
     due_date = db.Column(db.Date, nullable=False, default=date.today, index=True)
     payment_date = db.Column(db.Date, nullable=True, index=True)
+    competence_date = db.Column(db.Date, nullable=True, default=date.today, index=True)
     status = db.Column(db.String(20), default='Pendente', index=True) # Pendente, Pago, Atrasado, Cancelado
     payment_method = db.Column(db.String(100), nullable=True) # Boleto, Pix, Cartão, Transferência, Dinheiro
     notes = db.Column(db.Text, nullable=True)
@@ -68,6 +69,14 @@ class FinancialEntry(db.Model):
         return self.payment_date.strftime('%d/%m/%Y') if self.payment_date else ''
 
     @property
+    def competence_date_formatted(self) -> str:
+        if self.competence_date:
+            return self.competence_date.strftime('%d/%m/%Y')
+        if self.issue_date:
+            return self.issue_date.strftime('%d/%m/%Y')
+        return self.due_date.strftime('%d/%m/%Y') if self.due_date else ''
+
+    @property
     def last_sync_at_formatted(self) -> str:
         return self.last_sync_at.strftime('%d/%m/%Y %H:%M') if self.last_sync_at else ''
 
@@ -86,6 +95,8 @@ class FinancialEntry(db.Model):
             'issue_date_formatted': self.issue_date_formatted,
             'due_date': self.due_date.strftime('%Y-%m-%d') if self.due_date else None,
             'due_date_formatted': self.due_date_formatted,
+            'competence_date': self.competence_date.strftime('%Y-%m-%d') if self.competence_date else (self.issue_date.strftime('%Y-%m-%d') if self.issue_date else None),
+            'competence_date_formatted': self.competence_date_formatted,
             'payment_date': self.payment_date.strftime('%Y-%m-%d') if self.payment_date else None,
             'payment_date_formatted': self.payment_date_formatted,
             'status': self.status,

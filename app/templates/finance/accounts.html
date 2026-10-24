@@ -209,6 +209,7 @@
                     <label style="font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase;">Base de Data</label>
                     <select name="date_basis" class="form-control" onchange="this.form.submit()" style="font-size: 13px; height: 38px;">
                         <option value="due_date" {% if filters.date_basis == 'due_date' %}selected{% endif %}>Data de Vencimento</option>
+                        <option value="competence_date" {% if filters.date_basis == 'competence_date' %}selected{% endif %}>Data de Competência</option>
                         <option value="issue_date" {% if filters.date_basis == 'issue_date' %}selected{% endif %}>Data de Emissão</option>
                         <option value="payment_date" {% if filters.date_basis == 'payment_date' %}selected{% endif %}>Data de Liquidação</option>
                     </select>
@@ -777,8 +778,14 @@
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;">
                 <!-- Favorecido / Pagador -->
                 <div>
-                    <label style="font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 4px; display: block;">Favorecido / Pagador</label>
-                    <input type="text" name="payee_payer" id="formPayee" placeholder="Nome do Cliente ou Fornecedor" class="form-control" style="font-size: 13px; height: 38px;">
+                    <label style="font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 4px; display: block;">Favorecido / Contato Bling</label>
+                    <input type="text" name="payee_payer" id="formPayee" list="blingContactsList" onchange="matchContactId(this)" placeholder="Nome ou selecione do Bling" class="form-control" style="font-size: 13px; height: 38px;" autocomplete="off">
+                    <input type="hidden" name="bling_contact_id" id="formBlingContactId" value="">
+                    <datalist id="blingContactsList">
+                        {% for bc in options.bling_contacts %}
+                            <option value="{{ bc.name }}" data-id="{{ bc.id }}">{{ bc.name }} (ID: {{ bc.id }})</option>
+                        {% endfor %}
+                    </datalist>
                 </div>
 
                 <!-- Categoria -->
@@ -794,7 +801,7 @@
                 </div>
             </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;">
                 <!-- Valor Nominal -->
                 <div>
                     <label style="font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 4px; display: block;">Valor (R$) *</label>
@@ -806,11 +813,19 @@
                     <label style="font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 4px; display: block;">Vencimento *</label>
                     <input type="date" name="due_date" id="formDueDate" required class="form-control" style="font-size: 13px; height: 38px;">
                 </div>
+            </div>
 
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;">
                 <!-- Emissão -->
                 <div>
-                    <label style="font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 4px; display: block;">Emissão</label>
+                    <label style="font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 4px; display: block;">Data de Emissão</label>
                     <input type="date" name="issue_date" id="formIssueDate" class="form-control" style="font-size: 13px; height: 38px;">
+                </div>
+
+                <!-- Competência -->
+                <div>
+                    <label style="font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 4px; display: block;">Competência (Bling) *</label>
+                    <input type="date" name="competence_date" id="formCompetenceDate" required class="form-control" style="font-size: 13px; height: 38px;">
                 </div>
             </div>
 
@@ -957,12 +972,14 @@ function openEntryModal() {
     form.reset();
     document.getElementById('formBlingCategory').value = "";
     document.getElementById('formBlingPaymentMethod').value = "";
+    document.getElementById('formBlingContactId').value = "";
     document.getElementById('formCategory').value = "Operacional";
     document.getElementById('formPaymentMethod').value = "Boleto";
 
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('formIssueDate').value = today;
     document.getElementById('formDueDate').value = today;
+    document.getElementById('formCompetenceDate').value = today;
     backdrop.style.display = 'flex';
 }
 
@@ -982,14 +999,32 @@ function openEditModal(entry) {
     document.getElementById('formAmount').value = entry.amount;
     document.getElementById('formDueDate').value = entry.due_date || '';
     document.getElementById('formIssueDate').value = entry.issue_date || '';
+    document.getElementById('formCompetenceDate').value = entry.competence_date || entry.issue_date || entry.due_date || '';
     document.getElementById('formPaymentMethod').value = entry.payment_method || 'Boleto';
     document.getElementById('formPaymentDate').value = entry.payment_date || '';
     document.getElementById('formNotes').value = entry.notes || '';
 
     document.getElementById('formBlingCategory').value = entry.bling_category_id || '';
     document.getElementById('formBlingPaymentMethod').value = entry.bling_payment_method_id || '';
+    document.getElementById('formBlingContactId').value = entry.bling_contact_id || '';
 
     backdrop.style.display = 'flex';
+}
+
+function matchContactId(input) {
+    const val = input.value.trim().toLowerCase();
+    const hiddenId = document.getElementById('formBlingContactId');
+    const datalist = document.getElementById('blingContactsList');
+    let foundId = '';
+    if (datalist && val) {
+        for (const opt of datalist.options) {
+            if (opt.value.trim().toLowerCase() === val) {
+                foundId = opt.getAttribute('data-id') || '';
+                break;
+            }
+        }
+    }
+    hiddenId.value = foundId;
 }
 
 function closeEntryModal() {
