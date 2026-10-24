@@ -172,13 +172,14 @@ class BlingApiClient:
 
         return False, "Falha ao renovar token Bling."
 
-    def request(self, method, endpoint, params=None, json_data=None, json=None, retries=1, **kwargs):
-        """Executa requisição com tratamento de rate limit e renovação automática de token."""
+    def request(self, method, endpoint, params=None, json_data=None, json=None, retries=2, **kwargs):
+        """Executa requisição com tratamento de rate limit, renovação de token e backoff progressivo."""
         url = f"{self.BASE_URL}{endpoint}" if not endpoint.startswith('http') else endpoint
         headers = self._get_headers()
         body = json if json is not None else json_data
 
         req_timeout = kwargs.pop('timeout', 30)
+        last_response = None
 
         for attempt in range(retries + 1):
             try:
@@ -191,6 +192,7 @@ class BlingApiClient:
                     timeout=req_timeout,
                     **kwargs
                 )
+                last_response = response
 
                 # Token Expirado (401)
                 if response.status_code == 401 and attempt < retries:
@@ -199,19 +201,35 @@ class BlingApiClient:
                         headers = self._get_headers()
                         continue
 
-                # Rate Limiting (429)
+                # Rate Limiting (429 - Limite do Bling: 3 req/s)
                 if response.status_code == 429:
-                    time.sleep(1.5)
-                    continue
+                    if attempt < retries:
+                        backoff = 1.8 * (attempt + 1)
+                        logger.warning(
+                            f"[BlingApiClient] Rate limit 429 em {method} {endpoint}. "
+                            f"Aguardando {backoff:.1f}s antes da tentativa {attempt + 2}/{retries + 1}..."
+                        )
+                        time.sleep(backoff)
+                        continue
+                    else:
+                        logger.warning(
+                            f"[BlingApiClient] Rate limit 429 persistiu após {retries + 1} tentativas em {method} {endpoint}."
+                        )
+                        return response
 
                 return response
+            except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+                logger.error(f"[BlingApiClient] Conexão/Timeout em {method} {endpoint} (tentativa {attempt + 1}/{retries + 1}): {e}")
+                if attempt == retries:
+                    raise e
+                time.sleep(1.5)
             except requests.RequestException as e:
-                logger.error(f"Erro na requisição Bling API ({method} {endpoint}): {e}")
+                logger.error(f"[BlingApiClient] Erro na requisição Bling API ({method} {endpoint}): {e}")
                 if attempt == retries:
                     raise e
                 time.sleep(1)
 
-        return None
+        return last_response
 
     def test_connection(self):
         """Verifica se a conexão com a API Bling v3 está operando perfeitamente."""
@@ -519,12 +537,29 @@ class BlingApiClient:
 
     @staticmethod
     def _extract_error_message(resp) -> str:
-        """Extrai mensagem de erro legível da resposta do Bling v3."""
-        if not resp:
-            return "Sem resposta do servidor Bling."
+        """Extrai mensagem de erro legível e diagnóstica da resposta da API Bling v3."""
+        if resp is None:
+            return "Sem resposta do servidor Bling (tempo limite esgotado ou indisponibilidade temporária). Tente novamente em instantes."
+
+        if resp.status_code == 429:
+            return "Limite de requisições do Bling ERP atingido (HTTP 429 - Limite de 3 chamadas/segundo). Aguarde alguns segundos e tente novamente."
+
+        if resp.status_code == 401:
+            return "Autenticação expirada ou inválida no Bling (HTTP 401). Reconecte sua conta em Configurações > Integração Bling."
+
+        if resp.status_code == 403:
+            return "Permissão insuficiente na API do Bling (HTTP 403). Verifique se seu aplicativo no Bling possui permissão para Finanças."
+
+        if resp.status_code == 404:
+            return "Recurso ou lançamento financeiro não encontrado no Bling ERP (HTTP 404)."
+
+        if resp.status_code in (500, 502, 503, 504):
+            return f"Serviço do Bling temporariamente instável ou indisponível (HTTP {resp.status_code}). Tente novamente em instantes."
+
         msg = f"HTTP {resp.status_code}"
         try:
-            err_data = resp.json().get('error', {})
+            resp_json = resp.json()
+            err_data = resp_json.get('error', {})
             if isinstance(err_data, dict):
                 description = err_data.get('description') or err_data.get('message')
                 if description:
@@ -536,9 +571,13 @@ class BlingApiClient:
                         msg += f" ({'; '.join(field_msgs)})"
             elif isinstance(err_data, str):
                 msg = err_data
+            elif resp_json.get('mensagem'):
+                msg = resp_json.get('mensagem')
+            elif resp_json.get('message'):
+                msg = resp_json.get('message')
         except Exception:
             if resp.text:
-                msg = resp.text[:200]
+                msg = resp.text[:250]
         return msg
 
     def get_payment_methods(self) -> list:
@@ -584,16 +623,20 @@ class BlingApiClient:
         """
         try:
             resp = self.request('POST', '/contas/pagar', json_data=payload)
-            if not resp or resp.status_code == 404:
+            if resp is not None and resp.status_code == 404:
                 resp = self.request('POST', '/contas-pagar', json_data=payload)
             if resp and resp.status_code in (200, 201):
                 data = resp.json().get('data', {})
                 return True, "Conta a pagar cadastrada no Bling com sucesso!", data
             err_msg = self._extract_error_message(resp)
             return False, f"Bling API: {err_msg}", {}
+        except requests.exceptions.Timeout:
+            return False, "Bling API: Tempo limite esgotado ao contatar o Bling (Timeout). Tente novamente em instantes.", {}
+        except requests.exceptions.ConnectionError:
+            return False, "Bling API: Falha de conexão com os servidores do Bling. Verifique a rede.", {}
         except Exception as e:
             logger.error(f"[BlingApiClient] Exceção ao cadastrar conta a pagar: {e}")
-            return False, str(e), {}
+            return False, f"Bling API: {str(e)}", {}
 
     def update_payable(self, bling_id: int, payload: dict) -> tuple:
         """
@@ -601,34 +644,44 @@ class BlingApiClient:
         """
         try:
             resp = self.request('PUT', f'/contas/pagar/{bling_id}', json_data=payload)
-            if not resp or resp.status_code == 404:
+            if resp is not None and resp.status_code == 404:
                 resp = self.request('PUT', f'/contas-pagar/{bling_id}', json_data=payload)
             if resp and resp.status_code in (200, 204):
                 data = resp.json().get('data', {}) if resp.status_code == 200 else {'id': bling_id}
                 return True, "Conta a pagar atualizada no Bling com sucesso!", data
             err_msg = self._extract_error_message(resp)
             return False, f"Bling API: {err_msg}", {}
+        except requests.exceptions.Timeout:
+            return False, "Bling API: Tempo limite esgotado ao atualizar conta a pagar.", {}
+        except requests.exceptions.ConnectionError:
+            return False, "Bling API: Falha de conexão ao atualizar conta a pagar.", {}
         except Exception as e:
             logger.error(f"[BlingApiClient] Exceção ao atualizar conta a pagar {bling_id}: {e}")
-            return False, str(e), {}
+            return False, f"Bling API: {str(e)}", {}
 
     def settle_payable(self, bling_id: int, payload: dict) -> tuple:
         """
         Baixa / liquida uma conta a pagar no Bling ERP (POST /contas/pagar/{id}/baixar).
-        Payload: { 'data': 'YYYY-MM-DD', 'valor': 100.0, 'idFormaPagamento': ... }
+        Se o endpoint dedicado retornar 404, efetua baixa via PUT /contas/pagar/{id} com situacao=2.
         """
         try:
             resp = self.request('POST', f'/contas/pagar/{bling_id}/baixar', json_data=payload)
-            if not resp or resp.status_code == 404:
-                resp = self.request('POST', f'/contas-pagar/{bling_id}/baixar', json_data=payload)
+            if resp is not None and resp.status_code == 404:
+                put_payload = dict(payload)
+                put_payload['situacao'] = 2
+                resp = self.request('PUT', f'/contas/pagar/{bling_id}', json_data=put_payload)
             if resp and resp.status_code in (200, 201, 204):
                 data = resp.json().get('data', {}) if resp.content else {'id': bling_id}
                 return True, "Baixa registrada no Bling com sucesso!", data
             err_msg = self._extract_error_message(resp)
             return False, f"Bling API: {err_msg}", {}
+        except requests.exceptions.Timeout:
+            return False, "Bling API: Tempo limite esgotado ao registrar baixa no Bling.", {}
+        except requests.exceptions.ConnectionError:
+            return False, "Bling API: Falha de conexão ao registrar baixa no Bling.", {}
         except Exception as e:
             logger.error(f"[BlingApiClient] Exceção ao baixar conta a pagar {bling_id}: {e}")
-            return False, str(e), {}
+            return False, f"Bling API: {str(e)}", {}
 
     def delete_payable(self, bling_id: int) -> tuple:
         """
@@ -636,15 +689,19 @@ class BlingApiClient:
         """
         try:
             resp = self.request('DELETE', f'/contas/pagar/{bling_id}')
-            if not resp or resp.status_code == 404:
+            if resp is not None and resp.status_code == 404:
                 resp = self.request('DELETE', f'/contas-pagar/{bling_id}')
             if resp and resp.status_code in (200, 204):
                 return True, "Conta a pagar excluída no Bling com sucesso!"
             err_msg = self._extract_error_message(resp)
             return False, f"Bling API: {err_msg}"
+        except requests.exceptions.Timeout:
+            return False, "Bling API: Tempo limite esgotado ao excluir conta a pagar."
+        except requests.exceptions.ConnectionError:
+            return False, "Bling API: Falha de conexão ao excluir conta a pagar."
         except Exception as e:
             logger.error(f"[BlingApiClient] Exceção ao excluir conta a pagar {bling_id}: {e}")
-            return False, str(e)
+            return False, f"Bling API: {str(e)}"
 
     # -------------------------------------------------------------------------
     # OPERAÇÕES DE CONTAS A RECEBER (/contas/receber)
@@ -656,16 +713,20 @@ class BlingApiClient:
         """
         try:
             resp = self.request('POST', '/contas/receber', json_data=payload)
-            if not resp or resp.status_code == 404:
+            if resp is not None and resp.status_code == 404:
                 resp = self.request('POST', '/contas-receber', json_data=payload)
             if resp and resp.status_code in (200, 201):
                 data = resp.json().get('data', {})
                 return True, "Conta a receber cadastrada no Bling com sucesso!", data
             err_msg = self._extract_error_message(resp)
             return False, f"Bling API: {err_msg}", {}
+        except requests.exceptions.Timeout:
+            return False, "Bling API: Tempo limite esgotado ao cadastrar conta a receber.", {}
+        except requests.exceptions.ConnectionError:
+            return False, "Bling API: Falha de conexão ao cadastrar conta a receber.", {}
         except Exception as e:
             logger.error(f"[BlingApiClient] Exceção ao cadastrar conta a receber: {e}")
-            return False, str(e), {}
+            return False, f"Bling API: {str(e)}", {}
 
     def update_receivable(self, bling_id: int, payload: dict) -> tuple:
         """
@@ -673,33 +734,44 @@ class BlingApiClient:
         """
         try:
             resp = self.request('PUT', f'/contas/receber/{bling_id}', json_data=payload)
-            if not resp or resp.status_code == 404:
+            if resp is not None and resp.status_code == 404:
                 resp = self.request('PUT', f'/contas-receber/{bling_id}', json_data=payload)
             if resp and resp.status_code in (200, 204):
                 data = resp.json().get('data', {}) if resp.status_code == 200 else {'id': bling_id}
                 return True, "Conta a receber atualizada no Bling com sucesso!", data
             err_msg = self._extract_error_message(resp)
             return False, f"Bling API: {err_msg}", {}
+        except requests.exceptions.Timeout:
+            return False, "Bling API: Tempo limite esgotado ao atualizar conta a receber.", {}
+        except requests.exceptions.ConnectionError:
+            return False, "Bling API: Falha de conexão ao atualizar conta a receber.", {}
         except Exception as e:
             logger.error(f"[BlingApiClient] Exceção ao atualizar conta a receber {bling_id}: {e}")
-            return False, str(e), {}
+            return False, f"Bling API: {str(e)}", {}
 
     def settle_receivable(self, bling_id: int, payload: dict) -> tuple:
         """
         Baixa / liquida uma conta a receber no Bling ERP (POST /contas/receber/{id}/baixar).
+        Se o endpoint dedicado retornar 404, efetua baixa via PUT /contas/receber/{id} com situacao=2.
         """
         try:
             resp = self.request('POST', f'/contas/receber/{bling_id}/baixar', json_data=payload)
-            if not resp or resp.status_code == 404:
-                resp = self.request('POST', f'/contas-receber/{bling_id}/baixar', json_data=payload)
+            if resp is not None and resp.status_code == 404:
+                put_payload = dict(payload)
+                put_payload['situacao'] = 2
+                resp = self.request('PUT', f'/contas/receber/{bling_id}', json_data=put_payload)
             if resp and resp.status_code in (200, 201, 204):
                 data = resp.json().get('data', {}) if resp.content else {'id': bling_id}
                 return True, "Recebimento registrado no Bling com sucesso!", data
             err_msg = self._extract_error_message(resp)
             return False, f"Bling API: {err_msg}", {}
+        except requests.exceptions.Timeout:
+            return False, "Bling API: Tempo limite esgotado ao registrar recebimento no Bling.", {}
+        except requests.exceptions.ConnectionError:
+            return False, "Bling API: Falha de conexão ao registrar recebimento no Bling.", {}
         except Exception as e:
             logger.error(f"[BlingApiClient] Exceção ao liquidar conta a receber {bling_id}: {e}")
-            return False, str(e), {}
+            return False, f"Bling API: {str(e)}", {}
 
     def delete_receivable(self, bling_id: int) -> tuple:
         """
@@ -707,15 +779,19 @@ class BlingApiClient:
         """
         try:
             resp = self.request('DELETE', f'/contas/receber/{bling_id}')
-            if not resp or resp.status_code == 404:
+            if resp is not None and resp.status_code == 404:
                 resp = self.request('DELETE', f'/contas-receber/{bling_id}')
             if resp and resp.status_code in (200, 204):
                 return True, "Conta a receber excluída no Bling com sucesso!"
             err_msg = self._extract_error_message(resp)
             return False, f"Bling API: {err_msg}"
+        except requests.exceptions.Timeout:
+            return False, "Bling API: Tempo limite esgotado ao excluir conta a receber."
+        except requests.exceptions.ConnectionError:
+            return False, "Bling API: Falha de conexão ao excluir conta a receber."
         except Exception as e:
             logger.error(f"[BlingApiClient] Exceção ao excluir conta a receber {bling_id}: {e}")
-            return False, str(e)
+            return False, f"Bling API: {str(e)}"
 
     def unsettle_account(self, entry_type: str, bling_id: int) -> tuple:
         """
@@ -736,9 +812,13 @@ class BlingApiClient:
 
             err_msg = self._extract_error_message(resp or resp_reopen)
             return False, f"Bling API: {err_msg}"
+        except requests.exceptions.Timeout:
+            return False, "Bling API: Tempo limite esgotado ao reabrir título."
+        except requests.exceptions.ConnectionError:
+            return False, "Bling API: Falha de conexão ao reabrir título."
         except Exception as e:
             logger.error(f"[BlingApiClient] Exceção ao estornar baixa da conta {bling_id}: {e}")
-            return False, str(e)
+            return False, f"Bling API: {str(e)}"
 
 
 

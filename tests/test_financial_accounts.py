@@ -330,3 +330,61 @@ def test_accounts_sync_single_entry_retry(app, monkeypatch):
         assert entry.sync_status == 'synced'
         assert entry.last_sync_at is not None
 
+
+def test_bling_api_diagnostic_error_messages_and_429():
+    """Valida mensagens de erro humanizadas e tratamento de 429/timeout no BlingApiClient."""
+    from app.services.bling_api import BlingApiClient
+    import requests
+
+    # 1. Sem resposta (None)
+    err_none = BlingApiClient._extract_error_message(None)
+    assert "Sem resposta do servidor Bling" in err_none
+    assert "tempo limite" in err_none
+
+    # 2. Rate limit (429)
+    resp_429 = requests.Response()
+    resp_429.status_code = 429
+    err_429 = BlingApiClient._extract_error_message(resp_429)
+    assert "HTTP 429" in err_429
+    assert "3 chamadas/segundo" in err_429
+
+    # 3. Auth expirada (401)
+    resp_401 = requests.Response()
+    resp_401.status_code = 401
+    err_401 = BlingApiClient._extract_error_message(resp_401)
+    assert "HTTP 401" in err_401
+    assert "Reconecte sua conta" in err_401
+
+    # 4. Permissão (403)
+    resp_403 = requests.Response()
+    resp_403.status_code = 403
+    err_403 = BlingApiClient._extract_error_message(resp_403)
+    assert "HTTP 403" in err_403
+    assert "Finanças" in err_403
+
+
+def test_bling_api_request_429_returns_response_not_none(monkeypatch):
+    """Garante que requisições atingindo rate limit 429 após todas as tentativas retornam a resposta (não None)."""
+    from app.services.bling_api import BlingApiClient
+    import requests
+
+    client = BlingApiClient()
+    monkeypatch.setattr(client, '_get_headers', lambda: {'Authorization': 'Bearer test'})
+
+    attempts_count = 0
+    def mock_request(*args, **kwargs):
+        nonlocal attempts_count
+        attempts_count += 1
+        resp = requests.Response()
+        resp.status_code = 429
+        return resp
+
+    import time
+    monkeypatch.setattr(time, 'sleep', lambda s: None)
+    monkeypatch.setattr(requests, 'request', mock_request)
+
+    res = client.request('GET', '/contas/pagar', retries=2)
+    assert res is not None
+    assert res.status_code == 429
+    assert attempts_count == 3  # 0, 1, 2 = 3 tentativas
+

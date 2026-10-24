@@ -971,14 +971,24 @@ class AccountsService:
         Se ainda não existe no Bling (ID sintético >= 9000000000), cria o título na API e substitui pelo ID oficial.
         Se já existe, envia as atualizações pendentes ou a baixa.
         """
-        entry = FinancialEntry.query.get(entry_id)
+        entry = db.session.get(FinancialEntry, entry_id)
         if not entry:
             return ServiceResult(success=False, message=f'Lançamento #{entry_id} não encontrado.', entry=None)
+
+        if not entry.due_date:
+            return ServiceResult(success=False, message='O lançamento precisa ter uma data de vencimento para sincronizar com o Bling.', entry=entry)
+
+        try:
+            val = float(entry.amount or 0.0)
+            if val <= 0:
+                return ServiceResult(success=False, message='O valor do lançamento deve ser maior que zero para sincronizar com o Bling.', entry=entry)
+        except (ValueError, TypeError):
+            return ServiceResult(success=False, message='Valor inválido para sincronização.', entry=entry)
 
         from app.services.bling_api import BlingApiClient
         client = BlingApiClient()
         if not client.is_configured():
-            return ServiceResult(success=False, message='Integração com o Bling ERP não está configurada ou conectada.', entry=entry)
+            return ServiceResult(success=False, message='Integração com o Bling ERP não está configurada ou conectada. Acesse Configurações > Integração Bling.', entry=entry)
 
         try:
             # Caso 1: Lançamento local que ainda não foi criado no Bling
