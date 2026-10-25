@@ -300,35 +300,47 @@ def test_accounts_bling_mirroring_graceful_error(app, monkeypatch):
 
 
 def test_accounts_sync_single_entry_retry(app, monkeypatch):
-    """Testa retentativa de sincronização de um título pendente ou com erro."""
+    """Testa sincronização unitária: títulos sintéticos orientam cadastro no ERP; títulos reais sincronizam."""
     with app.app_context():
         from app.services.bling_api import BlingApiClient
         monkeypatch.setattr(BlingApiClient, 'is_configured', lambda self: True)
 
-        def mock_create_payable(self, payload):
-            return True, "OK", {'id': 55667788}
-
-        monkeypatch.setattr(BlingApiClient, 'create_payable', mock_create_payable)
-
-        # Lançamento local com ID sintético (< 0 ou >= 1_000_000_000_000)
-        entry = FinancialEntry(
+        # 1. Lançamento local com ID sintético (< 0): deve orientar criação no Bling ERP
+        entry_local = FinancialEntry(
             bling_id=-1729000123456,
             entry_type='PAGAR',
             description='Lançamento Local Pendente de Envio',
             amount=320.0,
             due_date=date.today(),
             status='Pendente',
-            sync_status='pending_sync'
+            sync_status='local_only'
         )
-        db.session.add(entry)
+        db.session.add(entry_local)
         db.session.commit()
 
-        # Força sincronização
-        res = AccountsService.sync_single_entry(entry.id)
-        assert res.get('success') is True
-        assert entry.bling_id == 55667788
-        assert entry.sync_status == 'synced'
-        assert entry.last_sync_at is not None
+        res_local = AccountsService.sync_single_entry(entry_local.id)
+        assert res_local.get('success') is False
+        assert "Bling ERP" in res_local.get('message')
+
+        # 2. Título com ID real do Bling: sincroniza com sucesso
+        entry_real = FinancialEntry(
+            bling_id=55667788,
+            entry_type='PAGAR',
+            description='Título Real Bling',
+            amount=450.0,
+            due_date=date.today(),
+            status='Pendente',
+            sync_status='pending_sync'
+        )
+        db.session.add(entry_real)
+        db.session.commit()
+
+        monkeypatch.setattr(BlingApiClient, 'update_payable', lambda self, bid, payload: (True, "OK", {'id': bid}))
+
+        res_real = AccountsService.sync_single_entry(entry_real.id)
+        assert res_real.get('success') is True
+        assert entry_real.sync_status == 'synced'
+        assert entry_real.last_sync_at is not None
 
 
 def test_bling_api_diagnostic_error_messages_and_429():
@@ -397,15 +409,7 @@ def test_accounts_competence_date_payload_and_sync(app, monkeypatch):
         monkeypatch.setattr(BlingApiClient, 'is_configured', lambda self: True)
         monkeypatch.setattr(BlingApiClient, 'get_contacts', lambda self, **kw: [{'id': 112233, 'nome': 'Enel Energia'}])
 
-        captured_create_payload = {}
-        def mock_create_payable(self, payload):
-            nonlocal captured_create_payload
-            captured_create_payload = payload
-            return True, "OK", {'id': 991122}
-
-        monkeypatch.setattr(BlingApiClient, 'create_payable', mock_create_payable)
-
-        # 1. Criação avulsa enviando competencia_date
+        # 1. Criação avulsa enviando competencia_date (armazenada localmente)
         res = AccountsService.create_entry({
             'entry_type': 'PAGAR',
             'description': 'Conta Luz Escritório',
@@ -416,14 +420,13 @@ def test_accounts_competence_date_payload_and_sync(app, monkeypatch):
             'payee_payer': 'Enel Energia'
         })
         assert res.get('success') is True
-        assert captured_create_payload.get('competencia') == '2026-10-01'
-        assert captured_create_payload.get('vencimento') == '2026-11-10'
-        assert captured_create_payload.get('dataEmissao') == '2026-10-20'
-
         entry = res.get('entry')
         assert entry.competence_date == date(2026, 10, 1)
 
-        # 2. Atualização enviando nova competência
+        # 2. Atualização de título com ID real Bling enviando nova competência
+        entry.bling_id = 991122
+        db.session.commit()
+
         captured_update_payload = {}
         def mock_update_payable(self, bling_id, payload):
             nonlocal captured_update_payload
@@ -603,6 +606,34 @@ def test_accounts_real_11digit_id_mirroring_baixa_and_estorno(app, monkeypatch):
         assert entry.status == 'Pendente'
         assert entry.payment_date is None
         assert entry.bling_bordero_id is None
+
+
+def test_accounts_prohibit_bling_creation_and_deletion(app):
+    """Garante que endpoints de criação e exclusão contábil no Bling estão expressamente desabilitados."""
+    with app.app_context():
+        from app.services.bling_api import BlingApiClient
+
+        client = BlingApiClient()
+
+        # 1. create_payable desabilitado
+        ok_cp, msg_cp, _ = client.create_payable({'valor': 100})
+        assert ok_cp is False
+        assert "não permitida" in msg_cp
+
+        # 2. create_receivable desabilitado
+        ok_cr, msg_cr, _ = client.create_receivable({'valor': 100})
+        assert ok_cr is False
+        assert "não permitida" in msg_cr
+
+        # 3. delete_payable desabilitado
+        ok_dp, msg_dp = client.delete_payable(12345)
+        assert ok_dp is False
+        assert "não permitida" in msg_dp
+
+        # 4. delete_receivable desabilitado
+        ok_dr, msg_dr = client.delete_receivable(12345)
+        assert ok_dr is False
+        assert "não permitida" in msg_dr
 
 
 

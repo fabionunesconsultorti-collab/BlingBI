@@ -146,12 +146,11 @@
                     </button>
                 </div>
 
-                <!-- Botões de Ação do Topo -->
-                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                    <button type="button" onclick="openEntryModal()" class="btn btn-primary" style="display: flex; align-items: center; gap: 6px; font-weight: 600;">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                        Novo Lançamento
-                    </button>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                    <div style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: 6px; font-size: 12px; color: #1e40af; font-weight: 600;" title="Todos os títulos a pagar e a receber são cadastrados no Bling ERP e sincronizados com o BlingBI">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        Títulos via Bling ERP
+                    </div>
 
                     <button type="button" onclick="triggerBlingSync()" class="btn btn-outline" style="display: flex; align-items: center; gap: 6px;">
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
@@ -473,17 +472,8 @@
                                             class="btn btn-sm btn-ghost" 
                                             style="padding: 4px 6px; font-size: 11px;" 
                                             onclick='openEditModal({{ e.to_dict() | tojson }})'
-                                            title="Editar Lançamento">
+                                            title="Editar anotações e situação do lançamento">
                                         ✏️
-                                    </button>
-
-                                    <!-- Botão Excluir -->
-                                    <button type="button" 
-                                            class="btn btn-sm btn-ghost" 
-                                            style="padding: 4px 6px; font-size: 11px; color: #DC2626;" 
-                                            onclick="confirmDelete({{ e.id }}, '{{ e.description }}')"
-                                            title="Excluir Lançamento">
-                                        🗑️
                                     </button>
                                 </div>
                             </td>
@@ -493,7 +483,7 @@
                             <td colspan="10" style="text-align: center; padding: 40px 20px; color: var(--text-muted);">
                                 <div style="font-size: 32px; margin-bottom: 8px;">📂</div>
                                 <div style="font-size: 15px; font-weight: 700; color: #334155;">Nenhum lançamento financeiro encontrado</div>
-                                <div style="font-size: 13px; color: #64748B; margin-top: 4px;">Ajuste os filtros de pesquisa ou crie um novo lançamento manual.</div>
+                                <div style="font-size: 13px; color: #64748B; margin-top: 4px;">Ajuste os filtros de pesquisa ou clique em "Sincronizar Bling" para atualizar.</div>
                             </td>
                         </tr>
                         {% endfor %}
@@ -849,10 +839,10 @@
                 </div>
             </div>
 
-            <!-- Aviso de Espelhamento ERP -->
-            <div style="background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 8px; padding: 9px 12px; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; font-size: 12px; color: #166534;">
-                <span style="font-size: 15px;">🔄</span>
-                <span>O lançamento será <b>cadastrado e sincronizado diretamente no Bling ERP</b>.</span>
+            <!-- Aviso de Gestão Bling ERP -->
+            <div style="background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 8px; padding: 9px 12px; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; font-size: 12px; color: #1E40AF;">
+                <span style="font-size: 15px;">ℹ️</span>
+                <span>Títulos cadastrados no Bling ERP. Alterações de situação (Baixa e Estorno) são espelhadas diretamente via API v3.</span>
             </div>
 
             <!-- Observações -->

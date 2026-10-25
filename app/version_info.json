@@ -1,11 +1,25 @@
 {
-  "version": "1.0.36",
-  "tag": "v1.0.36",
-  "commit_count": 36,
-  "short_hash": "d755ce8",
+  "version": "1.0.37",
+  "tag": "v1.0.37",
+  "commit_count": 37,
+  "short_hash": "a0d7855",
   "changelog": [
     {
       "index": 1,
+      "hash": "a0d7855",
+      "message": "sincronizacao bidirecional de alteracoes, baixas e estornos sem duplicacao no Bling ERP",
+      "raw_message": "fix(finance): sincronizacao bidirecional de alteracoes, baixas e estornos sem duplicacao no Bling ERP",
+      "type": "fix",
+      "type_label": "FIX",
+      "scope": "finance",
+      "icon": "🐛",
+      "badge_color": "#dc2626",
+      "author": "Fabio Nunes",
+      "date": "25/10/2026 01:03",
+      "is_latest": true
+    },
+    {
+      "index": 2,
       "hash": "d755ce8",
       "message": "preservar status de fechamento, evitar duplicatas e concatenar observacao na listagem",
       "raw_message": "fix(finance): preservar status de fechamento, evitar duplicatas e concatenar observacao na listagem",
@@ -16,10 +30,10 @@
       "badge_color": "#dc2626",
       "author": "Fabio Nunes",
       "date": "24/10/2026 23:42",
-      "is_latest": true
+      "is_latest": false
     },
     {
-      "index": 2,
+      "index": 3,
       "hash": "e4783f6",
       "message": "enviar competencia e contatos obrigatorios para Bling API v3",
       "raw_message": "fix(finance): enviar competencia e contatos obrigatorios para Bling API v3",
@@ -33,7 +47,7 @@
       "is_latest": false
     },
     {
-      "index": 3,
+      "index": 4,
       "hash": "e4529b4",
       "message": "tratar rate limit 429 com backoff e mensagens diagnosticas de sincronizacao Bling",
       "raw_message": "fix(finance): tratar rate limit 429 com backoff e mensagens diagnosticas de sincronizacao Bling",
@@ -47,7 +61,7 @@
       "is_latest": false
     },
     {
-      "index": 4,
+      "index": 5,
       "hash": "1a1ff6f",
       "message": "espelhar baixas, estornos e alterações de contas a pagar e receber no Bling ERP via API v3",
       "raw_message": "feat(finance): espelhar baixas, estornos e alterações de contas a pagar e receber no Bling ERP via API v3",
@@ -61,7 +75,7 @@
       "is_latest": false
     },
     {
-      "index": 5,
+      "index": 6,
       "hash": "2c0a87a",
       "message": "adicionar módulo de contas a pagar e receber com calendário, baixas diretas e relatórios",
       "raw_message": "feat(finance): adicionar módulo de contas a pagar e receber com calendário, baixas diretas e relatórios",
@@ -75,7 +89,7 @@
       "is_latest": false
     },
     {
-      "index": 6,
+      "index": 7,
       "hash": "fd08f5a",
       "message": "atualizar hash do build v1.0.30",
       "raw_message": "chore(version): atualizar hash do build v1.0.30",
@@ -89,7 +103,7 @@
       "is_latest": false
     },
     {
-      "index": 7,
+      "index": 8,
       "hash": "1524b95",
       "message": "preservar histórico e contagem em clones rasos (Render --depth 1) e otimizar com cache em memória",
       "raw_message": "fix(version): preservar histórico e contagem em clones rasos (Render --depth 1) e otimizar com cache em memória",
@@ -103,7 +117,7 @@
       "is_latest": false
     },
     {
-      "index": 8,
+      "index": 9,
       "hash": "8115410",
       "message": "corrigir tags HTML desbalanceadas e restaurar layout desktop em tela cheia",
       "raw_message": "fix(stock-analysis): corrigir tags HTML desbalanceadas e restaurar layout desktop em tela cheia",
@@ -117,7 +131,7 @@
       "is_latest": false
     },
     {
-      "index": 9,
+      "index": 10,
       "hash": "d98e556",
       "message": "corrigir salvamento de taxas e regras do marketplace no modal de configuracao",
       "raw_message": "fix(pricing): corrigir salvamento de taxas e regras do marketplace no modal de configuracao",
@@ -131,7 +145,7 @@
       "is_latest": false
     },
     {
-      "index": 10,
+      "index": 11,
       "hash": "b93288f",
       "message": "integrar canais ativos e sincronizacao bidirecional de precos com Bling ERP",
       "raw_message": "feat(pricing): integrar canais ativos e sincronizacao bidirecional de precos com Bling ERP",
@@ -145,7 +159,7 @@
       "is_latest": false
     },
     {
-      "index": 11,
+      "index": 12,
       "hash": "2ffa89f",
       "message": "reduzir e padronizar tamanho dos icones da barra lateral (16px)",
       "raw_message": "fix(sidebar): reduzir e padronizar tamanho dos icones da barra lateral (16px)",
@@ -159,7 +173,7 @@
       "is_latest": false
     },
     {
-      "index": 12,
+      "index": 13,
       "hash": "731306c",
       "message": "organizar subcategorias no menu lateral com exibir/ocultar e botões compactos em duas linhas nas telas",
       "raw_message": "feat(navigation): organizar subcategorias no menu lateral com exibir/ocultar e botões compactos em duas linhas nas telas",
@@ -173,7 +187,7 @@
       "is_latest": false
     },
     {
-      "index": 13,
+      "index": 14,
       "hash": "eab3336",
       "message": "atualizar cache de versao estatica para build 24",
       "raw_message": "chore(version): atualizar cache de versao estatica para build 24",
@@ -187,7 +201,7 @@
       "is_latest": false
     },
     {
-      "index": 14,
+      "index": 15,
       "hash": "ee0d1a3",
       "message": "incremento automatico de versao por commit e modal interativo com historico de alteracoes",
       "raw_message": "feat(version): incremento automatico de versao por commit e modal interativo com historico de alteracoes",
@@ -201,7 +215,7 @@
       "is_latest": false
     },
     {
-      "index": 15,
+      "index": 16,
       "hash": "6d8af3b",
       "message": "propagar contexto multi-tenant para background worker, fallback de credenciais Bling no Setting e auto-refresh de tokens",
       "raw_message": "fix(sync): propagar contexto multi-tenant para background worker, fallback de credenciais Bling no Setting e auto-refresh de tokens",
@@ -215,7 +229,7 @@
       "is_latest": false
     },
     {
-      "index": 16,
+      "index": 17,
       "hash": "29e3ace",
       "message": "sincronizacao assincrona em background, eliminacao de timeouts no Render e busca de saldos de estoque Bling v3",
       "raw_message": "feat(sync): sincronizacao assincrona em background, eliminacao de timeouts no Render e busca de saldos de estoque Bling v3",
@@ -229,7 +243,7 @@
       "is_latest": false
     },
     {
-      "index": 17,
+      "index": 18,
       "hash": "160d16f",
       "message": "sincronizacao desacoplada de produtos e saldos de estoque (/estoques/saldos) oficial Bling v3",
       "raw_message": "feat(sync): sincronizacao desacoplada de produtos e saldos de estoque (/estoques/saldos) oficial Bling v3",
@@ -243,7 +257,7 @@
       "is_latest": false
     },
     {
-      "index": 18,
+      "index": 19,
       "hash": "34b13b7",
       "message": "exibir saldo de estoque e caracteristicas em todas as telas e itens importados",
       "raw_message": "feat(stock): exibir saldo de estoque e caracteristicas em todas as telas e itens importados",
@@ -257,7 +271,7 @@
       "is_latest": false
     },
     {
-      "index": 19,
+      "index": 20,
       "hash": "c2b062a",
       "message": "corrigir cruzamento e leitura de saldo de estoque",
       "raw_message": "fix(abc-curve): corrigir cruzamento e leitura de saldo de estoque",
@@ -271,7 +285,7 @@
       "is_latest": false
     },
     {
-      "index": 20,
+      "index": 21,
       "hash": "d5659a0",
       "message": "padronizacao PT-BR em telas/relatorios e DRE com CMV real",
       "raw_message": "feat(bi): padronizacao PT-BR em telas/relatorios e DRE com CMV real",
@@ -285,7 +299,7 @@
       "is_latest": false
     },
     {
-      "index": 21,
+      "index": 22,
       "hash": "4255e68",
       "message": "suporte automatico a psycopg2 e conexao resiliente IPv4 pooler do Supabase",
       "raw_message": "feat: suporte automatico a psycopg2 e conexao resiliente IPv4 pooler do Supabase",
@@ -299,7 +313,7 @@
       "is_latest": false
     },
     {
-      "index": 22,
+      "index": 23,
       "hash": "9ae752c",
       "message": "suporte nativo ao Supabase com schemas dedicados e assistente de migracao 1-clique",
       "raw_message": "feat: suporte nativo ao Supabase com schemas dedicados e assistente de migracao 1-clique",
@@ -313,7 +327,7 @@
       "is_latest": false
     },
     {
-      "index": 23,
+      "index": 24,
       "hash": "a537bf2",
       "message": "persistencia de dados com postgresql gerenciado no render e central de backup geral programavel com restauracao para admgeral",
       "raw_message": "feat: persistencia de dados com postgresql gerenciado no render e central de backup geral programavel com restauracao para admgeral",
@@ -327,7 +341,7 @@
       "is_latest": false
     },
     {
-      "index": 24,
+      "index": 25,
       "hash": "d602b19",
       "message": "auto-recuperacao de sessao invalida, redirecionamento admin e handler defensivo de erro 500",
       "raw_message": "fix: auto-recuperacao de sessao invalida, redirecionamento admin e handler defensivo de erro 500",
@@ -341,7 +355,7 @@
       "is_latest": false
     },
     {
-      "index": 25,
+      "index": 26,
       "hash": "75ce3b8",
       "message": "atualizar README com documentação de análise de estoque e precificação automática",
       "raw_message": "docs: atualizar README com documentação de análise de estoque e precificação automática",
@@ -355,7 +369,7 @@
       "is_latest": false
     },
     {
-      "index": 26,
+      "index": 27,
       "hash": "32072a2",
       "message": "implantar tela de análise de estoque com preços por canal e precificação automática em marketplaces",
       "raw_message": "feat: implantar tela de análise de estoque com preços por canal e precificação automática em marketplaces",
@@ -369,7 +383,7 @@
       "is_latest": false
     },
     {
-      "index": 27,
+      "index": 28,
       "hash": "01e0ce1",
       "message": "inicializar todas as tabelas na base padrão no boot WSGI eliminando aviso de seed",
       "raw_message": "fix: inicializar todas as tabelas na base padrão no boot WSGI eliminando aviso de seed",
@@ -383,7 +397,7 @@
       "is_latest": false
     },
     {
-      "index": 28,
+      "index": 29,
       "hash": "4a0da52",
       "message": "detalhar variáveis de ambiente e proteção de segredos no README.md",
       "raw_message": "docs: detalhar variáveis de ambiente e proteção de segredos no README.md",
@@ -397,7 +411,7 @@
       "is_latest": false
     },
     {
-      "index": 29,
+      "index": 30,
       "hash": "0bd6634",
       "message": "ocultar senhas e credenciais padrão de telas e documentação",
       "raw_message": "security: ocultar senhas e credenciais padrão de telas e documentação",
@@ -411,7 +425,7 @@
       "is_latest": false
     },
     {
-      "index": 30,
+      "index": 31,
       "hash": "05998a2",
       "message": "implantação de arquitetura multi-usuário, multi-tenancy e gestão de segmentos",
       "raw_message": "feat: implantação de arquitetura multi-usuário, multi-tenancy e gestão de segmentos",
@@ -425,7 +439,7 @@
       "is_latest": false
     },
     {
-      "index": 31,
+      "index": 32,
       "hash": "d01a1d2",
       "message": "responsividade completa para smartphones e tablets com menu gaveta off-canvas",
       "raw_message": "fix: responsividade completa para smartphones e tablets com menu gaveta off-canvas",
@@ -439,7 +453,7 @@
       "is_latest": false
     },
     {
-      "index": 32,
+      "index": 33,
       "hash": "06a5c6e",
       "message": "configuracoes completas para deploy em nuvem com gunicorn e render",
       "raw_message": "feat: configuracoes completas para deploy em nuvem com gunicorn e render",
@@ -453,7 +467,7 @@
       "is_latest": false
     },
     {
-      "index": 33,
+      "index": 34,
       "hash": "1fd554e",
       "message": "implementar modulos de relatorios avancados, Fashion BI e documentacao",
       "raw_message": "feat: implementar modulos de relatorios avancados, Fashion BI e documentacao",
@@ -467,7 +481,7 @@
       "is_latest": false
     },
     {
-      "index": 34,
+      "index": 35,
       "hash": "43bae92",
       "message": "Merge remote repository (LICENSE and initial commit) into main",
       "raw_message": "Merge remote repository (LICENSE and initial commit) into main",
@@ -481,7 +495,7 @@
       "is_latest": false
     },
     {
-      "index": 35,
+      "index": 36,
       "hash": "d4d16b0",
       "message": "Initial commit",
       "raw_message": "Initial commit",
@@ -495,7 +509,7 @@
       "is_latest": false
     },
     {
-      "index": 36,
+      "index": 37,
       "hash": "1634b5f",
       "message": "initial commit - BlingBI analytical platform",
       "raw_message": "feat: initial commit - BlingBI analytical platform",
@@ -509,5 +523,5 @@
       "is_latest": false
     }
   ],
-  "total_releases": 36
+  "total_releases": 37
 }

@@ -617,26 +617,9 @@ class BlingApiClient:
     # OPERAÇÕES DE CONTAS A PAGAR (/contas/pagar)
     # -------------------------------------------------------------------------
     def create_payable(self, payload: dict) -> tuple:
-        """
-        Cria uma nova conta a pagar no Bling ERP (POST /contas/pagar).
-        Retorna (sucesso: bool, mensagem: str, dados: dict).
-        """
-        try:
-            resp = self.request('POST', '/contas/pagar', json_data=payload)
-            if resp is not None and resp.status_code == 404:
-                resp = self.request('POST', '/contas-pagar', json_data=payload)
-            if resp and resp.status_code in (200, 201):
-                data = resp.json().get('data', {})
-                return True, "Conta a pagar cadastrada no Bling com sucesso!", data
-            err_msg = self._extract_error_message(resp)
-            return False, f"Bling API: {err_msg}", {}
-        except requests.exceptions.Timeout:
-            return False, "Bling API: Tempo limite esgotado ao contatar o Bling (Timeout). Tente novamente em instantes.", {}
-        except requests.exceptions.ConnectionError:
-            return False, "Bling API: Falha de conexão com os servidores do Bling. Verifique a rede.", {}
-        except Exception as e:
-            logger.error(f"[BlingApiClient] Exceção ao cadastrar conta a pagar: {e}")
-            return False, f"Bling API: {str(e)}", {}
+        """Criação desabilitada por regra de negócio: lançamentos devem ser feitos no Bling ERP."""
+        logger.info("[BlingApiClient] Tentativa de criar conta a pagar no Bling ignorada: lançamentos são criados exclusivamente no Bling ERP.")
+        return False, "Operação não permitida: novos títulos devem ser lançados diretamente no Bling ERP.", {}
 
     def update_payable(self, bling_id: int, payload: dict) -> tuple:
         """
@@ -662,17 +645,16 @@ class BlingApiClient:
     def settle_payable(self, bling_id: int, payload: dict) -> tuple:
         """
         Baixa / liquida uma conta a pagar no Bling ERP (POST /contas/pagar/{id}/baixar).
-        Se o endpoint dedicado retornar 404, efetua baixa via PUT /contas/pagar/{id} com situacao=2.
+        Retorna (sucesso: bool, mensagem: str, dados: dict com borderô retornado).
         """
         try:
             resp = self.request('POST', f'/contas/pagar/{bling_id}/baixar', json_data=payload)
-            if resp is not None and resp.status_code == 404:
-                put_payload = dict(payload)
-                put_payload['situacao'] = 2
-                resp = self.request('PUT', f'/contas/pagar/{bling_id}', json_data=put_payload)
             if resp and resp.status_code in (200, 201, 204):
-                data = resp.json().get('data', {}) if resp.content else {'id': bling_id}
-                return True, "Baixa registrada no Bling com sucesso!", data
+                resp_json = resp.json() if resp.content else {}
+                bordero_info = resp_json.get('bordero') or resp_json.get('data', {}).get('bordero') or {}
+                bordero_id = bordero_info.get('id') or resp_json.get('data', {}).get('id') or resp_json.get('id')
+                logger.info(f"[BlingApiClient] Conta a pagar #{bling_id} baixada no Bling com sucesso! Borderô: {bordero_id}")
+                return True, "Baixa registrada no Bling com sucesso!", {'id': bordero_id, 'bordero_id': bordero_id}
             err_msg = self._extract_error_message(resp)
             return False, f"Bling API: {err_msg}", {}
         except requests.exceptions.Timeout:
@@ -684,49 +666,17 @@ class BlingApiClient:
             return False, f"Bling API: {str(e)}", {}
 
     def delete_payable(self, bling_id: int) -> tuple:
-        """
-        Exclui uma conta a pagar no Bling ERP (DELETE /contas/pagar/{id}).
-        """
-        try:
-            resp = self.request('DELETE', f'/contas/pagar/{bling_id}')
-            if resp is not None and resp.status_code == 404:
-                resp = self.request('DELETE', f'/contas-pagar/{bling_id}')
-            if resp and resp.status_code in (200, 204):
-                return True, "Conta a pagar excluída no Bling com sucesso!"
-            err_msg = self._extract_error_message(resp)
-            return False, f"Bling API: {err_msg}"
-        except requests.exceptions.Timeout:
-            return False, "Bling API: Tempo limite esgotado ao excluir conta a pagar."
-        except requests.exceptions.ConnectionError:
-            return False, "Bling API: Falha de conexão ao excluir conta a pagar."
-        except Exception as e:
-            logger.error(f"[BlingApiClient] Exceção ao excluir conta a pagar {bling_id}: {e}")
-            return False, f"Bling API: {str(e)}"
+        """Exclusão no Bling desabilitada: títulos são geridos exclusivamente no Bling ERP."""
+        logger.info(f"[BlingApiClient] Tentativa de excluir conta a pagar {bling_id} no Bling ignorada.")
+        return False, "Operação não permitida: a exclusão de títulos contábeis deve ser feita diretamente no Bling ERP."
 
     # -------------------------------------------------------------------------
     # OPERAÇÕES DE CONTAS A RECEBER (/contas/receber)
     # -------------------------------------------------------------------------
     def create_receivable(self, payload: dict) -> tuple:
-        """
-        Cria uma nova conta a receber no Bling ERP (POST /contas/receber).
-        Retorna (sucesso: bool, mensagem: str, dados: dict).
-        """
-        try:
-            resp = self.request('POST', '/contas/receber', json_data=payload)
-            if resp is not None and resp.status_code == 404:
-                resp = self.request('POST', '/contas-receber', json_data=payload)
-            if resp and resp.status_code in (200, 201):
-                data = resp.json().get('data', {})
-                return True, "Conta a receber cadastrada no Bling com sucesso!", data
-            err_msg = self._extract_error_message(resp)
-            return False, f"Bling API: {err_msg}", {}
-        except requests.exceptions.Timeout:
-            return False, "Bling API: Tempo limite esgotado ao cadastrar conta a receber.", {}
-        except requests.exceptions.ConnectionError:
-            return False, "Bling API: Falha de conexão ao cadastrar conta a receber.", {}
-        except Exception as e:
-            logger.error(f"[BlingApiClient] Exceção ao cadastrar conta a receber: {e}")
-            return False, f"Bling API: {str(e)}", {}
+        """Criação desabilitada por regra de negócio: lançamentos devem ser feitos no Bling ERP."""
+        logger.info("[BlingApiClient] Tentativa de criar conta a receber no Bling ignorada: lançamentos são criados exclusivamente no Bling ERP.")
+        return False, "Operação não permitida: novos títulos devem ser lançados diretamente no Bling ERP.", {}
 
     def update_receivable(self, bling_id: int, payload: dict) -> tuple:
         """
@@ -752,17 +702,16 @@ class BlingApiClient:
     def settle_receivable(self, bling_id: int, payload: dict) -> tuple:
         """
         Baixa / liquida uma conta a receber no Bling ERP (POST /contas/receber/{id}/baixar).
-        Se o endpoint dedicado retornar 404, efetua baixa via PUT /contas/receber/{id} com situacao=2.
+        Retorna (sucesso: bool, mensagem: str, dados: dict com borderô retornado).
         """
         try:
             resp = self.request('POST', f'/contas/receber/{bling_id}/baixar', json_data=payload)
-            if resp is not None and resp.status_code == 404:
-                put_payload = dict(payload)
-                put_payload['situacao'] = 2
-                resp = self.request('PUT', f'/contas/receber/{bling_id}', json_data=put_payload)
             if resp and resp.status_code in (200, 201, 204):
-                data = resp.json().get('data', {}) if resp.content else {'id': bling_id}
-                return True, "Recebimento registrado no Bling com sucesso!", data
+                resp_json = resp.json() if resp.content else {}
+                bordero_info = resp_json.get('bordero') or resp_json.get('data', {}).get('bordero') or {}
+                bordero_id = bordero_info.get('id') or resp_json.get('data', {}).get('id') or resp_json.get('id')
+                logger.info(f"[BlingApiClient] Conta a receber #{bling_id} baixada no Bling com sucesso! Borderô: {bordero_id}")
+                return True, "Recebimento registrado no Bling com sucesso!", {'id': bordero_id, 'bordero_id': bordero_id}
             err_msg = self._extract_error_message(resp)
             return False, f"Bling API: {err_msg}", {}
         except requests.exceptions.Timeout:
@@ -774,79 +723,57 @@ class BlingApiClient:
             return False, f"Bling API: {str(e)}", {}
 
     def delete_receivable(self, bling_id: int) -> tuple:
-        """
-        Exclui uma conta a receber no Bling ERP (DELETE /contas/receber/{id}).
-        """
-        try:
-            resp = self.request('DELETE', f'/contas/receber/{bling_id}')
-            if resp is not None and resp.status_code == 404:
-                resp = self.request('DELETE', f'/contas-receber/{bling_id}')
-            if resp and resp.status_code in (200, 204):
-                return True, "Conta a receber excluída no Bling com sucesso!"
-            err_msg = self._extract_error_message(resp)
-            return False, f"Bling API: {err_msg}"
-        except requests.exceptions.Timeout:
-            return False, "Bling API: Tempo limite esgotado ao excluir conta a receber."
-        except requests.exceptions.ConnectionError:
-            return False, "Bling API: Falha de conexão ao excluir conta a receber."
-        except Exception as e:
-            logger.error(f"[BlingApiClient] Exceção ao excluir conta a receber {bling_id}: {e}")
-            return False, f"Bling API: {str(e)}"
+        """Exclusão no Bling desabilitada: títulos são geridos exclusivamente no Bling ERP."""
+        logger.info(f"[BlingApiClient] Tentativa de excluir conta a receber {bling_id} no Bling ignorada.")
+        return False, "Operação não permitida: a exclusão de títulos contábeis deve ser feita diretamente no Bling ERP."
 
     def unsettle_account(self, entry_type: str, bling_id: int, bordero_id: int | None = None) -> tuple:
         """
-        Estorna ou reabre uma conta baixada no Bling ERP (restabelece situação para Em Aberto).
-        1. Se houver id do borderô/baixa vinculado, remove o borderô (DELETE /borderos/{id}).
-        2. Se não houver, consulta o lançamento para identificar eventuais borderôs/baixas ativas.
-        3. Executa estorno/reabertura via POST .../estornar ou PUT com situacao=1.
+        Estorna uma baixa no Bling ERP (reverte para Em Aberto excluindo o borderô da liquidação).
+        1. Se houver id do borderô vinculado, executa DELETE /borderos/{idBordero}.
+        2. Se não houver, consulta a conta (GET /contas/{tipo}/{id}) para identificar o borderô ativo.
+        3. Se a exclusão do borderô retornar 403 (insufficient_scope), instrui o usuário a ativar o escopo.
         """
         try:
             base_route = '/contas/pagar' if entry_type == 'PAGAR' else '/contas/receber'
 
-            # 1. Se possuímos o ID do borderô registrado, exclui diretamente o borderô
+            # 1. Se já possuímos o ID do borderô registrado, tenta excluí-lo diretamente
             if bordero_id:
                 try:
                     resp_bord = self.request('DELETE', f'/borderos/{bordero_id}')
                     if resp_bord and resp_bord.status_code in (200, 204):
                         logger.info(f"[BlingApiClient] Borderô #{bordero_id} da conta {bling_id} excluído com sucesso.")
-                        return True, "Baixa/Borderô estornado no Bling com sucesso!"
+                        return True, "Baixa estornada no Bling com sucesso!"
+                    elif resp_bord and resp_bord.status_code == 403:
+                        return False, "Bling API: Para permitir estorno de baixas, ative o escopo 'Borderôs' no seu aplicativo em developer.bling.com.br e reconecte sua conta."
                 except Exception as b_err:
                     logger.warning(f"[BlingApiClient] Tentativa de remover borderô {bordero_id} falhou: {b_err}")
 
-            # 2. Consulta a conta no Bling para verificar se possui borderô/baixa vinculada
-            try:
-                resp_det = self.request('GET', f"{base_route}/{bling_id}")
-                if resp_det and resp_det.status_code == 200:
-                    det = resp_det.json().get('data', {})
-                    b_id = None
-                    if isinstance(det.get('bordero'), dict):
-                        b_id = det['bordero'].get('id')
-                    elif det.get('idBordero'):
-                        b_id = det.get('idBordero')
-                    elif isinstance(det.get('borderos'), list) and det['borderos']:
-                        b_id = det['borderos'][0].get('id') if isinstance(det['borderos'][0], dict) else det['borderos'][0]
+            # 2. Consulta a conta no Bling para obter a lista de borderos ativos
+            b_id = None
+            resp_det = self.request('GET', f"{base_route}/{bling_id}")
+            if resp_det and resp_det.status_code == 200:
+                det = resp_det.json().get('data', {})
+                borderos = det.get('borderos') or []
+                if borderos and isinstance(borderos, list):
+                    b_id = borderos[0].get('id') if isinstance(borderos[0], dict) else borderos[0]
+                elif isinstance(det.get('bordero'), dict):
+                    b_id = det['bordero'].get('id')
+                elif det.get('idBordero'):
+                    b_id = det.get('idBordero')
 
-                    if b_id:
-                        resp_del_b = self.request('DELETE', f'/borderos/{b_id}')
-                        if resp_del_b and resp_del_b.status_code in (200, 204):
-                            logger.info(f"[BlingApiClient] Borderô identificado #{b_id} excluído com sucesso.")
-                            return True, "Baixa estornada no Bling ERP com sucesso!"
-            except Exception as det_err:
-                logger.debug(f"[BlingApiClient] Detalhes da conta para estorno não recuperados: {det_err}")
+            if b_id:
+                resp_del_b = self.request('DELETE', f'/borderos/{b_id}')
+                if resp_del_b and resp_del_b.status_code in (200, 204):
+                    logger.info(f"[BlingApiClient] Borderô identificado #{b_id} excluído com sucesso.")
+                    return True, "Baixa estornada no Bling ERP com sucesso!"
+                elif resp_del_b and resp_del_b.status_code == 403:
+                    return False, "Bling API: Para permitir estorno de baixas, ative o escopo 'Borderôs' no seu aplicativo em developer.bling.com.br e reconecte sua conta."
+                err_msg = self._extract_error_message(resp_del_b)
+                return False, f"Bling API: Falha ao estornar borderô no Bling ({err_msg})"
 
-            # 3. Tentativa via endpoint de estorno
-            resp = self.request('POST', f"{base_route}/{bling_id}/estornar")
-            if resp and resp.status_code in (200, 204):
-                return True, "Baixa estornada no Bling com sucesso!"
-
-            # 4. Tentativa via alteração de situação para Em Aberto (situacao: 1)
-            reopen_payload = {'situacao': 1}
-            resp_reopen = self.request('PUT', f"{base_route}/{bling_id}", json_data=reopen_payload)
-            if resp_reopen and resp_reopen.status_code in (200, 204):
-                return True, "Título reaberto no Bling com sucesso!"
-
-            err_msg = self._extract_error_message(resp or resp_reopen)
-            return False, f"Bling API: {err_msg}"
+            err_msg = self._extract_error_message(resp_det) if resp_det else "Borderô da baixa não localizado"
+            return False, f"Bling API: Não foi possível identificar o borderô da baixa no Bling ERP. ({err_msg})"
         except requests.exceptions.Timeout:
             return False, "Bling API: Tempo limite esgotado ao reabrir título."
         except requests.exceptions.ConnectionError:
