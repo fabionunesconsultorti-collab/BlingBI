@@ -458,3 +458,66 @@ def test_accounts_competence_date_payload_and_sync(app, monkeypatch):
         assert synced_e.competence_date == date(2026, 10, 1)
 
 
+def test_accounts_duplicate_prevention_and_status_preservation(app, monkeypatch):
+    """Garante que títulos com ID sintético são vinculados sem duplicar e que o status Pago é preservado."""
+    with app.app_context():
+        from app.services.bling_api import BlingApiClient
+        from app.services.sync_service import SyncService
+
+        # 1. Cria lançamento local com ID sintético (ex: falha de conexão inicial com Bling)
+        local_entry = FinancialEntry(
+            bling_id=9876543210,
+            entry_type='PAGAR',
+            description='Servidor Dedicado Cloud',
+            amount=350.0,
+            due_date=date(2026, 11, 20),
+            issue_date=date(2026, 10, 20),
+            competence_date=date(2026, 10, 20),
+            status='Pago',
+            payment_date=date(2026, 10, 24),
+            notes='Pago via PIX com sucesso'
+        )
+        db.session.add(local_entry)
+        db.session.commit()
+        local_id = local_entry.id
+
+        # 2. Ao chamar create_entry com os mesmos dados ou entry_id, deve atualizar e não duplicar
+        res_create_dup = AccountsService.create_entry({
+            'entry_id': local_id,
+            'entry_type': 'PAGAR',
+            'description': 'Servidor Dedicado Cloud',
+            'amount': 350.0,
+            'due_date': '2026-11-20',
+            'status': 'Pago',
+            'notes': 'Pago via PIX com sucesso'
+        })
+        assert res_create_dup.get('success') is True
+        assert res_create_dup.get('entry').id == local_id
+        # Garante que não duplicou o texto de observação
+        assert res_create_dup.get('entry').notes.count('[Baixa em') <= 1
+
+        # 3. Sincronização do Bling retorna o título com situacao: 1 (Pendente no Bling, pois falta de escopo ou baixa não lançada lá)
+        mock_bling_items = [{
+            'id': 776655,
+            'historico': 'Servidor Dedicado Cloud',
+            'valor': 350.0,
+            'vencimento': '2026-11-20',
+            'dataEmissao': '2026-10-20',
+            'situacao': 1
+        }]
+        monkeypatch.setattr(BlingApiClient, 'get_payables', lambda self, **kw: mock_bling_items)
+
+        count = SyncService.sync_payables(BlingApiClient())
+        assert count == 1
+
+        # O registro local deve ter sido atualizado com o bling_id oficial 776655 em vez de criar um novo
+        assert FinancialEntry.query.filter_by(description='Servidor Dedicado Cloud').count() == 1
+        updated_entry = db.session.get(FinancialEntry, local_id)
+        assert updated_entry.bling_id == 776655
+
+        # O status de fechamento ('Pago') deve ser preservado e NÃO revertido para 'Pendente'
+        assert updated_entry.status == 'Pago'
+        assert updated_entry.payment_date == date(2026, 10, 24)
+
+
+

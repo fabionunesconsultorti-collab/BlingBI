@@ -653,13 +653,39 @@ class SyncService:
                     b_id = item.get('id')
                     if not b_id:
                         continue
+
+                    venc = item.get('vencimento')
+                    venc_date = None
+                    if venc:
+                        try:
+                            venc_date = date_parser.parse(str(venc)[:10]).date()
+                        except Exception:
+                            pass
+
+                    amount_val = float(item.get('valor', 0.0) or 0.0)
+
                     entry = FinancialEntry.query.filter_by(bling_id=b_id, entry_type='RECEBER').first()
                     if not entry:
-                        entry = FinancialEntry(bling_id=b_id, entry_type='RECEBER')
-                        db.session.add(entry)
+                        # Evita criar título duplicado em aberto se já existir um lançamento local não sincronizado
+                        local_match = None
+                        if venc_date:
+                            local_match = FinancialEntry.query.filter(
+                                FinancialEntry.entry_type == 'RECEBER',
+                                FinancialEntry.bling_id >= 9000000000,
+                                FinancialEntry.due_date == venc_date,
+                                FinancialEntry.amount == amount_val
+                            ).first()
+
+                        if local_match:
+                            entry = local_match
+                            entry.bling_id = b_id
+                            logger.info(f"Associando lançamento a receber local #{entry.id} ao ID Bling #{b_id}")
+                        else:
+                            entry = FinancialEntry(bling_id=b_id, entry_type='RECEBER')
+                            db.session.add(entry)
                     
                     entry.description = item.get('historico') or 'Recebimento de Venda'
-                    entry.amount = float(item.get('valor', 0.0) or 0.0)
+                    entry.amount = amount_val
                     
                     contato_info = item.get('contato', {})
                     if isinstance(contato_info, dict):
@@ -683,12 +709,8 @@ class SyncService:
                         if forma_pgto_info.get('descricao'):
                             entry.payment_method = forma_pgto_info['descricao']
 
-                    venc = item.get('vencimento')
-                    if venc:
-                        try:
-                            entry.due_date = date_parser.parse(str(venc)[:10]).date()
-                        except Exception:
-                            pass
+                    if venc_date:
+                        entry.due_date = venc_date
                     
                     emissao = item.get('dataEmissao')
                     if emissao:
@@ -705,9 +727,23 @@ class SyncService:
                             pass
                     elif not entry.competence_date:
                         entry.competence_date = entry.issue_date or entry.due_date
+
+                    obs = item.get('observacoes')
+                    if obs and not entry.notes:
+                        entry.notes = obs
                     
                     situacao = item.get('situacao')
-                    entry.status = 'Pago' if situacao == 2 else ('Cancelado' if situacao == 3 else 'Pendente')
+                    if situacao == 2:
+                        entry.status = 'Pago'
+                        if not entry.payment_date:
+                            entry.payment_date = datetime.utcnow().date()
+                    elif situacao == 3:
+                        entry.status = 'Cancelado'
+                    else:
+                        # Se já estava Pago localmente no BI, preserva o status de fechamento
+                        if entry.status != 'Pago':
+                            entry.status = 'Pendente'
+
                     entry.sync_status = 'synced'
                     entry.last_sync_at = datetime.utcnow()
                     entry.sync_error_msg = None
@@ -736,13 +772,39 @@ class SyncService:
                     b_id = item.get('id')
                     if not b_id:
                         continue
+
+                    venc = item.get('vencimento')
+                    venc_date = None
+                    if venc:
+                        try:
+                            venc_date = date_parser.parse(str(venc)[:10]).date()
+                        except Exception:
+                            pass
+
+                    amount_val = float(item.get('valor', 0.0) or 0.0)
+
                     entry = FinancialEntry.query.filter_by(bling_id=b_id, entry_type='PAGAR').first()
                     if not entry:
-                        entry = FinancialEntry(bling_id=b_id, entry_type='PAGAR')
-                        db.session.add(entry)
+                        # Evita criar título duplicado em aberto se já existir um lançamento local não sincronizado
+                        local_match = None
+                        if venc_date:
+                            local_match = FinancialEntry.query.filter(
+                                FinancialEntry.entry_type == 'PAGAR',
+                                FinancialEntry.bling_id >= 9000000000,
+                                FinancialEntry.due_date == venc_date,
+                                FinancialEntry.amount == amount_val
+                            ).first()
+
+                        if local_match:
+                            entry = local_match
+                            entry.bling_id = b_id
+                            logger.info(f"Associando lançamento a pagar local #{entry.id} ao ID Bling #{b_id}")
+                        else:
+                            entry = FinancialEntry(bling_id=b_id, entry_type='PAGAR')
+                            db.session.add(entry)
                     
                     entry.description = item.get('historico') or 'Pagamento de Despesa'
-                    entry.amount = float(item.get('valor', 0.0) or 0.0)
+                    entry.amount = amount_val
                     
                     fornecedor_info = item.get('contato', {}) or item.get('fornecedor', {})
                     if isinstance(fornecedor_info, dict):
@@ -766,12 +828,8 @@ class SyncService:
                         if forma_pgto_info.get('descricao'):
                             entry.payment_method = forma_pgto_info['descricao']
 
-                    venc = item.get('vencimento')
-                    if venc:
-                        try:
-                            entry.due_date = date_parser.parse(str(venc)[:10]).date()
-                        except Exception:
-                            pass
+                    if venc_date:
+                        entry.due_date = venc_date
                     
                     emissao = item.get('dataEmissao')
                     if emissao:
@@ -788,9 +846,23 @@ class SyncService:
                             pass
                     elif not entry.competence_date:
                         entry.competence_date = entry.issue_date or entry.due_date
+
+                    obs = item.get('observacoes')
+                    if obs and not entry.notes:
+                        entry.notes = obs
                     
                     situacao = item.get('situacao')
-                    entry.status = 'Pago' if situacao == 2 else ('Cancelado' if situacao == 3 else 'Pendente')
+                    if situacao == 2:
+                        entry.status = 'Pago'
+                        if not entry.payment_date:
+                            entry.payment_date = datetime.utcnow().date()
+                    elif situacao == 3:
+                        entry.status = 'Cancelado'
+                    else:
+                        # Se já estava Pago localmente no BI, preserva o status de fechamento
+                        if entry.status != 'Pago':
+                            entry.status = 'Pendente'
+
                     entry.sync_status = 'synced'
                     entry.last_sync_at = datetime.utcnow()
                     entry.sync_error_msg = None

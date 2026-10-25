@@ -352,8 +352,8 @@
                                     {% endif %}
                                 </div>
                                 {% if e.notes %}
-                                <div style="font-size: 11px; color: #64748B; font-style: italic; margin-top: 2px;">
-                                    📝 {{ e.notes }}
+                                <div style="font-size: 11px; color: #64748B; font-style: italic; margin-top: 2px; max-width: 280px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: help;" title="{{ e.notes }}">
+                                    📝 {{ e.notes | truncate(45, True, '...') }}
                                 </div>
                                 {% endif %}
                             </td>
@@ -924,7 +924,7 @@ function openSettleModal(entry) {
     document.getElementById('settlePaymentMethod').value = entry.payment_method || 'Boleto';
     document.getElementById('settleDiscount').value = (entry.discount || 0).toFixed(2);
     document.getElementById('settleFine').value = (entry.fine_fee || 0).toFixed(2);
-    document.getElementById('settleNotes').value = entry.notes || '';
+    document.getElementById('settleNotes').value = '';
 
     recalcSettleNet();
     backdrop.style.display = 'flex';

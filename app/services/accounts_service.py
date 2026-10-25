@@ -558,9 +558,13 @@ class AccountsService:
             except Exception:
                 pass
 
-        if notes:
-            current_notes = entry.notes or ''
-            entry.notes = f"{current_notes}\n[Baixa em {pay_dt.strftime('%d/%m/%Y')}]: {notes}".strip()
+        if notes and str(notes).strip():
+            clean_notes = str(notes).strip()
+            current_notes = (entry.notes or '').strip()
+            if clean_notes != current_notes and "[Baixa em" not in clean_notes:
+                entry.notes = f"{current_notes}\n[Baixa em {pay_dt.strftime('%d/%m/%Y')}]: {clean_notes}".strip()
+            elif not current_notes:
+                entry.notes = clean_notes
 
         if discount is not None:
             try:
@@ -707,6 +711,34 @@ class AccountsService:
         else:
             due_dt = due_date_raw
 
+        # Evita criar novo título se for edição ou se já existir lançamento correspondente
+        existing = None
+        if data.get('entry_id'):
+            try:
+                existing = db.session.get(FinancialEntry, int(data['entry_id']))
+            except Exception:
+                pass
+
+        if not existing and data.get('bling_id'):
+            try:
+                b_val = int(data['bling_id'])
+                if b_val and b_val < 9000000000:
+                    existing = FinancialEntry.query.filter_by(bling_id=b_val, entry_type=entry_type).first()
+            except Exception:
+                pass
+
+        if not existing:
+            # Checa duplicidade por chave natural (tipo, descrição, valor e vencimento)
+            existing = FinancialEntry.query.filter(
+                FinancialEntry.entry_type == entry_type,
+                FinancialEntry.description == description,
+                FinancialEntry.amount == amount,
+                FinancialEntry.due_date == due_dt
+            ).order_by(FinancialEntry.id.desc()).first()
+
+        if existing:
+            return cls.update_entry(existing.id, data)
+
         issue_date_raw = data.get('issue_date')
         if issue_date_raw:
             issue_dt = datetime.strptime(issue_date_raw[:10], '%Y-%m-%d').date() if isinstance(issue_date_raw, str) else issue_date_raw
@@ -841,7 +873,7 @@ class AccountsService:
 
         # Se criado já liquidado e tem ID oficial no Bling, efetua baixa
         if status == 'Pago' and entry.bling_id < 9000000000:
-            cls.settle_entry(entry.id, payment_date=payment_date, payment_method=entry.payment_method, notes=entry.notes)
+            cls.settle_entry(entry.id, payment_date=payment_date, payment_method=entry.payment_method, notes=None)
 
         return ServiceResult(
             success=True,
@@ -872,8 +904,16 @@ class AccountsService:
             entry.payment_method = data['payment_method']
         if 'notes' in data:
             entry.notes = data['notes']
-        if 'status' in data:
-            entry.status = data['status']
+        prev_status = entry.status
+        new_status = data.get('status')
+        if new_status:
+            entry.status = new_status
+            if new_status == 'Pago':
+                raw_p = data.get('payment_date')
+                if raw_p:
+                    entry.payment_date = datetime.strptime(raw_p[:10], '%Y-%m-%d').date() if isinstance(raw_p, str) else raw_p
+                elif not entry.payment_date:
+                    entry.payment_date = date.today()
 
         if 'bling_contact_id' in data and data['bling_contact_id']:
             try:
@@ -905,43 +945,65 @@ class AccountsService:
 
         entry.updated_at = datetime.utcnow()
 
-        # Espelhamento no Bling ERP via PUT se o ID for do Bling
+        # Espelhamento no Bling ERP
         bling_msg = ''
         try:
             from app.services.bling_api import BlingApiClient
             client = BlingApiClient()
-            if client.is_configured() and entry.bling_id and entry.bling_id < 9000000000:
-                issue_val = entry.issue_date or date.today()
-                comp_val = getattr(entry, 'competence_date', None) or entry.issue_date or entry.due_date or date.today()
-                payload = {
-                    'vencimento': entry.due_date.strftime('%Y-%m-%d'),
-                    'valor': float(entry.amount),
-                    'historico': entry.description,
-                    'dataEmissao': issue_val.strftime('%Y-%m-%d'),
-                    'competencia': comp_val.strftime('%Y-%m-%d'),
-                    'observacoes': entry.notes or ''
-                }
-                if entry.bling_contact_id:
-                    payload['contato'] = {'id': entry.bling_contact_id}
-                if entry.bling_category_id:
-                    payload['categoria'] = {'id': entry.bling_category_id}
-                if entry.bling_payment_method_id:
-                    payload['formaPagamento'] = {'id': entry.bling_payment_method_id}
+            if client.is_configured():
+                # Caso o título ainda não tenha ID oficial no Bling, sincroniza criação primeiro
+                if not entry.bling_id or entry.bling_id >= 9000000000:
+                    cls.sync_single_entry(entry.id)
+                elif entry.bling_id < 9000000000:
+                    issue_val = entry.issue_date or date.today()
+                    comp_val = getattr(entry, 'competence_date', None) or entry.issue_date or entry.due_date or date.today()
 
-                if entry.entry_type == 'PAGAR':
-                    ok, msg, _ = client.update_payable(entry.bling_id, payload)
-                else:
-                    ok, msg, _ = client.update_receivable(entry.bling_id, payload)
+                    if not entry.bling_contact_id and entry.entity_name:
+                        try:
+                            contacts = client.get_contacts(limit=100)
+                            for ct in contacts:
+                                if ct.get('nome', '').strip().lower() == entry.entity_name.strip().lower():
+                                    entry.bling_contact_id = int(ct['id'])
+                                    break
+                        except Exception:
+                            pass
 
-                if ok:
-                    entry.sync_status = 'synced'
-                    entry.last_sync_at = datetime.utcnow()
-                    entry.sync_error_msg = None
-                    bling_msg = ' (alterações espelhadas no Bling)'
-                else:
-                    entry.sync_status = 'sync_error'
-                    entry.sync_error_msg = msg
-                    bling_msg = f' (Aviso Bling: {msg})'
+                    payload = {
+                        'vencimento': entry.due_date.strftime('%Y-%m-%d'),
+                        'valor': float(entry.amount),
+                        'historico': entry.description,
+                        'data': issue_val.strftime('%Y-%m-%d'),
+                        'dataEmissao': issue_val.strftime('%Y-%m-%d'),
+                        'competencia': comp_val.strftime('%Y-%m-%d'),
+                        'observacoes': entry.notes or ''
+                    }
+                    if entry.bling_contact_id:
+                        payload['contato'] = {'id': int(entry.bling_contact_id)}
+                    if entry.bling_category_id:
+                        payload['categoria'] = {'id': int(entry.bling_category_id)}
+                    if entry.bling_payment_method_id:
+                        payload['formaPagamento'] = {'id': int(entry.bling_payment_method_id)}
+
+                    if entry.entry_type == 'PAGAR':
+                        ok, msg, _ = client.update_payable(entry.bling_id, payload)
+                    else:
+                        ok, msg, _ = client.update_receivable(entry.bling_id, payload)
+
+                    if ok:
+                        entry.sync_status = 'synced'
+                        entry.last_sync_at = datetime.utcnow()
+                        entry.sync_error_msg = None
+                        bling_msg = ' (alterações espelhadas no Bling)'
+                    else:
+                        entry.sync_status = 'sync_error'
+                        entry.sync_error_msg = msg
+                        bling_msg = f' (Aviso Bling: {msg})'
+
+                # Se o status foi alterado para Pago (fechamento), aciona baixa
+                if entry.status == 'Pago':
+                    cls.settle_entry(entry.id, payment_date=entry.payment_date, payment_method=entry.payment_method, notes=None)
+                elif entry.status in ('Pendente', 'Atrasado') and prev_status == 'Pago':
+                    cls.unsettle_entry(entry.id)
         except Exception as e:
             logger.warning(f"[AccountsService] Erro ao atualizar no Bling: {e}")
             entry.sync_status = 'sync_error'
@@ -1065,7 +1127,7 @@ class AccountsService:
 
                     # Se já estava marcado como Pago, liquida no Bling agora
                     if entry.status == 'Pago':
-                        cls.settle_entry(entry.id, payment_date=entry.payment_date, payment_method=entry.payment_method, notes=entry.notes)
+                        cls.settle_entry(entry.id, payment_date=entry.payment_date, payment_method=entry.payment_method, notes=None)
 
                     return ServiceResult(
                         success=True,
@@ -1080,7 +1142,7 @@ class AccountsService:
 
             # Caso 2: Título já possui ID oficial no Bling
             if entry.status == 'Pago':
-                return cls.settle_entry(entry.id, payment_date=entry.payment_date, payment_method=entry.payment_method, notes=entry.notes)
+                return cls.settle_entry(entry.id, payment_date=entry.payment_date, payment_method=entry.payment_method, notes=None)
             else:
                 issue_val = entry.issue_date or date.today()
                 comp_val = getattr(entry, 'competence_date', None) or entry.issue_date or entry.due_date or date.today()

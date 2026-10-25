@@ -371,6 +371,16 @@ def create_account_entry():
     is_json = request.is_json
     data = request.get_json(silent=True) or request.form.to_dict()
 
+    # Redireciona com segurança para atualização se for edição de lançamento existente
+    entry_id = data.get('entry_id')
+    if entry_id:
+        try:
+            eid = int(entry_id)
+            if eid > 0:
+                return update_account_entry(eid)
+        except (ValueError, TypeError):
+            pass
+
     success, msg, entry = AccountsService.create_entry(data)
 
     if is_json:
