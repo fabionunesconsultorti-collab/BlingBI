@@ -116,6 +116,8 @@ def check_and_apply_migrations():
                         conn.execute(text("ALTER TABLE financial_entries ADD COLUMN sync_error_msg TEXT;"))
                     if 'competence_date' not in fe_cols:
                         conn.execute(text("ALTER TABLE financial_entries ADD COLUMN competence_date DATE;"))
+                    if 'bling_bordero_id' not in fe_cols:
+                        conn.execute(text("ALTER TABLE financial_entries ADD COLUMN bling_bordero_id BIGINT;"))
 
                 # Tabelas product_channel_prices e marketplace_rules se não existirem
                 from app.models.marketplace_rule import MarketplaceRule
@@ -192,7 +194,8 @@ def check_and_apply_migrations():
                             f'ALTER TABLE "{schema}".financial_entries ADD COLUMN IF NOT EXISTS sync_status VARCHAR(30) DEFAULT \'synced\';',
                             f'ALTER TABLE "{schema}".financial_entries ADD COLUMN IF NOT EXISTS last_sync_at TIMESTAMP;',
                             f'ALTER TABLE "{schema}".financial_entries ADD COLUMN IF NOT EXISTS sync_error_msg TEXT;',
-                            f'ALTER TABLE "{schema}".financial_entries ADD COLUMN IF NOT EXISTS competence_date DATE;'
+                            f'ALTER TABLE "{schema}".financial_entries ADD COLUMN IF NOT EXISTS competence_date DATE;',
+                            f'ALTER TABLE "{schema}".financial_entries ADD COLUMN IF NOT EXISTS bling_bordero_id BIGINT;'
                         ]:
                             try:
                                 pg_conn.execute(text(q))

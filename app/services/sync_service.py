@@ -3,6 +3,7 @@ import time
 from datetime import datetime
 from dateutil import parser as date_parser
 from app.database import db
+from sqlalchemy import or_
 from app.models.customer import Customer
 from app.models.product import Product
 from app.models.order import Order, OrderItem
@@ -671,7 +672,11 @@ class SyncService:
                         if venc_date:
                             local_match = FinancialEntry.query.filter(
                                 FinancialEntry.entry_type == 'RECEBER',
-                                FinancialEntry.bling_id >= 9000000000,
+                                or_(
+                                    FinancialEntry.bling_id.is_(None),
+                                    FinancialEntry.bling_id < 0,
+                                    FinancialEntry.bling_id >= 1_000_000_000_000
+                                ),
                                 FinancialEntry.due_date == venc_date,
                                 FinancialEntry.amount == amount_val
                             ).first()
@@ -742,7 +747,7 @@ class SyncService:
                     else:
                         # Se já estava Pago localmente no BI, preserva o status de fechamento
                         if entry.status != 'Pago':
-                            entry.status = 'Pendente'
+                            entry.status = 'Atrasado' if (entry.due_date and entry.due_date < datetime.utcnow().date()) else 'Pendente'
 
                     entry.sync_status = 'synced'
                     entry.last_sync_at = datetime.utcnow()
@@ -790,7 +795,11 @@ class SyncService:
                         if venc_date:
                             local_match = FinancialEntry.query.filter(
                                 FinancialEntry.entry_type == 'PAGAR',
-                                FinancialEntry.bling_id >= 9000000000,
+                                or_(
+                                    FinancialEntry.bling_id.is_(None),
+                                    FinancialEntry.bling_id < 0,
+                                    FinancialEntry.bling_id >= 1_000_000_000_000
+                                ),
                                 FinancialEntry.due_date == venc_date,
                                 FinancialEntry.amount == amount_val
                             ).first()
@@ -861,7 +870,7 @@ class SyncService:
                     else:
                         # Se já estava Pago localmente no BI, preserva o status de fechamento
                         if entry.status != 'Pago':
-                            entry.status = 'Pendente'
+                            entry.status = 'Atrasado' if (entry.due_date and entry.due_date < datetime.utcnow().date()) else 'Pendente'
 
                     entry.sync_status = 'synced'
                     entry.last_sync_at = datetime.utcnow()

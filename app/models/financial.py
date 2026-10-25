@@ -27,12 +27,36 @@ class FinancialEntry(db.Model):
     bling_contact_id = db.Column(db.BigInteger, nullable=True, index=True)
     bling_category_id = db.Column(db.BigInteger, nullable=True)
     bling_payment_method_id = db.Column(db.BigInteger, nullable=True)
+    bling_bordero_id = db.Column(db.BigInteger, nullable=True, index=True) # ID da baixa / borderô no Bling
     sync_status = db.Column(db.String(30), default='synced', index=True) # synced, pending_sync, sync_error, local_only
     last_sync_at = db.Column(db.DateTime, nullable=True)
     sync_error_msg = db.Column(db.Text, nullable=True)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    @property
+    def has_real_bling_id(self) -> bool:
+        """Retorna True se o lançamento possui ID oficial registrado no Bling ERP."""
+        if not self.bling_id:
+            return False
+        return 0 < self.bling_id < 1_000_000_000_000
+
+    @classmethod
+    def is_real_bling_id(cls, bling_id: int | None) -> bool:
+        """Verifica se um dado bling_id é um ID numérico oficial do Bling."""
+        if not bling_id:
+            return False
+        try:
+            val = int(bling_id)
+            return 0 < val < 1_000_000_000_000
+        except (ValueError, TypeError):
+            return False
+
+    @classmethod
+    def is_synthetic(cls, bling_id: int | None) -> bool:
+        """Retorna True se o ID for sintético/temporário gerado localmente."""
+        return not cls.is_real_bling_id(bling_id)
 
     def __getitem__(self, item):
         return getattr(self, item)
@@ -107,6 +131,8 @@ class FinancialEntry(db.Model):
             'bling_contact_id': self.bling_contact_id,
             'bling_category_id': self.bling_category_id,
             'bling_payment_method_id': self.bling_payment_method_id,
+            'bling_bordero_id': self.bling_bordero_id,
+            'has_real_bling_id': self.has_real_bling_id,
             'sync_status': self.sync_status or 'synced',
             'last_sync_at': self.last_sync_at.strftime('%Y-%m-%d %H:%M:%S') if self.last_sync_at else None,
             'last_sync_at_formatted': self.last_sync_at_formatted,

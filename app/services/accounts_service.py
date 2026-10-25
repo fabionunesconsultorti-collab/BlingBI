@@ -591,14 +591,12 @@ class AccountsService:
         try:
             from app.services.bling_api import BlingApiClient
             client = BlingApiClient()
-            if client.is_configured() and entry.bling_id and entry.bling_id < 9000000000:
+            if client.is_configured() and entry.has_real_bling_id:
                 payload = {
                     'data': pay_dt.strftime('%Y-%m-%d'),
-                    'dataPagamento': pay_dt.strftime('%Y-%m-%d'),
                     'valor': float(entry.net_amount),
-                    'valorPago': float(entry.net_amount),
-                    'valorRecebido': float(entry.net_amount),
-                    'historico': notes or f"Baixa via BlingBI em {pay_dt.strftime('%d/%m/%Y')}"
+                    'historico': notes or f"Baixa via BlingBI em {pay_dt.strftime('%d/%m/%Y')}",
+                    'usarDataVencimento': False
                 }
                 if entry.bling_payment_method_id:
                     payload['idFormaPagamento'] = int(entry.bling_payment_method_id)
@@ -609,11 +607,13 @@ class AccountsService:
                     payload['juros'] = float(entry.fine_fee)
 
                 if entry.entry_type == 'PAGAR':
-                    ok, msg, _ = client.settle_payable(entry.bling_id, payload)
+                    ok, msg, resp_data = client.settle_payable(entry.bling_id, payload)
                 else:
-                    ok, msg, _ = client.settle_receivable(entry.bling_id, payload)
+                    ok, msg, resp_data = client.settle_receivable(entry.bling_id, payload)
 
                 if ok:
+                    if resp_data and resp_data.get('id'):
+                        entry.bling_bordero_id = int(resp_data['id'])
                     entry.sync_status = 'synced'
                     entry.last_sync_at = datetime.utcnow()
                     entry.sync_error_msg = None
@@ -623,7 +623,7 @@ class AccountsService:
                     entry.sync_error_msg = msg
                     bling_msg = f' (Aviso Bling: {msg})'
             else:
-                if not entry.bling_id or entry.bling_id >= 9000000000:
+                if not entry.has_real_bling_id:
                     entry.sync_status = 'local_only'
         except Exception as e:
             logger.warning(f"[AccountsService] Erro ao sincronizar baixa no Bling: {e}")
@@ -657,8 +657,9 @@ class AccountsService:
         try:
             from app.services.bling_api import BlingApiClient
             client = BlingApiClient()
-            if client.is_configured() and entry.bling_id and entry.bling_id < 9000000000:
-                ok, msg = client.unsettle_account(entry.entry_type, entry.bling_id)
+            if client.is_configured() and entry.has_real_bling_id:
+                ok, msg = client.unsettle_account(entry.entry_type, entry.bling_id, bordero_id=entry.bling_bordero_id)
+                entry.bling_bordero_id = None
                 if ok:
                     entry.sync_status = 'synced'
                     entry.last_sync_at = datetime.utcnow()
@@ -669,7 +670,7 @@ class AccountsService:
                     entry.sync_error_msg = msg
                     bling_msg = f' (Aviso Bling: {msg})'
             else:
-                if not entry.bling_id or entry.bling_id >= 9000000000:
+                if not entry.has_real_bling_id:
                     entry.sync_status = 'local_only'
         except Exception as e:
             logger.warning(f"[AccountsService] Erro ao estornar no Bling: {e}")
@@ -722,7 +723,7 @@ class AccountsService:
         if not existing and data.get('bling_id'):
             try:
                 b_val = int(data['bling_id'])
-                if b_val and b_val < 9000000000:
+                if FinancialEntry.is_real_bling_id(b_val):
                     existing = FinancialEntry.query.filter_by(bling_id=b_val, entry_type=entry_type).first()
             except Exception:
                 pass
@@ -838,11 +839,11 @@ class AccountsService:
             sync_error_msg = str(e)
             bling_msg = f' (Erro Bling: {str(e)})'
 
-        # Se não gerou ID oficial no Bling, gera ID sintético temporário
+        # Se não gerou ID oficial no Bling, gera ID sintético temporário (negativo para nunca colidir com IDs do Bling)
         if not bling_id:
-            synthetic_id = int(datetime.utcnow().timestamp() * 1000)
+            synthetic_id = -int(datetime.utcnow().timestamp() * 1000)
             while FinancialEntry.query.filter_by(bling_id=synthetic_id).first():
-                synthetic_id += 1
+                synthetic_id -= 1
             bling_id = synthetic_id
 
         entry = FinancialEntry(
@@ -872,7 +873,7 @@ class AccountsService:
         db.session.commit()
 
         # Se criado já liquidado e tem ID oficial no Bling, efetua baixa
-        if status == 'Pago' and entry.bling_id < 9000000000:
+        if status == 'Pago' and entry.has_real_bling_id:
             cls.settle_entry(entry.id, payment_date=payment_date, payment_method=entry.payment_method, notes=None)
 
         return ServiceResult(
@@ -952,9 +953,9 @@ class AccountsService:
             client = BlingApiClient()
             if client.is_configured():
                 # Caso o título ainda não tenha ID oficial no Bling, sincroniza criação primeiro
-                if not entry.bling_id or entry.bling_id >= 9000000000:
+                if not entry.has_real_bling_id:
                     cls.sync_single_entry(entry.id)
-                elif entry.bling_id < 9000000000:
+                else:
                     issue_val = entry.issue_date or date.today()
                     comp_val = getattr(entry, 'competence_date', None) or entry.issue_date or entry.due_date or date.today()
 
@@ -1000,7 +1001,7 @@ class AccountsService:
                         bling_msg = f' (Aviso Bling: {msg})'
 
                 # Se o status foi alterado para Pago (fechamento), aciona baixa
-                if entry.status == 'Pago':
+                if entry.status == 'Pago' and prev_status != 'Pago':
                     cls.settle_entry(entry.id, payment_date=entry.payment_date, payment_method=entry.payment_method, notes=None)
                 elif entry.status in ('Pendente', 'Atrasado') and prev_status == 'Pago':
                     cls.unsettle_entry(entry.id)
@@ -1036,7 +1037,7 @@ class AccountsService:
         try:
             from app.services.bling_api import BlingApiClient
             client = BlingApiClient()
-            if client.is_configured() and bling_id and bling_id < 9000000000:
+            if client.is_configured() and FinancialEntry.is_real_bling_id(bling_id):
                 if entry_type == 'PAGAR':
                     ok, msg = client.delete_payable(bling_id)
                 else:
@@ -1084,7 +1085,7 @@ class AccountsService:
 
         try:
             # Caso 1: Lançamento local que ainda não foi criado no Bling
-            if not entry.bling_id or entry.bling_id >= 9000000000:
+            if not entry.has_real_bling_id:
                 if not entry.bling_contact_id and entry.entity_name:
                     try:
                         contacts = client.get_contacts(limit=100)
@@ -1140,7 +1141,7 @@ class AccountsService:
                     db.session.commit()
                     return ServiceResult(success=False, message=f'Falha ao sincronizar com o Bling: {msg}', entry=entry)
 
-            # Caso 2: Título já possui ID oficial no Bling
+            # Caso 2: Título já possui ID oficial no Bling (Atualização / Baixa direta)
             if entry.status == 'Pago':
                 return cls.settle_entry(entry.id, payment_date=entry.payment_date, payment_method=entry.payment_method, notes=None)
             else:

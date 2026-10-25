@@ -793,18 +793,53 @@ class BlingApiClient:
             logger.error(f"[BlingApiClient] Exceção ao excluir conta a receber {bling_id}: {e}")
             return False, f"Bling API: {str(e)}"
 
-    def unsettle_account(self, entry_type: str, bling_id: int) -> tuple:
+    def unsettle_account(self, entry_type: str, bling_id: int, bordero_id: int | None = None) -> tuple:
         """
         Estorna ou reabre uma conta baixada no Bling ERP (restabelece situação para Em Aberto).
+        1. Se houver id do borderô/baixa vinculado, remove o borderô (DELETE /borderos/{id}).
+        2. Se não houver, consulta o lançamento para identificar eventuais borderôs/baixas ativas.
+        3. Executa estorno/reabertura via POST .../estornar ou PUT com situacao=1.
         """
         try:
             base_route = '/contas/pagar' if entry_type == 'PAGAR' else '/contas/receber'
-            # Tentativa 1: Endpoint de estorno direto
+
+            # 1. Se possuímos o ID do borderô registrado, exclui diretamente o borderô
+            if bordero_id:
+                try:
+                    resp_bord = self.request('DELETE', f'/borderos/{bordero_id}')
+                    if resp_bord and resp_bord.status_code in (200, 204):
+                        logger.info(f"[BlingApiClient] Borderô #{bordero_id} da conta {bling_id} excluído com sucesso.")
+                        return True, "Baixa/Borderô estornado no Bling com sucesso!"
+                except Exception as b_err:
+                    logger.warning(f"[BlingApiClient] Tentativa de remover borderô {bordero_id} falhou: {b_err}")
+
+            # 2. Consulta a conta no Bling para verificar se possui borderô/baixa vinculada
+            try:
+                resp_det = self.request('GET', f"{base_route}/{bling_id}")
+                if resp_det and resp_det.status_code == 200:
+                    det = resp_det.json().get('data', {})
+                    b_id = None
+                    if isinstance(det.get('bordero'), dict):
+                        b_id = det['bordero'].get('id')
+                    elif det.get('idBordero'):
+                        b_id = det.get('idBordero')
+                    elif isinstance(det.get('borderos'), list) and det['borderos']:
+                        b_id = det['borderos'][0].get('id') if isinstance(det['borderos'][0], dict) else det['borderos'][0]
+
+                    if b_id:
+                        resp_del_b = self.request('DELETE', f'/borderos/{b_id}')
+                        if resp_del_b and resp_del_b.status_code in (200, 204):
+                            logger.info(f"[BlingApiClient] Borderô identificado #{b_id} excluído com sucesso.")
+                            return True, "Baixa estornada no Bling ERP com sucesso!"
+            except Exception as det_err:
+                logger.debug(f"[BlingApiClient] Detalhes da conta para estorno não recuperados: {det_err}")
+
+            # 3. Tentativa via endpoint de estorno
             resp = self.request('POST', f"{base_route}/{bling_id}/estornar")
             if resp and resp.status_code in (200, 204):
                 return True, "Baixa estornada no Bling com sucesso!"
 
-            # Tentativa 2: Atualização de situação para Em Aberto (situacao: 1)
+            # 4. Tentativa via alteração de situação para Em Aberto (situacao: 1)
             reopen_payload = {'situacao': 1}
             resp_reopen = self.request('PUT', f"{base_route}/{bling_id}", json_data=reopen_payload)
             if resp_reopen and resp_reopen.status_code in (200, 204):

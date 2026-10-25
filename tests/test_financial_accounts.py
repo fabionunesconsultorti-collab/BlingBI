@@ -310,9 +310,9 @@ def test_accounts_sync_single_entry_retry(app, monkeypatch):
 
         monkeypatch.setattr(BlingApiClient, 'create_payable', mock_create_payable)
 
-        # Lançamento local com ID sintético (>= 9000000000)
+        # Lançamento local com ID sintético (< 0 ou >= 1_000_000_000_000)
         entry = FinancialEntry(
-            bling_id=9991234567,
+            bling_id=-1729000123456,
             entry_type='PAGAR',
             description='Lançamento Local Pendente de Envio',
             amount=320.0,
@@ -466,7 +466,7 @@ def test_accounts_duplicate_prevention_and_status_preservation(app, monkeypatch)
 
         # 1. Cria lançamento local com ID sintético (ex: falha de conexão inicial com Bling)
         local_entry = FinancialEntry(
-            bling_id=9876543210,
+            bling_id=-1729000987654,
             entry_type='PAGAR',
             description='Servidor Dedicado Cloud',
             amount=350.0,
@@ -518,6 +518,92 @@ def test_accounts_duplicate_prevention_and_status_preservation(app, monkeypatch)
         # O status de fechamento ('Pago') deve ser preservado e NÃO revertido para 'Pendente'
         assert updated_entry.status == 'Pago'
         assert updated_entry.payment_date == date(2026, 10, 24)
+
+
+def test_accounts_real_11digit_id_mirroring_baixa_and_estorno(app, monkeypatch):
+    """
+    Testa títulos com IDs reais do Bling ERP de 11 dígitos (~25 bilhões, ex: 25067304074):
+    1. Alteração (update_entry) deve chamar update_payable no Bling e NUNCA create_payable (zero duplicação).
+    2. Baixa (settle_entry) deve enviar settle_payable e registrar bling_bordero_id.
+    3. Estorno (unsettle_entry) deve chamar unsettle_account passando bordero_id e retornar a Pendente.
+    """
+    with app.app_context():
+        from app.services.bling_api import BlingApiClient
+        monkeypatch.setattr(BlingApiClient, 'is_configured', lambda self: True)
+
+        calls = {
+            'update_payable': 0,
+            'create_payable': 0,
+            'settle_payable': 0,
+            'unsettle_account': 0
+        }
+
+        def mock_update(self, bling_id, payload):
+            calls['update_payable'] += 1
+            return True, "Atualizado", {'id': bling_id}
+
+        def mock_create(self, payload):
+            calls['create_payable'] += 1
+            return True, "Criado", {'id': 99999}
+
+        def mock_settle(self, bling_id, payload):
+            calls['settle_payable'] += 1
+            return True, "Baixado", {'id': 888777}  # ID do borderô retornado pelo Bling
+
+        def mock_unsettle(self, entry_type, bling_id, bordero_id=None):
+            calls['unsettle_account'] += 1
+            return True, f"Borderô {bordero_id} estornado com sucesso!"
+
+        monkeypatch.setattr(BlingApiClient, 'update_payable', mock_update)
+        monkeypatch.setattr(BlingApiClient, 'create_payable', mock_create)
+        monkeypatch.setattr(BlingApiClient, 'settle_payable', mock_settle)
+        monkeypatch.setattr(BlingApiClient, 'unsettle_account', mock_unsettle)
+
+        # 1. Título com ID real do Bling de 11 dígitos
+        real_bling_id = 25067304074
+        entry = FinancialEntry(
+            bling_id=real_bling_id,
+            entry_type='PAGAR',
+            description='Fornecedor Matéria Prima Principal',
+            amount=4200.0,
+            due_date=date.today(),
+            status='Pendente'
+        )
+        db.session.add(entry)
+        db.session.commit()
+        entry_id = entry.id
+
+        assert entry.has_real_bling_id is True
+
+        # 2. Alteração de qualquer dado: DEVE chamar update_payable e NUNCA create_payable
+        res_upd = AccountsService.update_entry(entry_id, {
+            'description': 'Fornecedor Matéria Prima - NF 8832',
+            'amount': 4500.0
+        })
+        assert res_upd.get('success') is True
+        assert calls['update_payable'] == 1
+        assert calls['create_payable'] == 0  # Garante zero duplicações!
+        assert entry.amount == 4500.0
+
+        # 3. Baixa do título: DEVE chamar settle_payable e salvar bling_bordero_id
+        res_settle = AccountsService.settle_entry(
+            entry_id=entry_id,
+            payment_date=date.today().strftime('%Y-%m-%d'),
+            payment_method='PIX'
+        )
+        assert res_settle.get('success') is True
+        assert calls['settle_payable'] == 1
+        assert entry.status == 'Pago'
+        assert entry.bling_bordero_id == 888777
+
+        # 4. Estorno do título: DEVE chamar unsettle_account com o borderô e voltar para Pendente
+        res_unsettle = AccountsService.unsettle_entry(entry_id)
+        assert res_unsettle.get('success') is True
+        assert calls['unsettle_account'] == 1
+        assert entry.status == 'Pendente'
+        assert entry.payment_date is None
+        assert entry.bling_bordero_id is None
+
 
 
 
