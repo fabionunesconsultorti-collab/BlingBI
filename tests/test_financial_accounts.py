@@ -499,7 +499,20 @@ def test_accounts_duplicate_prevention_and_status_preservation(app, monkeypatch)
         # Garante que não duplicou o texto de observação
         assert res_create_dup.get('entry').notes.count('[Baixa em') <= 1
 
-        # 3. Sincronização do Bling retorna o título com situacao: 1 (Pendente no Bling, pois falta de escopo ou baixa não lançada lá)
+        # 3. Cria um segundo lançamento não existente no Bling para testar a supressão
+        orphan_entry = FinancialEntry(
+            bling_id=-999888777,
+            entry_type='PAGAR',
+            description='Título Não Existente no Bling',
+            amount=120.0,
+            due_date=date(2026, 11, 25),
+            status='Pendente'
+        )
+        db.session.add(orphan_entry)
+        db.session.commit()
+        orphan_id = orphan_entry.id
+
+        # 4. Sincronização do Bling retorna apenas o título oficial (situacao: 1 = Aberto/Pendente no Bling)
         mock_bling_items = [{
             'id': 776655,
             'historico': 'Servidor Dedicado Cloud',
@@ -518,9 +531,12 @@ def test_accounts_duplicate_prevention_and_status_preservation(app, monkeypatch)
         updated_entry = db.session.get(FinancialEntry, local_id)
         assert updated_entry.bling_id == 776655
 
-        # O status de fechamento ('Pago') deve ser preservado e NÃO revertido para 'Pendente'
-        assert updated_entry.status == 'Pago'
-        assert updated_entry.payment_date == date(2026, 10, 24)
+        # O status no BI reflete com 100% de fidelidade a situação do Bling (situacao 1 = Pendente)
+        assert updated_entry.status == 'Pendente'
+        assert updated_entry.payment_date is None
+
+        # O título órfão inexistente no Bling deve ser suprimido (excluído) do BI
+        assert db.session.get(FinancialEntry, orphan_id) is None
 
 
 def test_accounts_real_11digit_id_mirroring_baixa_and_estorno(app, monkeypatch):

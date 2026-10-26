@@ -272,6 +272,16 @@ class BlingApiClient:
             return resp.json().get('data', [])
         return []
 
+    def get_contact(self, contact_id: int):
+        """Consulta um contato específico no Bling ERP (GET /contatos/{id})."""
+        try:
+            resp = self.request('GET', f'/contatos/{contact_id}')
+            if resp and resp.status_code == 200:
+                return resp.json().get('data', {})
+        except Exception as e:
+            logger.error(f"[BlingApiClient] Erro ao consultar contato {contact_id}: {e}")
+        return None
+
     def get_products(self, page=1, limit=100, code=None, product_type=None, criteria=None):
         """
         Lista produtos da API v3 do Bling (/produtos) com suporte a paginação e filtros.
@@ -322,20 +332,56 @@ class BlingApiClient:
         return {}
 
     def get_receivables(self, page=1, limit=100):
-        resp = self.request('GET', '/contas/receber', params={'pagina': page, 'limite': limit})
-        if not resp or resp.status_code == 404:
-            resp = self.request('GET', '/contas-receber', params={'pagina': page, 'limite': limit})
-        if resp and resp.status_code == 200:
-            return resp.json().get('data', [])
-        return []
+        try:
+            resp = self.request('GET', '/contas/receber', params={'pagina': page, 'limite': limit})
+            if not resp or resp.status_code == 404:
+                resp = self.request('GET', '/contas-receber', params={'pagina': page, 'limite': limit})
+            if resp and resp.status_code == 200:
+                return resp.json().get('data', [])
+            elif resp and resp.status_code == 404:
+                return []
+            logger.error(f"[BlingApiClient] Falha ao consultar contas a receber (página {page}): status {getattr(resp, 'status_code', None)}")
+        except Exception as e:
+            logger.error(f"[BlingApiClient] Exceção ao consultar contas a receber: {e}")
+        return None
+
+    def get_receivable_detail(self, bling_id: int):
+        """Consulta dados detalhados de uma conta a receber específica no Bling ERP (GET /contas/receber/{id})."""
+        try:
+            resp = self.request('GET', f'/contas/receber/{bling_id}')
+            if not resp or resp.status_code == 404:
+                resp = self.request('GET', f'/contas-receber/{bling_id}')
+            if resp and resp.status_code == 200:
+                return resp.json().get('data', {})
+        except Exception as e:
+            logger.error(f"[BlingApiClient] Erro ao consultar detalhe da conta a receber {bling_id}: {e}")
+        return None
 
     def get_payables(self, page=1, limit=100):
-        resp = self.request('GET', '/contas/pagar', params={'pagina': page, 'limite': limit})
-        if not resp or resp.status_code == 404:
-            resp = self.request('GET', '/contas-pagar', params={'pagina': page, 'limite': limit})
-        if resp and resp.status_code == 200:
-            return resp.json().get('data', [])
-        return []
+        try:
+            resp = self.request('GET', '/contas/pagar', params={'pagina': page, 'limite': limit})
+            if not resp or resp.status_code == 404:
+                resp = self.request('GET', '/contas-pagar', params={'pagina': page, 'limite': limit})
+            if resp and resp.status_code == 200:
+                return resp.json().get('data', [])
+            elif resp and resp.status_code == 404:
+                return []
+            logger.error(f"[BlingApiClient] Falha ao consultar contas a pagar (página {page}): status {getattr(resp, 'status_code', None)}")
+        except Exception as e:
+            logger.error(f"[BlingApiClient] Exceção ao consultar contas a pagar: {e}")
+        return None
+
+    def get_payable_detail(self, bling_id: int):
+        """Consulta dados detalhados de uma conta a pagar específica no Bling ERP (GET /contas/pagar/{id})."""
+        try:
+            resp = self.request('GET', f'/contas/pagar/{bling_id}')
+            if not resp or resp.status_code == 404:
+                resp = self.request('GET', f'/contas-pagar/{bling_id}')
+            if resp and resp.status_code == 200:
+                return resp.json().get('data', {})
+        except Exception as e:
+            logger.error(f"[BlingApiClient] Erro ao consultar detalhe da conta a pagar {bling_id}: {e}")
+        return None
 
     def get_stock_balances(self, page=1, limit=100, product_ids=None, deposit_ids=None):
         """

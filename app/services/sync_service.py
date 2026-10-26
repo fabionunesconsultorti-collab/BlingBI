@@ -644,117 +644,185 @@ class SyncService:
     def sync_receivables(client=None):
         client = client or BlingApiClient()
         count = 0
+        seen_bling_ids = set()
+        
+        # Carrega categorias e formas de pagamento para mapeamento de nomes amigáveis
+        cat_map = {}
+        pm_map = {}
         try:
-            recs = client.get_receivables(page=1, limit=100)
-            if not recs:
-                return 0
+            cat_list = client.get_revenue_expense_categories() or []
+            cat_map = {c['id']: c.get('descricao') for c in cat_list if isinstance(c, dict) and 'id' in c}
+        except Exception:
+            pass
+        try:
+            pm_list = client.get_payment_methods() or []
+            pm_map = {p['id']: p.get('descricao') for p in pm_list if isinstance(p, dict) and 'id' in p}
+        except Exception:
+            pass
 
-            for item in recs:
-                try:
-                    b_id = item.get('id')
-                    if not b_id:
-                        continue
+        try:
+            page = 1
+            while True:
+                recs = client.get_receivables(page=page, limit=100)
+                if recs is None:
+                    logger.error(f"[SyncService] Erro ao consultar contas a receber na página {page} do Bling ERP.")
+                    if page == 1:
+                        return 0
+                    break
+                if not recs:
+                    break
 
-                    venc = item.get('vencimento')
-                    venc_date = None
-                    if venc:
-                        try:
-                            venc_date = date_parser.parse(str(venc)[:10]).date()
-                        except Exception:
-                            pass
+                new_ids = {item.get('id') for item in recs if isinstance(item, dict) and item.get('id')}
+                if page > 1 and new_ids.issubset(seen_bling_ids):
+                    break
 
-                    amount_val = float(item.get('valor', 0.0) or 0.0)
+                for item in recs:
+                    try:
+                        b_id = item.get('id')
+                        if not b_id:
+                            continue
+                        seen_bling_ids.add(b_id)
 
-                    entry = FinancialEntry.query.filter_by(bling_id=b_id, entry_type='RECEBER').first()
-                    if not entry:
-                        # Evita criar título duplicado em aberto se já existir um lançamento local não sincronizado
-                        local_match = None
-                        if venc_date:
-                            local_match = FinancialEntry.query.filter(
-                                FinancialEntry.entry_type == 'RECEBER',
-                                or_(
-                                    FinancialEntry.bling_id.is_(None),
-                                    FinancialEntry.bling_id < 0,
-                                    FinancialEntry.bling_id >= 1_000_000_000_000
-                                ),
-                                FinancialEntry.due_date == venc_date,
-                                FinancialEntry.amount == amount_val
-                            ).first()
+                        venc = item.get('vencimento')
+                        venc_date = None
+                        if venc:
+                            try:
+                                venc_date = date_parser.parse(str(venc)[:10]).date()
+                            except Exception:
+                                pass
 
-                        if local_match:
-                            entry = local_match
-                            entry.bling_id = b_id
-                            logger.info(f"Associando lançamento a receber local #{entry.id} ao ID Bling #{b_id}")
+                        amount_val = float(item.get('valor', 0.0) or 0.0)
+
+                        entry = FinancialEntry.query.filter_by(bling_id=b_id, entry_type='RECEBER').first()
+                        if not entry:
+                            # Se já existir um lançamento local não sincronizado correspondente, associa sem duplicar
+                            local_match = None
+                            if venc_date:
+                                local_match = FinancialEntry.query.filter(
+                                    FinancialEntry.entry_type == 'RECEBER',
+                                    or_(
+                                        FinancialEntry.bling_id.is_(None),
+                                        FinancialEntry.bling_id < 0,
+                                        FinancialEntry.bling_id >= 1_000_000_000_000
+                                    ),
+                                    FinancialEntry.due_date == venc_date,
+                                    FinancialEntry.amount == amount_val
+                                ).first()
+
+                            if local_match:
+                                entry = local_match
+                                entry.bling_id = b_id
+                                logger.info(f"Associando lançamento a receber local #{entry.id} ao ID Bling #{b_id}")
+                            else:
+                                entry = FinancialEntry(bling_id=b_id, entry_type='RECEBER')
+                                db.session.add(entry)
+                        
+                        hist = item.get('historico')
+                        if not hist:
+                            origem = item.get('origem', {})
+                            if isinstance(origem, dict) and origem.get('numero'):
+                                hist = f"Recebimento Venda #{origem['numero']}"
+                            elif item.get('numeroDocumento'):
+                                hist = f"Recebimento Doc #{item['numeroDocumento']}"
+                            else:
+                                hist = 'Recebimento de Venda'
+                        entry.description = hist
+                        entry.amount = amount_val
+                        
+                        contato_info = item.get('contato', {})
+                        if isinstance(contato_info, dict):
+                            entry.entity_name = contato_info.get('nome') or 'Cliente'
+                            if contato_info.get('id'):
+                                entry.bling_contact_id = int(contato_info['id'])
                         else:
-                            entry = FinancialEntry(bling_id=b_id, entry_type='RECEBER')
-                            db.session.add(entry)
-                    
-                    entry.description = item.get('historico') or 'Recebimento de Venda'
-                    entry.amount = amount_val
-                    
-                    contato_info = item.get('contato', {})
-                    if isinstance(contato_info, dict):
-                        entry.entity_name = contato_info.get('nome') or 'Cliente'
-                        if contato_info.get('id'):
-                            entry.bling_contact_id = int(contato_info['id'])
-                    else:
-                        entry.entity_name = 'Cliente'
+                            entry.entity_name = 'Cliente'
 
-                    categoria_info = item.get('categoria', {})
-                    if isinstance(categoria_info, dict):
-                        if categoria_info.get('id'):
-                            entry.bling_category_id = int(categoria_info['id'])
-                        if categoria_info.get('descricao'):
-                            entry.category = categoria_info['descricao']
+                        categoria_info = item.get('categoria', {})
+                        if isinstance(categoria_info, dict):
+                            if categoria_info.get('id'):
+                                entry.bling_category_id = int(categoria_info['id'])
+                            if categoria_info.get('descricao'):
+                                entry.category = categoria_info['descricao']
+                            elif entry.bling_category_id in cat_map:
+                                entry.category = cat_map[entry.bling_category_id]
+                        if not entry.category:
+                            conta_contabil = item.get('contaContabil', {})
+                            if isinstance(conta_contabil, dict) and conta_contabil.get('descricao'):
+                                entry.category = conta_contabil['descricao']
+                            else:
+                                entry.category = 'Receita de Vendas'
 
-                    forma_pgto_info = item.get('formaPagamento', {})
-                    if isinstance(forma_pgto_info, dict):
-                        if forma_pgto_info.get('id'):
-                            entry.bling_payment_method_id = int(forma_pgto_info['id'])
-                        if forma_pgto_info.get('descricao'):
-                            entry.payment_method = forma_pgto_info['descricao']
+                        forma_pgto_info = item.get('formaPagamento', {})
+                        if isinstance(forma_pgto_info, dict):
+                            if forma_pgto_info.get('id'):
+                                entry.bling_payment_method_id = int(forma_pgto_info['id'])
+                            if forma_pgto_info.get('descricao'):
+                                entry.payment_method = forma_pgto_info['descricao']
+                            elif entry.bling_payment_method_id in pm_map:
+                                entry.payment_method = pm_map[entry.bling_payment_method_id]
 
-                    if venc_date:
-                        entry.due_date = venc_date
-                    
-                    emissao = item.get('dataEmissao')
-                    if emissao:
-                        try:
-                            entry.issue_date = date_parser.parse(str(emissao)[:10]).date()
-                        except Exception:
-                            pass
+                        if venc_date:
+                            entry.due_date = venc_date
+                        
+                        emissao = item.get('dataEmissao')
+                        if emissao:
+                            try:
+                                entry.issue_date = date_parser.parse(str(emissao)[:10]).date()
+                            except Exception:
+                                pass
 
-                    competencia = item.get('competencia')
-                    if competencia:
-                        try:
-                            entry.competence_date = date_parser.parse(str(competencia)[:10]).date()
-                        except Exception:
-                            pass
-                    elif not entry.competence_date:
-                        entry.competence_date = entry.issue_date or entry.due_date
+                        competencia = item.get('competencia')
+                        if competencia:
+                            try:
+                                entry.competence_date = date_parser.parse(str(competencia)[:10]).date()
+                            except Exception:
+                                pass
+                        elif not entry.competence_date:
+                            entry.competence_date = entry.issue_date or entry.due_date
 
-                    obs = item.get('observacoes')
-                    if obs and not entry.notes:
-                        entry.notes = obs
-                    
-                    situacao = item.get('situacao')
-                    if situacao == 2:
-                        entry.status = 'Pago'
-                        if not entry.payment_date:
-                            entry.payment_date = datetime.utcnow().date()
-                    elif situacao == 3:
-                        entry.status = 'Cancelado'
-                    else:
-                        # Se já estava Pago localmente no BI, preserva o status de fechamento
-                        if entry.status != 'Pago':
-                            entry.status = 'Atrasado' if (entry.due_date and entry.due_date < datetime.utcnow().date()) else 'Pendente'
+                        obs = item.get('observacoes')
+                        if obs and not entry.notes:
+                            entry.notes = obs
+                        
+                        situacao = item.get('situacao')
+                        today = datetime.utcnow().date()
+                        if situacao == 2:
+                            entry.status = 'Pago'
+                            if not entry.payment_date:
+                                entry.payment_date = today
+                        elif situacao == 3:
+                            entry.status = 'Cancelado'
+                        else:
+                            # situacao == 1 ou aberta no Bling: espelha fielmente como Aberto (Pendente ou Atrasado)
+                            entry.status = 'Atrasado' if (entry.due_date and entry.due_date < today) else 'Pendente'
+                            entry.payment_date = None
+                            entry.bling_bordero_id = None
 
-                    entry.sync_status = 'synced'
-                    entry.last_sync_at = datetime.utcnow()
-                    entry.sync_error_msg = None
-                    count += 1
-                except Exception as rec_err:
-                    logger.warning(f"Erro em conta a receber {item.get('id')}: {rec_err}")
+                        entry.sync_status = 'synced'
+                        entry.last_sync_at = datetime.utcnow()
+                        entry.sync_error_msg = None
+                        count += 1
+                    except Exception as rec_err:
+                        logger.warning(f"Erro em conta a receber {item.get('id')}: {rec_err}")
+
+                if len(recs) < 100:
+                    break
+                page += 1
+                time.sleep(0.1)
+
+            # REGRA DE SUPRESSÃO: Se não constar no Bling ERP, deve ser suprimido do BI
+            entries_to_delete = FinancialEntry.query.filter(
+                FinancialEntry.entry_type == 'RECEBER'
+            ).all()
+            suppressed_count = 0
+            for fe in entries_to_delete:
+                if fe.bling_id not in seen_bling_ids:
+                    logger.info(f"[SyncService] Suprimindo conta a receber #{fe.id} (Bling ID {fe.bling_id}): título inexistente no Bling ERP.")
+                    db.session.delete(fe)
+                    suppressed_count += 1
+
+            if suppressed_count > 0:
+                logger.info(f"[SyncService] {suppressed_count} título(s) a receber suprimido(s) do BI por não constarem no Bling.")
 
             db.session.commit()
         except Exception as e:
@@ -767,117 +835,200 @@ class SyncService:
     def sync_payables(client=None):
         client = client or BlingApiClient()
         count = 0
+        seen_bling_ids = set()
+
+        cat_map = {}
+        pm_map = {}
+        contact_cache = {}
         try:
-            pays = client.get_payables(page=1, limit=100)
-            if not pays:
-                return 0
+            cat_list = client.get_revenue_expense_categories() or []
+            cat_map = {c['id']: c.get('descricao') for c in cat_list if isinstance(c, dict) and 'id' in c}
+        except Exception:
+            pass
+        try:
+            pm_list = client.get_payment_methods() or []
+            pm_map = {p['id']: p.get('descricao') for p in pm_list if isinstance(p, dict) and 'id' in p}
+        except Exception:
+            pass
 
-            for item in pays:
-                try:
-                    b_id = item.get('id')
-                    if not b_id:
-                        continue
+        try:
+            page = 1
+            while True:
+                pays = client.get_payables(page=page, limit=100)
+                if pays is None:
+                    logger.error(f"[SyncService] Erro ao consultar contas a pagar na página {page} do Bling ERP.")
+                    if page == 1:
+                        return 0
+                    break
+                if not pays:
+                    break
 
-                    venc = item.get('vencimento')
-                    venc_date = None
-                    if venc:
-                        try:
-                            venc_date = date_parser.parse(str(venc)[:10]).date()
-                        except Exception:
-                            pass
+                new_ids = {item.get('id') for item in pays if isinstance(item, dict) and item.get('id')}
+                if page > 1 and new_ids.issubset(seen_bling_ids):
+                    break
 
-                    amount_val = float(item.get('valor', 0.0) or 0.0)
+                for item in pays:
+                    try:
+                        b_id = item.get('id')
+                        if not b_id:
+                            continue
+                        seen_bling_ids.add(b_id)
 
-                    entry = FinancialEntry.query.filter_by(bling_id=b_id, entry_type='PAGAR').first()
-                    if not entry:
-                        # Evita criar título duplicado em aberto se já existir um lançamento local não sincronizado
-                        local_match = None
-                        if venc_date:
-                            local_match = FinancialEntry.query.filter(
-                                FinancialEntry.entry_type == 'PAGAR',
-                                or_(
-                                    FinancialEntry.bling_id.is_(None),
-                                    FinancialEntry.bling_id < 0,
-                                    FinancialEntry.bling_id >= 1_000_000_000_000
-                                ),
-                                FinancialEntry.due_date == venc_date,
-                                FinancialEntry.amount == amount_val
-                            ).first()
+                        # Enriquecimento com detalhes: se a listagem omitir histórico, dataEmissao ou categoria
+                        if not item.get('historico') or not item.get('categoria') or not item.get('dataEmissao'):
+                            try:
+                                det = client.get_payable_detail(b_id)
+                                if det and isinstance(det, dict):
+                                    for k, v in det.items():
+                                        if k not in item or not item[k]:
+                                            item[k] = v
+                            except Exception as det_err:
+                                logger.warning(f"Não foi possível obter detalhes da conta a pagar #{b_id}: {det_err}")
 
-                        if local_match:
-                            entry = local_match
-                            entry.bling_id = b_id
-                            logger.info(f"Associando lançamento a pagar local #{entry.id} ao ID Bling #{b_id}")
+                        venc = item.get('vencimento')
+                        venc_date = None
+                        if venc:
+                            try:
+                                venc_date = date_parser.parse(str(venc)[:10]).date()
+                            except Exception:
+                                pass
+
+                        amount_val = float(item.get('valor', 0.0) or 0.0)
+
+                        entry = FinancialEntry.query.filter_by(bling_id=b_id, entry_type='PAGAR').first()
+                        if not entry:
+                            # Se já existir um lançamento local não sincronizado correspondente, associa sem duplicar
+                            local_match = None
+                            if venc_date:
+                                local_match = FinancialEntry.query.filter(
+                                    FinancialEntry.entry_type == 'PAGAR',
+                                    or_(
+                                        FinancialEntry.bling_id.is_(None),
+                                        FinancialEntry.bling_id < 0,
+                                        FinancialEntry.bling_id >= 1_000_000_000_000
+                                    ),
+                                    FinancialEntry.due_date == venc_date,
+                                    FinancialEntry.amount == amount_val
+                                ).first()
+
+                            if local_match:
+                                entry = local_match
+                                entry.bling_id = b_id
+                                logger.info(f"Associando lançamento a pagar local #{entry.id} ao ID Bling #{b_id}")
+                            else:
+                                entry = FinancialEntry(bling_id=b_id, entry_type='PAGAR')
+                                db.session.add(entry)
+                        
+                        entry.description = item.get('historico') or (f"Despesa Doc #{item['numeroDocumento']}" if item.get('numeroDocumento') else 'Pagamento de Despesa')
+                        entry.amount = amount_val
+                        
+                        fornecedor_info = item.get('contato', {}) or item.get('fornecedor', {})
+                        if isinstance(fornecedor_info, dict):
+                            contact_id = fornecedor_info.get('id')
+                            contact_name = fornecedor_info.get('nome')
+                            if contact_id:
+                                entry.bling_contact_id = int(contact_id)
+                                if not contact_name:
+                                    if contact_id in contact_cache:
+                                        contact_name = contact_cache[contact_id]
+                                    else:
+                                        try:
+                                            c_det = client.get_contact(int(contact_id))
+                                            if c_det and isinstance(c_det, dict) and c_det.get('nome'):
+                                                contact_name = c_det['nome']
+                                                contact_cache[contact_id] = contact_name
+                                        except Exception:
+                                            pass
+                            entry.entity_name = contact_name or 'Fornecedor'
                         else:
-                            entry = FinancialEntry(bling_id=b_id, entry_type='PAGAR')
-                            db.session.add(entry)
-                    
-                    entry.description = item.get('historico') or 'Pagamento de Despesa'
-                    entry.amount = amount_val
-                    
-                    fornecedor_info = item.get('contato', {}) or item.get('fornecedor', {})
-                    if isinstance(fornecedor_info, dict):
-                        entry.entity_name = fornecedor_info.get('nome') or 'Fornecedor'
-                        if fornecedor_info.get('id'):
-                            entry.bling_contact_id = int(fornecedor_info['id'])
-                    else:
-                        entry.entity_name = 'Fornecedor'
+                            entry.entity_name = 'Fornecedor'
 
-                    categoria_info = item.get('categoria', {})
-                    if isinstance(categoria_info, dict):
-                        if categoria_info.get('id'):
-                            entry.bling_category_id = int(categoria_info['id'])
-                        if categoria_info.get('descricao'):
-                            entry.category = categoria_info['descricao']
+                        categoria_info = item.get('categoria', {})
+                        if isinstance(categoria_info, dict):
+                            if categoria_info.get('id'):
+                                entry.bling_category_id = int(categoria_info['id'])
+                            if categoria_info.get('descricao'):
+                                entry.category = categoria_info['descricao']
+                            elif entry.bling_category_id in cat_map:
+                                entry.category = cat_map[entry.bling_category_id]
+                        if not entry.category:
+                            entry.category = 'Despesa Operacional'
 
-                    forma_pgto_info = item.get('formaPagamento', {})
-                    if isinstance(forma_pgto_info, dict):
-                        if forma_pgto_info.get('id'):
-                            entry.bling_payment_method_id = int(forma_pgto_info['id'])
-                        if forma_pgto_info.get('descricao'):
-                            entry.payment_method = forma_pgto_info['descricao']
+                        forma_pgto_info = item.get('formaPagamento', {})
+                        if isinstance(forma_pgto_info, dict):
+                            if forma_pgto_info.get('id'):
+                                entry.bling_payment_method_id = int(forma_pgto_info['id'])
+                            if forma_pgto_info.get('descricao'):
+                                entry.payment_method = forma_pgto_info['descricao']
+                            elif entry.bling_payment_method_id in pm_map:
+                                entry.payment_method = pm_map[entry.bling_payment_method_id]
 
-                    if venc_date:
-                        entry.due_date = venc_date
-                    
-                    emissao = item.get('dataEmissao')
-                    if emissao:
-                        try:
-                            entry.issue_date = date_parser.parse(str(emissao)[:10]).date()
-                        except Exception:
-                            pass
+                        if venc_date:
+                            entry.due_date = venc_date
+                        
+                        emissao = item.get('dataEmissao')
+                        if emissao:
+                            try:
+                                entry.issue_date = date_parser.parse(str(emissao)[:10]).date()
+                            except Exception:
+                                pass
 
-                    competencia = item.get('competencia')
-                    if competencia:
-                        try:
-                            entry.competence_date = date_parser.parse(str(competencia)[:10]).date()
-                        except Exception:
-                            pass
-                    elif not entry.competence_date:
-                        entry.competence_date = entry.issue_date or entry.due_date
+                        competencia = item.get('competencia')
+                        if competencia:
+                            try:
+                                entry.competence_date = date_parser.parse(str(competencia)[:10]).date()
+                            except Exception:
+                                pass
+                        elif not entry.competence_date:
+                            entry.competence_date = entry.issue_date or entry.due_date
 
-                    obs = item.get('observacoes')
-                    if obs and not entry.notes:
-                        entry.notes = obs
-                    
-                    situacao = item.get('situacao')
-                    if situacao == 2:
-                        entry.status = 'Pago'
-                        if not entry.payment_date:
-                            entry.payment_date = datetime.utcnow().date()
-                    elif situacao == 3:
-                        entry.status = 'Cancelado'
-                    else:
-                        # Se já estava Pago localmente no BI, preserva o status de fechamento
-                        if entry.status != 'Pago':
-                            entry.status = 'Atrasado' if (entry.due_date and entry.due_date < datetime.utcnow().date()) else 'Pendente'
+                        obs = item.get('observacoes')
+                        if obs and not entry.notes:
+                            entry.notes = obs
+                        
+                        situacao = item.get('situacao')
+                        today = datetime.utcnow().date()
+                        if situacao == 2:
+                            entry.status = 'Pago'
+                            if not entry.payment_date:
+                                entry.payment_date = today
+                            borderos = item.get('borderos') or []
+                            if borderos and isinstance(borderos, list):
+                                first_b = borderos[0]
+                                entry.bling_bordero_id = first_b.get('id') if isinstance(first_b, dict) else first_b
+                        elif situacao == 3:
+                            entry.status = 'Cancelado'
+                        else:
+                            # situacao == 1 ou aberta no Bling: espelha fielmente como Aberto (Pendente ou Atrasado)
+                            entry.status = 'Atrasado' if (entry.due_date and entry.due_date < today) else 'Pendente'
+                            entry.payment_date = None
+                            entry.bling_bordero_id = None
 
-                    entry.sync_status = 'synced'
-                    entry.last_sync_at = datetime.utcnow()
-                    entry.sync_error_msg = None
-                    count += 1
-                except Exception as pay_err:
-                    logger.warning(f"Erro em conta a pagar {item.get('id')}: {pay_err}")
+                        entry.sync_status = 'synced'
+                        entry.last_sync_at = datetime.utcnow()
+                        entry.sync_error_msg = None
+                        count += 1
+                    except Exception as pay_err:
+                        logger.warning(f"Erro em conta a pagar {item.get('id')}: {pay_err}")
+
+                if len(pays) < 100:
+                    break
+                page += 1
+                time.sleep(0.1)
+
+            # REGRA DE SUPRESSÃO: Se não constar no Bling ERP, deve ser suprimido do BI
+            entries_to_delete = FinancialEntry.query.filter(
+                FinancialEntry.entry_type == 'PAGAR'
+            ).all()
+            suppressed_count = 0
+            for fe in entries_to_delete:
+                if fe.bling_id not in seen_bling_ids:
+                    logger.info(f"[SyncService] Suprimindo conta a pagar #{fe.id} (Bling ID {fe.bling_id}): título inexistente no Bling ERP.")
+                    db.session.delete(fe)
+                    suppressed_count += 1
+
+            if suppressed_count > 0:
+                logger.info(f"[SyncService] {suppressed_count} título(s) a pagar suprimido(s) do BI por não constarem no Bling.")
 
             db.session.commit()
         except Exception as e:
@@ -885,4 +1036,15 @@ class SyncService:
             db.session.rollback()
             raise e
         return count
+
+    @staticmethod
+    def purge_unmirrored_financial_entries(client=None):
+        """
+        Sincroniza e suprime títulos financeiros que não existam no Bling ERP.
+        Retorna dicionário com contagem de títulos atualizados.
+        """
+        client = client or BlingApiClient()
+        recs = SyncService.sync_receivables(client)
+        pays = SyncService.sync_payables(client)
+        return {'receivables': recs, 'payables': pays}
 
