@@ -407,11 +407,80 @@ class PricingEngine:
         }
 
     @classmethod
+    def calculate_dre_for_given_price(
+        cls,
+        cost: float,
+        price: float,
+        rule: MarketplaceRule
+    ) -> dict:
+        """
+        Calcula o DRE unitário (lucro líquido, margem %, taxas) para um preço de venda
+        definido manualmente em um determinado canal/marketplace.
+        """
+        cost = max(0.01, float(cost or 0.01))
+        price = max(0.0, float(price or 0.0))
+
+        comm_pct = float(rule.commission_percent or 0.0)
+        tax_pct = float(rule.tax_percent or 0.0)
+        op_pct = float(rule.operational_cost_percent or 0.0)
+        fixed_fee = float(rule.fixed_fee or 0.0)
+        fixed_thresh = float(rule.fixed_fee_threshold or 0.0)
+        free_ship_thresh = float(rule.free_shipping_threshold or 999999.0)
+        ship_cost = float(rule.default_shipping_cost or 0.0)
+
+        applied_fixed_fee = fixed_fee if (fixed_fee > 0 and price < fixed_thresh) else 0.0
+        applied_shipping = ship_cost if (ship_cost > 0 and price >= free_ship_thresh) else 0.0
+
+        comm_rs = round(price * (comm_pct / 100.0), 2)
+        tax_rs = round(price * (tax_pct / 100.0), 2)
+        op_rs = round(price * (op_pct / 100.0), 2)
+        net_profit_rs = round(
+            price - cost - comm_rs - tax_rs - op_rs - applied_fixed_fee - applied_shipping,
+            2
+        )
+        real_margin_pct = round((net_profit_rs / price * 100.0), 2) if price > 0 else 0.0
+        markup_multiplier = round(price / cost, 2) if cost > 0 else 0.0
+
+        return {
+            'price': round(price, 2),
+            'cost': cost,
+            'commission_rs': comm_rs,
+            'tax_rs': tax_rs,
+            'operational_rs': op_rs,
+            'fixed_fee_rs': applied_fixed_fee,
+            'shipping_rs': applied_shipping,
+            'net_profit_rs': net_profit_rs,
+            'margin_percent': real_margin_pct,
+            'markup_multiplier': markup_multiplier
+        }
+
+    @classmethod
+    def get_physical_store_price(cls, product: Product, cp_by_channel: dict | None = None) -> float:
+        """
+        Obtém o Preço de Venda Loja Física de um produto.
+        Usa o preço base cadastrado no produto (product.price), ou o preço específico
+        de canal Loja Física caso o preço base esteja zerado.
+        """
+        base_price = float(product.price or 0.0)
+        if base_price > 0:
+            return round(base_price, 2)
+
+        if cp_by_channel:
+            for ch_name, cp in cp_by_channel.items():
+                if any(w in ch_name.lower() for w in ['física', 'fisica', 'balcão', 'balcao']) and cp and cp.price and cp.price > 0:
+                    return round(float(cp.price), 2)
+        return round(base_price, 2)
+
+    @classmethod
     def calculate_product_channel_pricing(
         cls,
         product: Product,
         rule: MarketplaceRule,
-        custom_target_margin: float | None = None
+        custom_target_margin: float | None = None,
+        custom_commission_percent: float | None = None,
+        preloaded_cp: ProductChannelPrice | None = None,
+        has_preloaded_cp: bool = False,
+        physical_store_price: float | None = None
     ) -> dict:
         """Calcula o preço sugerido de um produto específico para uma regra de marketplace."""
         # Prioriza o custo de aquisição / valor pago; se zerado, usa o custo base do produto
@@ -420,10 +489,11 @@ class PricingEngine:
             cost = float(product.price or 10.0) * 0.5 # estimativa se ambos estiverem zerados
 
         margin = custom_target_margin if custom_target_margin is not None else rule.target_margin_percent
+        comm_pct = custom_commission_percent if custom_commission_percent is not None else rule.commission_percent
 
         calc = cls.calculate_price_for_cost(
             cost=cost,
-            commission_percent=rule.commission_percent,
+            commission_percent=comm_pct,
             tax_percent=rule.tax_percent,
             operational_percent=rule.operational_cost_percent,
             target_margin_percent=margin,
@@ -433,6 +503,8 @@ class PricingEngine:
             shipping_cost=rule.default_shipping_cost
         )
 
+        phys_price = physical_store_price if physical_store_price is not None else cls.get_physical_store_price(product)
+
         calc['product_id'] = product.id
         calc['product_name'] = product.name
         calc['sku'] = product.sku or ''
@@ -440,22 +512,121 @@ class PricingEngine:
         calc['category'] = product.category or 'Geral'
         calc['size'] = product.size or ''
         calc['color'] = product.color or ''
-        calc['base_price'] = float(product.price or 0.0)
+        calc['base_price'] = phys_price
+        calc['physical_store_price'] = phys_price
         calc['channel'] = rule.channel
         calc['channel_display_name'] = rule.channel_display_name or rule.channel
         calc['channel_icon'] = rule.icon
 
         # Preço atual praticado no canal se existir
-        current_cp = ProductChannelPrice.query.filter_by(
-            product_id=product.id,
-            channel=rule.channel
-        ).first()
-        calc['current_channel_price'] = float(current_cp.price) if current_cp else None
+        if has_preloaded_cp:
+            current_cp = preloaded_cp
+        else:
+            current_cp = ProductChannelPrice.query.filter_by(
+                product_id=product.id,
+                channel=rule.channel
+            ).first()
+
+        current_price_val = float(current_cp.price) if (current_cp and current_cp.price and current_cp.price > 0) else None
+        calc['current_channel_price'] = current_price_val
         calc['sync_status'] = current_cp.sync_status if current_cp else None
         calc['last_sync_at'] = current_cp.last_sync_at.strftime('%d/%m/%Y %H:%M') if current_cp and current_cp.last_sync_at else None
         calc['has_bling_link'] = bool(rule.bling_loja_id and product.bling_id)
 
+        # Preço efetivo para exibição no input do canal (usa o cadastrado no canal ou o sugerido pela calculadora)
+        effective_price = current_price_val if current_price_val is not None else calc['suggested_price']
+        calc['effective_price'] = round(effective_price, 2)
+
+        # Se já possui preço praticado salvo no canal, calcula também o DRE para o preço praticado
+        if current_price_val is not None:
+            active_dre = cls.calculate_dre_for_given_price(cost, current_price_val, rule)
+            calc['effective_net_profit_rs'] = active_dre['net_profit_rs']
+            calc['effective_margin_percent'] = active_dre['margin_percent']
+        else:
+            calc['effective_net_profit_rs'] = calc['net_profit_rs']
+            calc['effective_margin_percent'] = calc['margin_percent']
+
+        # Diferença percentual em relação ao preço da Loja Física
+        if phys_price > 0:
+            calc['diff_vs_physical_percent'] = round(((effective_price - phys_price) / phys_price) * 100.0, 2)
+            calc['suggested_diff_vs_physical_percent'] = round(((calc['suggested_price'] - phys_price) / phys_price) * 100.0, 2)
+        else:
+            calc['diff_vs_physical_percent'] = 0.0
+            calc['suggested_diff_vs_physical_percent'] = 0.0
+
         return calc
+
+    @classmethod
+    def get_overview_matrix(cls, products: list[Product], rules: list[MarketplaceRule]) -> dict:
+        """
+        Constrói a matriz comparativa da 1ª Aba (Visão Geral):
+        Cod Produto | Nome prod | Preço venda Loja Física | Marketplace A + % dif | Marketplace B + % dif | ... | Marketplace N + % dif
+        """
+        # Filtra canais de marketplace (exclui o canal que seja puramente Loja Física para não duplicar a coluna base)
+        marketplace_columns = [r for r in rules if r.logo_key != 'loja_fisica']
+        if not marketplace_columns:
+            marketplace_columns = list(rules)
+
+        prod_ids = [p.id for p in products]
+        all_cps = ProductChannelPrice.query.filter(
+            ProductChannelPrice.product_id.in_(prod_ids)
+        ).all() if prod_ids else []
+
+        cp_by_prod: dict[int, dict[str, ProductChannelPrice]] = {}
+        for cp in all_cps:
+            cp_by_prod.setdefault(cp.product_id, {})[cp.channel] = cp
+
+        rows = []
+        for prod in products:
+            prod_cps = cp_by_prod.get(prod.id, {})
+            phys_price = cls.get_physical_store_price(prod, prod_cps)
+            cost = float(prod.purchase_cost if prod.purchase_cost and prod.purchase_cost > 0 else (prod.cost or 0.0))
+            if cost <= 0:
+                cost = float(prod.price or 10.0) * 0.5
+
+            mkt_cells = {}
+            for r in marketplace_columns:
+                cp = prod_cps.get(r.channel)
+                calc = cls.calculate_product_channel_pricing(
+                    product=prod,
+                    rule=r,
+                    preloaded_cp=cp,
+                    has_preloaded_cp=True,
+                    physical_store_price=phys_price
+                )
+                saved_price = calc['current_channel_price']
+                display_price = saved_price if saved_price is not None else calc['suggested_price']
+                is_saved = saved_price is not None
+                diff_pct = round(((display_price - phys_price) / phys_price) * 100.0, 2) if phys_price > 0 else 0.0
+
+                mkt_cells[r.channel] = {
+                    'channel': r.channel,
+                    'display_price': round(display_price, 2),
+                    'current_price': saved_price,
+                    'suggested_price': calc['suggested_price'],
+                    'is_saved': is_saved,
+                    'diff_percent': diff_pct,
+                    'sync_status': calc['sync_status'],
+                    'margin_percent': calc['effective_margin_percent']
+                }
+
+            rows.append({
+                'product_id': prod.id,
+                'sku': prod.sku or f'ID-{prod.id}',
+                'product_name': prod.name,
+                'category': prod.category or 'Geral',
+                'size': prod.size or '',
+                'color': prod.color or '',
+                'stock': float(prod.stock or 0.0),
+                'cost': round(cost, 2),
+                'physical_store_price': phys_price,
+                'marketplaces': mkt_cells
+            })
+
+        return {
+            'marketplace_columns': marketplace_columns,
+            'rows': rows
+        }
 
     @classmethod
     def sync_channel_prices_from_bling(cls, rule: MarketplaceRule, max_items: int = 500) -> int:
@@ -614,33 +785,92 @@ class PricingEngine:
             return False
 
     @classmethod
-    def apply_prices_in_batch(cls, product_ids: list[int], channel: str, custom_target_margin: float | None = None) -> dict:
-        """Aplica precificação automática em lote para uma lista de produtos em determinado canal e sincroniza com o Bling."""
+    def apply_prices_in_batch(
+        cls,
+        product_ids: list[int],
+        channel: str,
+        custom_target_margin: float | None = None,
+        custom_commission_percent: float | None = None,
+        manual_prices: dict[int, float] | None = None
+    ) -> dict:
+        """
+        Aplica precificação em lote ou individual para produtos em um determinado marketplace
+        (via calculadora do marketplace ou edição manual) e sincroniza com o ERP Bling.
+        Bloqueia atualização a partir da visão geral ('overview').
+        """
+        if not channel or channel.strip().lower() == 'overview':
+            return {
+                'success': False,
+                'message': 'As atualizações de preço devem ser feitas somente pela aba do respectivo marketplace.'
+            }
+
         rule = cls.get_rule_by_channel(channel)
         if not rule:
             return {'success': False, 'message': f"Regra do canal '{channel}' não encontrada."}
 
+        manual_map = {}
+        if manual_prices and isinstance(manual_prices, dict):
+            for k, v in manual_prices.items():
+                try:
+                    val = float(str(v).replace(',', '.'))
+                    if val > 0:
+                        manual_map[int(k)] = round(val, 2)
+                except (ValueError, TypeError):
+                    continue
+
         applied_count = 0
+        updated_items = []
         products = Product.query.filter(Product.id.in_(product_ids)).all()
         for prod in products:
-            calc = cls.calculate_product_channel_pricing(prod, rule, custom_target_margin)
+            cost = float(prod.purchase_cost if prod.purchase_cost and prod.purchase_cost > 0 else (prod.cost or 0.0))
+            if cost <= 0:
+                cost = float(prod.price or 10.0) * 0.5
+
+            if prod.id in manual_map:
+                target_price = manual_map[prod.id]
+                dre = cls.calculate_dre_for_given_price(cost, target_price, rule)
+                target_margin = dre['margin_percent']
+                net_profit = dre['net_profit_rs']
+            else:
+                calc = cls.calculate_product_channel_pricing(
+                    prod,
+                    rule,
+                    custom_target_margin=custom_target_margin,
+                    custom_commission_percent=custom_commission_percent
+                )
+                target_price = calc['suggested_price']
+                target_margin = calc['margin_percent']
+                net_profit = calc['net_profit_rs']
+
             success = cls.apply_channel_price(
                 product_id=prod.id,
                 channel=rule.channel,
-                new_price=calc['suggested_price'],
-                margin_pct=calc['margin_percent']
+                new_price=target_price,
+                margin_pct=target_margin
             )
             if success:
                 applied_count += 1
+                phys_price = cls.get_physical_store_price(prod)
+                diff_pct = round(((target_price - phys_price) / phys_price) * 100.0, 2) if phys_price > 0 else 0.0
+                cp = ProductChannelPrice.query.filter_by(product_id=prod.id, channel=rule.channel).first()
+                updated_items.append({
+                    'product_id': prod.id,
+                    'price': target_price,
+                    'margin_percent': target_margin,
+                    'net_profit_rs': net_profit,
+                    'diff_vs_physical_percent': diff_pct,
+                    'sync_status': cp.sync_status if cp else 'pending'
+                })
 
         msg = f"Precificação aplicada com sucesso para {applied_count} produto(s) no canal {rule.base_marketplace_name}!"
         if rule.bling_loja_id:
-            msg += " Os preços foram sincronizados e refletidos no Bling."
+            msg += " Os preços foram sincronizados e refletidos no ERP Bling."
 
         return {
             'success': True,
             'applied_count': applied_count,
             'channel': rule.channel,
+            'updated_items': updated_items,
             'message': msg
         }
 

@@ -109,8 +109,8 @@
     <div class="mkt-channel-container">
         <div class="mkt-channel-header">
             <div class="mkt-channel-title">
-                <span>Canal / Regra de Precificação</span>
-                <span class="mkt-channel-badge">{{ rules | length }} canais configurados</span>
+                <span>Abas de Precificação & Marketplaces</span>
+                <span class="mkt-channel-badge">1 Matriz Geral + {{ rules | length }} canais configurados</span>
             </div>
             <div>
                 <button type="button" class="mkt-sync-btn" id="btnSyncChannels" onclick="syncChannelsFromBling()" title="Sincronizar canais de venda e integrações ativas no Bling">
@@ -120,9 +120,30 @@
         </div>
 
         <div class="mkt-channel-grid">
+            <!-- 1ª Aba: Visão Geral / Matriz Comparativa Multi-Marketplace -->
+            <a href="{{ url_for('products.pricing', channel='overview', category=selected_category, q=q) }}"
+               class="mkt-channel-btn {% if is_overview_tab %}is-active{% endif %}"
+               title="Listagem Comparativa: Preço Loja Física vs. Todos os Marketplaces e % de Diferença">
+                <div class="mkt-channel-logo">
+                    <svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect width="36" height="36" rx="7" fill="#0f172a"/>
+                        <rect x="8" y="10" width="20" height="4" rx="1.5" fill="#38bdf8"/>
+                        <rect x="8" y="16" width="9" height="4" rx="1" fill="#e2e8f0"/>
+                        <rect x="19" y="16" width="9" height="4" rx="1" fill="#34d399"/>
+                        <rect x="8" y="22" width="9" height="4" rx="1" fill="#e2e8f0"/>
+                        <rect x="19" y="22" width="9" height="4" rx="1" fill="#fbbf24"/>
+                    </svg>
+                </div>
+                <div class="mkt-channel-info">
+                    <span class="mkt-channel-name">Visão Geral (Matriz)</span>
+                    <span class="mkt-channel-desc">Loja Física vs. Marketplaces + %</span>
+                </div>
+            </a>
+
+            <!-- Abas Individuais dos Marketplaces Respectivos -->
             {% for r in rules %}
             <a href="{{ url_for('products.pricing', channel=r.channel, category=selected_category, q=q) }}" 
-               class="mkt-channel-btn {% if selected_channel == r.channel %}is-active{% endif %}"
+               class="mkt-channel-btn {% if not is_overview_tab and selected_channel == r.channel %}is-active{% endif %}"
                title="{{ r.channel_display_name or r.channel }} ({{ r.short_rule_explanation }})">
                 <div class="mkt-channel-logo">
                     {{ render_marketplace_logo(r.logo_key, r.icon, r.id) }}
@@ -135,6 +156,180 @@
             {% endfor %}
         </div>
     </div>
+
+    {% if is_overview_tab %}
+    <!-- ========================================================================= -->
+    <!-- 1ª ABA: LISTAGEM COMPARATIVA (LOJA FÍSICA VS MARKETPLACES A, B, ..., N)   -->
+    <!-- ========================================================================= -->
+    <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #fff; border-radius: 12px; padding: 18px 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+        <div>
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <h3 style="margin: 0; font-size: 17px; font-weight: 800; color: #fff;">📊 Comparativo Geral de Preços: Loja Física vs. Marketplaces</h3>
+                <span style="font-size: 11px; background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35); padding: 2px 10px; border-radius: 12px; font-weight: 700;">
+                    Modo Comparativo (Somente Leitura)
+                </span>
+            </div>
+            <p style="margin: 4px 0 0 0; font-size: 12.5px; color: #cbd5e1;">
+                Compare o <strong>Preço de Venda da Loja Física</strong> com o preço de cada marketplace e sua respectiva <strong>% de diferença</strong>.
+                Para editar preços (manualmente ou em lote pela calculadora) e fazer o update para o ERP, clique na aba do marketplace respectivo acima.
+            </p>
+        </div>
+    </div>
+
+    <!-- Barra de Filtro da Matriz Geral -->
+    <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+        <form method="GET" action="{{ url_for('products.pricing') }}" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <input type="hidden" name="channel" value="overview">
+            <input type="text" name="q" value="{{ q }}" placeholder="Buscar por Cód. Produto (SKU) ou Nome..." style="height: 36px; padding: 0 12px; font-size: 13px; border: 1px solid #cbd5e1; border-radius: 6px; width: 260px;">
+            <select name="category" onchange="this.form.submit()" style="height: 36px; padding: 0 10px; font-size: 13px; border: 1px solid #cbd5e1; border-radius: 6px;">
+                <option value="all">Todas as Categorias</option>
+                {% for c in categories %}
+                <option value="{{ c }}" {% if selected_category == c %}selected{% endif %}>{{ c }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-outline" style="height: 36px; padding: 0 14px; font-size: 13px; font-weight: 600;">Filtrar</button>
+        </form>
+
+        <div style="display: flex; gap: 14px; align-items: center; font-size: 12px; color: #475569;">
+            <span style="display: inline-flex; align-items: center; gap: 5px;">
+                <span style="width: 8px; height: 8px; border-radius: 50%; background: #16a34a; display: inline-block;"></span> Preço Salvo no Canal / ERP
+            </span>
+            <span style="display: inline-flex; align-items: center; gap: 5px;">
+                <span style="width: 8px; height: 8px; border-radius: 50%; background: #64748b; display: inline-block;"></span> Preço Calculado (Sugerido)
+            </span>
+        </div>
+    </div>
+
+    <!-- Tabela da 1ª Aba: Cod Produto | Nome prod | Preço venda Loja Física | Preço Mkt A | % Dif (Loja Física) | Mkt B + % | ... | Mkt N + % -->
+    <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+        <div style="overflow-x: auto;">
+            <table class="table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 12.5px;">
+                <thead>
+                    <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0; color: #334155; font-size: 11px; text-transform: uppercase; font-weight: 800; letter-spacing: 0.4px;">
+                        <th style="padding: 13px 12px; white-space: nowrap; position: sticky; left: 0; background: #f8fafc; z-index: 2; border-right: 1px solid #e2e8f0;">Cod Produto</th>
+                        <th style="padding: 13px 14px; min-width: 210px;">Nome Prod</th>
+                        <th style="padding: 13px 12px; text-align: right; background: #ecfdf5; color: #065f46; white-space: nowrap; border-left: 1px solid #d1fae5; border-right: 2px solid #a7f3d0;">
+                            🏬 Preço Venda Loja Física
+                        </th>
+
+                        {% for col in marketplace_columns %}
+                            {% if loop.first %}
+                            <!-- Marketplace A com coluna de preço e coluna explícita de % de diferença -->
+                            <th style="padding: 12px 12px; text-align: right; white-space: nowrap; border-left: 1px solid #e2e8f0;">
+                                <a href="{{ url_for('products.pricing', channel=col.channel, category=selected_category, q=q) }}" style="color: #0f172a; text-decoration: none; display: inline-flex; align-items: center; gap: 5px;" title="Ir para a aba de {{ col.channel_display_name or col.channel }} para editar preços">
+                                    <span>Preço {{ col.base_marketplace_name }}</span>
+                                    <span style="font-size: 10px; color: #2563eb;">↗</span>
+                                </a>
+                                <div style="font-size: 9.5px; color: #64748b; font-weight: 600; text-transform: none;">{{ col.short_rule_explanation }}</div>
+                            </th>
+                            <th style="padding: 12px 10px; text-align: center; white-space: nowrap; background: #f1f5f9; border-right: 1px solid #e2e8f0;" title="Porcentagem de diferença com relação ao preço da Loja Física">
+                                % Diferença<br><span style="font-size: 9.5px; color: #64748b; font-weight: 600; text-transform: none;">(vs. Loja Física)</span>
+                            </th>
+                            {% else %}
+                            <!-- Marketplace B ... N + % -->
+                            <th style="padding: 12px 12px; text-align: right; white-space: nowrap; border-right: 1px solid #e2e8f0;">
+                                <a href="{{ url_for('products.pricing', channel=col.channel, category=selected_category, q=q) }}" style="color: #0f172a; text-decoration: none; display: inline-flex; align-items: center; gap: 5px;" title="Ir para a aba de {{ col.channel_display_name or col.channel }} para editar preços">
+                                    <span>{{ col.base_marketplace_name }} + %</span>
+                                    <span style="font-size: 10px; color: #2563eb;">↗</span>
+                                </a>
+                                <div style="font-size: 9.5px; color: #64748b; font-weight: 600; text-transform: none;">{{ col.short_rule_explanation }}</div>
+                            </th>
+                            {% endif %}
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in overview_rows %}
+                    <tr style="border-bottom: 1px solid #f1f5f9; transition: background 0.15s ease;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
+                        <!-- Cod Produto -->
+                        <td style="padding: 11px 12px; font-family: monospace; font-weight: 700; color: #334155; white-space: nowrap; position: sticky; left: 0; background: inherit; border-right: 1px solid #f1f5f9;">
+                            {{ row.sku }}
+                        </td>
+
+                        <!-- Nome prod -->
+                        <td style="padding: 11px 14px; max-width: 260px;">
+                            <div style="font-weight: 700; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ row.product_name }}">
+                                {{ row.product_name }}
+                            </div>
+                            <div style="font-size: 10.5px; color: #64748b; display: flex; gap: 6px; align-items: center;">
+                                <span>Est: {{ row.stock | number }} un</span>
+                                {% if row.category %}<span>• {{ row.category }}</span>{% endif %}
+                            </div>
+                        </td>
+
+                        <!-- Preço venda Loja Física -->
+                        <td style="padding: 11px 12px; text-align: right; font-weight: 900; font-size: 13.5px; color: #065f46; background: #f0fdf4; border-left: 1px solid #d1fae5; border-right: 2px solid #a7f3d0; white-space: nowrap;">
+                            {{ row.physical_store_price | currency }}
+                        </td>
+
+                        <!-- Colunas dos Marketplaces A, B, ..., N -->
+                        {% for col in marketplace_columns %}
+                            {% set cell = row.marketplaces.get(col.channel) %}
+                            {% set diff_val = cell.diff_percent if cell else 0.0 %}
+                            {% set diff_bg = '#dcfce7' if diff_val > 0 else ('#fee2e2' if diff_val < 0 else '#f1f5f9') %}
+                            {% set diff_color = '#166534' if diff_val > 0 else ('#991b1b' if diff_val < 0 else '#475569') %}
+                            {% set diff_sign = '+' if diff_val > 0 else '' %}
+
+                            {% if loop.first %}
+                            <!-- Preço Marketplace A -->
+                            <td style="padding: 11px 12px; text-align: right; white-space: nowrap; border-left: 1px solid #f1f5f9;">
+                                <div style="font-weight: 800; color: {% if cell and cell.is_saved %}#0f172a{% else %}#475569{% endif %};">
+                                    {{ (cell.display_price if cell else 0.0) | currency }}
+                                </div>
+                                {% if cell and cell.is_saved %}
+                                <span style="font-size: 9px; background: #dcfce7; color: #166534; padding: 1px 5px; border-radius: 4px; font-weight: 700;">
+                                    {% if cell.sync_status == 'synced' %}ERP ✓{% else %}Salvo{% endif %}
+                                </span>
+                                {% else %}
+                                <span style="font-size: 9px; color: #94a3b8; font-weight: 600;">Calc.</span>
+                                {% endif %}
+                            </td>
+                            <!-- % de Diferença (com relação ao preço da Loja Física) -->
+                            <td style="padding: 11px 10px; text-align: center; white-space: nowrap; background: #f8fafc; border-right: 1px solid #f1f5f9;">
+                                <span style="background: {{ diff_bg }}; color: {{ diff_color }}; padding: 3px 7px; border-radius: 6px; font-weight: 800; font-size: 11px;">
+                                    {{ diff_sign }}{{ "%.1f"|format(diff_val)|replace('.', ',') }}%
+                                </span>
+                            </td>
+                            {% else %}
+                            <!-- Marketplace B ... N + % -->
+                            <td style="padding: 11px 12px; text-align: right; white-space: nowrap; border-right: 1px solid #f1f5f9;">
+                                <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px;">
+                                    <span style="font-weight: 800; color: {% if cell and cell.is_saved %}#0f172a{% else %}#475569{% endif %};">
+                                        {{ (cell.display_price if cell else 0.0) | currency }}
+                                    </span>
+                                    <span style="background: {{ diff_bg }}; color: {{ diff_color }}; padding: 2px 6px; border-radius: 5px; font-weight: 800; font-size: 10.5px;" title="Diferença percentual vs. Loja Física">
+                                        {{ diff_sign }}{{ "%.1f"|format(diff_val)|replace('.', ',') }}%
+                                    </span>
+                                </div>
+                                <div style="margin-top: 2px;">
+                                    {% if cell and cell.is_saved %}
+                                    <span style="font-size: 9px; background: #dcfce7; color: #166534; padding: 1px 5px; border-radius: 4px; font-weight: 700;">
+                                        {% if cell.sync_status == 'synced' %}ERP ✓{% else %}Salvo{% endif %}
+                                    </span>
+                                    {% else %}
+                                    <span style="font-size: 9px; color: #94a3b8; font-weight: 600;">Calc.</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            {% endif %}
+                        {% endfor %}
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="{{ 3 + (marketplace_columns|length) + 1 }}" style="text-align: center; padding: 40px; color: #94a3b8;">
+                            Nenhum produto encontrado para exibição na matriz comparativa.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% else %}
+    <!-- ========================================================================= -->
+    <!-- ABAS DOS MARKETPLACES RESPECTIVOS (EDIÇÃO MANUAL, LOTE CALCULADORA & ERP) -->
+    <!-- ========================================================================= -->
 
     <!-- Active Channel Rule & Parameters Card -->
     {% if active_rule %}
@@ -153,7 +348,7 @@
                         </span>
                         {% endif %}
                     </div>
-                    <p style="margin: 3px 0 0 0; font-size: 12.5px; color: #94a3b8;">Parâmetros fiscais, taxas de plataforma e custos de envio aplicados na formação de preço.</p>
+                    <p style="margin: 3px 0 0 0; font-size: 12.5px; color: #94a3b8;">Adicione ou altere preços manualmente ou em lote pela calculadora deste marketplace e envie o update para o ERP.</p>
                 </div>
             </div>
             <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
@@ -198,11 +393,21 @@
     </div>
     {% endif %}
 
-    <!-- Interactive Simulator & DRE Unitário -->
+    <!-- Interactive Simulator & DRE Unitário (Calculadora do Marketplace) -->
     <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px 24px;">
-        <h4 style="margin: 0 0 14px 0; font-size: 15px; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 8px;">
-            <span>🧮</span> Simulador Rápido de Preço & DRE Unitário
-        </h4>
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 14px;">
+            <h4 style="margin: 0; font-size: 15px; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+                <span>🧮</span> Calculadora de Preço do Marketplace ({{ active_rule.base_marketplace_name if active_rule else selected_channel }}) & DRE Unitário
+            </h4>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <button type="button" class="btn btn-outline" onclick="fillSelectedWithCalculator()" style="padding: 6px 12px; font-size: 12px; font-weight: 700; color: #2563eb; border-color: #93c5fd; background: #eff6ff; display: inline-flex; align-items: center; gap: 6px;" title="Preenche os campos de preço dos produtos selecionados (ou todos) com os valores desta calculadora">
+                    <span>🧮</span> Preencher Produtos com Valores da Calculadora
+                </button>
+                <button type="button" class="btn btn-primary" onclick="applyCalculatorBatchToErp()" style="padding: 6px 14px; font-size: 12px; font-weight: 700; background: #0f172a; border-color: #0f172a; display: inline-flex; align-items: center; gap: 6px;" title="Aplica os preços da calculadora diretamente em lote nos produtos selecionados e atualiza no ERP">
+                    <span>⚡</span> Aplicar Calculadora em Lote & Update ERP
+                </button>
+            </div>
+        </div>
         <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 24px; align-items: start;">
             
             <!-- Input Form for Simulation -->
@@ -285,9 +490,17 @@
             <button type="submit" class="btn btn-outline" style="height: 36px; padding: 0 14px; font-size: 13px; font-weight: 600;">Filtrar</button>
         </form>
 
-        <div style="display: flex; gap: 10px; align-items: center;">
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <!-- Ajuste em Lote Manual (% sobre Loja Física) -->
+            <div style="display: inline-flex; align-items: center; gap: 4px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 2px 6px; height: 36px;">
+                <span style="font-size: 11.5px; font-weight: 700; color: #475569; padding-left: 4px;">Lote Manual vs. Física:</span>
+                <input type="number" step="0.5" id="batchManualDiffPct" placeholder="+15%" style="width: 66px; height: 28px; border: 1px solid #cbd5e1; border-radius: 4px; padding: 0 6px; font-size: 12px; font-weight: 700; text-align: right;" title="Informe a % de acréscimo ou desconto sobre o Preço da Loja Física (ex: 15 para +15%)">
+                <button type="button" onclick="applyManualPercentBatch()" class="btn btn-outline" style="height: 28px; padding: 0 8px; font-size: 11.5px; font-weight: 700; color: #334155;">Aplicar %</button>
+            </div>
+
+            <!-- Botão Lote: Salvar Preços (Manuais ou Calculadora) e Fazer Update para o ERP -->
             <button type="button" class="btn btn-primary" onclick="applyBatchSelected()" style="height: 36px; padding: 0 16px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; background: #008b54; border-color: #008b54;">
-                <span>🚀</span> Aplicar Preços aos Selecionados (<span id="selectedCount">0</span>)
+                <span>🚀</span> Salvar & Update ERP Selecionados (<span id="selectedCount">0</span>)
             </button>
         </div>
     </div>
@@ -306,96 +519,141 @@
     </div>
     {% endif %}
 
-    <!-- Products Pricing Table -->
+    <!-- Products Pricing Table (Aba do Marketplace Respectivo) -->
     <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
         <div style="overflow-x: auto;">
             <table class="table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
                 <thead>
-                    <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0; color: #475569; font-size: 11.5px; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">
-                        <th style="padding: 12px 14px; width: 36px; text-align: center;">
+                    <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0; color: #475569; font-size: 11px; text-transform: uppercase; font-weight: 700; letter-spacing: 0.4px;">
+                        <th style="padding: 12px 12px; width: 36px; text-align: center;">
                             <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll(this)" style="cursor: pointer;">
                         </th>
-                        <th style="padding: 14px 14px; max-width: 280px;">Produto / SKU</th>
-                        <th style="padding: 14px 10px; text-align: center; width: 110px;">Saldo Estoque</th>
-                        <th style="padding: 14px 12px; text-align: right;">Custo Base</th>
-                        <th style="padding: 14px 12px; text-align: right;">Preço Base</th>
-                        <th style="padding: 14px 12px; text-align: right;">Preço Atual no Canal</th>
-                        <th style="padding: 14px 12px; text-align: right; background: #ecfdf5; color: #065f46;">Preço Sugerido</th>
-                        <th style="padding: 14px 12px; text-align: right;">Lucro Líquido</th>
-                        <th style="padding: 14px 12px; text-align: center;">Margem %</th>
-                        <th style="padding: 14px 16px; text-align: center;">Ação</th>
+                        <th style="padding: 13px 10px; white-space: nowrap;">Cod Produto</th>
+                        <th style="padding: 13px 12px; min-width: 210px;">Nome Prod</th>
+                        <th style="padding: 13px 10px; text-align: right;">Custo Base</th>
+                        <th style="padding: 13px 10px; text-align: right; background: #f8fafc; color: #0f172a;">Preço Loja Física</th>
+                        <th style="padding: 13px 10px; text-align: right; background: #ecfdf5; color: #065f46;">Calculadora (Sugerido)</th>
+                        <th style="padding: 13px 12px; text-align: right; background: #eff6ff; color: #1e40af; min-width: 175px;">Preço no Marketplace (Manual/Lote)</th>
+                        <th style="padding: 13px 10px; text-align: center;">% Dif. Loja Física</th>
+                        <th style="padding: 13px 10px; text-align: right;">Lucro / Margem</th>
+                        <th style="padding: 13px 14px; text-align: center;">Update ERP</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for p in products %}
-                    <tr style="border-bottom: 1px solid #f1f5f9; transition: background 0.15s ease;" onmouseover="this.style.background='#fbfcfe'" onmouseout="this.style.background='transparent'">
-                        <td style="padding: 12px 14px; text-align: center;">
+                    {% set diff_val = p.diff_vs_physical_percent %}
+                    {% set diff_bg = '#dcfce7' if diff_val > 0 else ('#fee2e2' if diff_val < 0 else '#f1f5f9') %}
+                    {% set diff_color = '#166534' if diff_val > 0 else ('#991b1b' if diff_val < 0 else '#475569') %}
+                    {% set diff_sign = '+' if diff_val > 0 else '' %}
+                    <tr id="rowProd{{ p.product_id }}" style="border-bottom: 1px solid #f1f5f9; transition: background 0.15s ease;" onmouseover="this.style.background='#fbfcfe'" onmouseout="this.style.background='transparent'">
+                        <td style="padding: 11px 12px; text-align: center;">
                             <input type="checkbox" class="prod-checkbox" value="{{ p.product_id }}" onchange="updateSelectedCount()" style="cursor: pointer;">
                         </td>
 
-                        <td style="padding: 12px 14px; max-width: 280px;">
+                        <!-- Cod Produto -->
+                        <td style="padding: 11px 10px; font-family: monospace; font-weight: 700; color: #334155; white-space: nowrap;">
+                            {{ p.sku or ('ID-' ~ p.product_id) }}
+                        </td>
+
+                        <!-- Nome prod -->
+                        <td style="padding: 11px 12px; max-width: 260px;">
                             <div style="font-weight: 700; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ p.product_name }}">
                                 {{ p.product_name }}
                             </div>
-                            <div style="display: flex; gap: 6px; align-items: center; font-size: 11px; margin-top: 2px; flex-wrap: wrap;">
-                                <span style="color: #64748b; font-family: monospace;">{{ p.sku }}</span>
+                            <div style="display: flex; gap: 6px; align-items: center; font-size: 10.5px; margin-top: 2px; flex-wrap: wrap;">
+                                <span class="badge {% if p.stock > 10 %}badge-success{% elif p.stock > 0 %}badge-warning{% else %}badge-danger{% endif %}" style="font-size: 10px; font-weight: 700; padding: 1px 6px;">
+                                    Est: {{ p.stock | number }} un
+                                </span>
                                 {% if p.size %}<span class="badge" style="background:#e0f2fe; color:#0369a1; padding:1px 5px; font-size:10px;">Tam: {{ p.size }}</span>{% endif %}
                                 {% if p.color %}<span style="color: #64748b; font-size: 10.5px;">{{ p.color }}</span>{% endif %}
                             </div>
                         </td>
 
-                        <!-- Saldo Estoque -->
-                        <td style="padding: 12px 10px; text-align: center;">
-                            <span class="badge {% if p.stock > 10 %}badge-success{% elif p.stock > 0 %}badge-warning{% else %}badge-danger{% endif %}" style="font-size: 11.5px; font-weight: 700; padding: 3px 8px;">
-                                {{ p.stock | number }} un
-                            </span>
-                        </td>
-
-                        <td style="padding: 12px; text-align: right; font-weight: 600; color: #475569;">
+                        <!-- Custo Base -->
+                        <td style="padding: 11px 10px; text-align: right; font-weight: 600; color: #475569; white-space: nowrap;">
                             {{ p.cost | currency }}
                         </td>
 
-                        <td style="padding: 12px; text-align: right; font-weight: 600; color: #64748b;">
-                            {{ p.base_price | currency }}
+                        <!-- Preço Venda Loja Física -->
+                        <td style="padding: 11px 10px; text-align: right; font-weight: 800; color: #0f172a; white-space: nowrap;">
+                            {{ p.physical_store_price | currency }}
                         </td>
 
-                        <td style="padding: 12px; text-align: right; font-weight: 700; color: #0f172a;" id="cellChannelPrice{{ p.product_id }}">
-                            {% if p.current_channel_price is not none and p.current_channel_price > 0 %}
-                            <div style="font-weight: 800;">{{ p.current_channel_price | currency }}</div>
-                            {% if p.sync_status == 'synced' %}
-                            <span style="font-size: 9.5px; background: #dcfce7; color: #166534; padding: 1px 5px; border-radius: 4px; font-weight: 700;" title="Preço verificado no Bling">Bling ✓</span>
-                            {% endif %}
-                            {% else %}
-                            <span style="color: #94a3b8; font-weight: 400; font-style: italic;">R$ 0,00</span>
-                            {% endif %}
+                        <!-- Preço Sugerido pela Calculadora do Marketplace -->
+                        <td style="padding: 11px 10px; text-align: right; background: #f0fdf4; white-space: nowrap;">
+                            <div style="font-weight: 900; font-size: 13.5px; color: #047857;" id="cellSuggestedPrice{{ p.product_id }}">
+                                {{ p.suggested_price | currency }}
+                            </div>
+                            <button type="button"
+                                    onclick="useSuggestedPriceForRow({{ p.product_id }})"
+                                    style="margin-top: 2px; background: #dcfce7; border: 1px solid #86efac; color: #065f46; border-radius: 4px; font-size: 10px; font-weight: 700; padding: 1px 6px; cursor: pointer;"
+                                    title="Copiar o valor da calculadora para o campo editável deste produto">
+                                🧮 Usar Calc →
+                            </button>
                         </td>
 
-                        <td style="padding: 12px; text-align: right; background: #f0fdf4; font-weight: 900; font-size: 14.5px; color: #047857;">
-                            {{ p.suggested_price | currency }}
+                        <!-- Preço no Marketplace (Editável Manualmente ou via Lote) -->
+                        <td style="padding: 11px 12px; text-align: right; background: #f8fafc;" id="cellChannelPrice{{ p.product_id }}">
+                            <div style="display: flex; align-items: center; justify-content: flex-end; gap: 4px;">
+                                <span style="font-size: 11.5px; font-weight: 700; color: #475569;">R$</span>
+                                <input type="number"
+                                       step="0.01"
+                                       min="0.01"
+                                       id="inputPrice{{ p.product_id }}"
+                                       class="mkt-price-input"
+                                       data-product-id="{{ p.product_id }}"
+                                       data-cost="{{ p.cost }}"
+                                       data-phys-price="{{ p.physical_store_price }}"
+                                       data-suggested-price="{{ p.suggested_price }}"
+                                       value="{{ '%.2f'|format(p.effective_price) }}"
+                                       oninput="onManualPriceInput({{ p.product_id }})"
+                                       style="width: 96px; height: 32px; padding: 0 8px; font-size: 13.5px; font-weight: 800; color: #0f172a; text-align: right; border: 1.5px solid {% if p.current_channel_price %}#2563eb{% else %}#cbd5e1{% endif %}; border-radius: 6px; background: #fff;">
+                            </div>
+                            <div id="statusBadge{{ p.product_id }}" style="margin-top: 3px; font-size: 9.5px;">
+                                {% if p.current_channel_price is not none and p.current_channel_price > 0 %}
+                                    {% if p.sync_status == 'synced' %}
+                                    <span style="background: #dcfce7; color: #166534; padding: 1px 5px; border-radius: 4px; font-weight: 700;" title="Preço atualizado no ERP Bling">Bling ERP ✓ ({{ p.current_channel_price | currency }})</span>
+                                    {% else %}
+                                    <span style="background: #dbeafe; color: #1e40af; padding: 1px 5px; border-radius: 4px; font-weight: 700;">Salvo no Canal ({{ p.current_channel_price | currency }})</span>
+                                    {% endif %}
+                                {% else %}
+                                <span style="color: #64748b; font-style: italic;">Sugerido (não salvo)</span>
+                                {% endif %}
+                            </div>
                         </td>
 
-                        <td style="padding: 12px; text-align: right; font-weight: 700; color: #0f172a;">
-                            {{ p.net_profit_rs | currency }}
-                        </td>
-
-                        <td style="padding: 12px; text-align: center;">
-                            <span style="background: #dcfce7; color: #166534; padding: 3px 8px; border-radius: 6px; font-weight: 800; font-size: 11.5px;">
-                                {{ p.margin_percent | percent }}
+                        <!-- % de Diferença em relação ao Preço da Loja Física -->
+                        <td style="padding: 11px 10px; text-align: center; white-space: nowrap;">
+                            <span id="diffBadge{{ p.product_id }}" style="background: {{ diff_bg }}; color: {{ diff_color }}; padding: 3px 8px; border-radius: 6px; font-weight: 800; font-size: 11.5px;">
+                                {{ diff_sign }}{{ "%.1f"|format(diff_val)|replace('.', ',') }}%
                             </span>
                         </td>
 
-                        <td style="padding: 12px 16px; text-align: center;">
+                        <!-- Lucro Líquido & Margem % -->
+                        <td style="padding: 11px 10px; text-align: right; white-space: nowrap;">
+                            <div id="profitText{{ p.product_id }}" style="font-weight: 700; color: #0f172a;">
+                                {{ p.effective_net_profit_rs | currency }}
+                            </div>
+                            <span id="marginBadge{{ p.product_id }}" style="background: {% if p.effective_margin_percent >= 15 %}#dcfce7{% elif p.effective_margin_percent > 0 %}#fef3c7{% else %}#fee2e2{% endif %}; color: {% if p.effective_margin_percent >= 15 %}#166534{% elif p.effective_margin_percent > 0 %}#92400e{% else %}#991b1b{% endif %}; padding: 1px 6px; border-radius: 4px; font-weight: 800; font-size: 10.5px;">
+                                {{ p.effective_margin_percent | percent }}
+                            </span>
+                        </td>
+
+                        <!-- Ação: Salvar e Fazer Update para o ERP -->
+                        <td style="padding: 11px 14px; text-align: center; white-space: nowrap;">
                             <button type="button" class="btn btn-outline" 
-                                    onclick="applySinglePrice({{ p.product_id }}, '{{ selected_channel }}', {{ p.suggested_price }}, {{ p.margin_percent }}, this)"
-                                    style="padding: 5px 10px; font-size: 12px; font-weight: 700; color: #008b54; border-color: #008b54; display: inline-flex; align-items: center; gap: 4px;">
-                                <span>✓</span> Aplicar
+                                    id="btnApplyRow{{ p.product_id }}"
+                                    onclick="applySinglePrice({{ p.product_id }}, '{{ selected_channel }}', this)"
+                                    style="padding: 5px 10px; font-size: 11.5px; font-weight: 700; color: #008b54; border-color: #008b54; display: inline-flex; align-items: center; gap: 4px;"
+                                    title="Salvar o preço informado no campo ao lado e enviar update para o ERP Bling">
+                                <span>☁️</span> Update ERP
                             </button>
                         </td>
                     </tr>
                     {% else %}
                     <tr>
                         <td colspan="10" style="text-align: center; padding: 40px; color: #94a3b8;">
-                            Nenhum produto encontrado para precificação.
+                            Nenhum produto encontrado para precificação neste marketplace.
                         </td>
                     </tr>
                     {% endfor %}
@@ -403,6 +661,7 @@
             </table>
         </div>
     </div>
+    {% endif %}
 
 </div>
 
@@ -525,10 +784,228 @@
         if (span) span.innerText = count;
     }
 
-    // Aplica preço individual
-    async function applySinglePrice(productId, channel, price, margin, btnElement) {
+    // Parâmetros ativos do canal para cálculo instantâneo no front-end
+    const ACTIVE_RULE_PARAMS = {
+        commission_percent: {{ active_rule.commission_percent if active_rule else 14.0 }},
+        fixed_fee: {{ active_rule.fixed_fee if active_rule else 0.0 }},
+        fixed_fee_threshold: {{ active_rule.fixed_fee_threshold if active_rule else 79.0 }},
+        free_shipping_threshold: {{ active_rule.free_shipping_threshold if active_rule else 79.0 }},
+        shipping_cost: {{ active_rule.default_shipping_cost if active_rule else 0.0 }},
+        tax_percent: {{ active_rule.tax_percent if active_rule else 6.0 }},
+        operational_percent: {{ active_rule.operational_cost_percent if active_rule else 3.0 }},
+        target_margin_percent: {{ active_rule.target_margin_percent if active_rule else 20.0 }}
+    };
+
+    function formatBRL(val) {
+        return 'R$ ' + Number(val || 0).toFixed(2).replace('.', ',');
+    }
+
+    // Calcula DRE unitário para um preço manual informado
+    function computeDreForPriceJS(cost, price, commPct) {
+        const c = Math.max(0.01, parseFloat(cost) || 0.01);
+        const p = Math.max(0.0, parseFloat(price) || 0.0);
+        const comm = (commPct !== undefined && commPct !== null) ? parseFloat(commPct) : ACTIVE_RULE_PARAMS.commission_percent;
+        const tax = ACTIVE_RULE_PARAMS.tax_percent;
+        const op = ACTIVE_RULE_PARAMS.operational_percent;
+        const fixedFee = (ACTIVE_RULE_PARAMS.fixed_fee > 0 && p < ACTIVE_RULE_PARAMS.fixed_fee_threshold) ? ACTIVE_RULE_PARAMS.fixed_fee : 0.0;
+        const shipping = (ACTIVE_RULE_PARAMS.shipping_cost > 0 && p >= ACTIVE_RULE_PARAMS.free_shipping_threshold) ? ACTIVE_RULE_PARAMS.shipping_cost : 0.0;
+
+        const commRs = p * (comm / 100.0);
+        const taxRs = p * (tax / 100.0);
+        const opRs = p * (op / 100.0);
+        const netProfit = p - c - commRs - taxRs - opRs - fixedFee - shipping;
+        const marginPct = p > 0 ? (netProfit / p * 100.0) : 0.0;
+        return {
+            net_profit_rs: netProfit,
+            margin_percent: marginPct
+        };
+    }
+
+    // Calcula preço sugerido pela calculadora do marketplace para um custo
+    function computeSuggestedPriceJS(cost, commPct, targetMarginPct) {
+        const c = Math.max(0.01, parseFloat(cost) || 0.01);
+        const comm = parseFloat(commPct) || ACTIVE_RULE_PARAMS.commission_percent;
+        const margin = parseFloat(targetMarginPct) || ACTIVE_RULE_PARAMS.target_margin_percent;
+        const tax = ACTIVE_RULE_PARAMS.tax_percent;
+        const op = ACTIVE_RULE_PARAMS.operational_percent;
+
+        let percSum = comm + tax + op + margin;
+        if (percSum >= 95.0) percSum = 94.0;
+        const divisor = 1.0 - (percSum / 100.0);
+
+        const priceBelow = (c + ACTIVE_RULE_PARAMS.fixed_fee) / divisor;
+        const priceAbove = (c + ACTIVE_RULE_PARAMS.shipping_cost) / divisor;
+
+        let suggested = 0.0;
+        if (priceBelow < ACTIVE_RULE_PARAMS.fixed_fee_threshold) {
+            suggested = Math.round(priceBelow * 100) / 100;
+        } else if (priceAbove >= ACTIVE_RULE_PARAMS.free_shipping_threshold) {
+            suggested = Math.round(priceAbove * 100) / 100;
+        } else {
+            suggested = Math.round(Math.max(priceAbove, ACTIVE_RULE_PARAMS.free_shipping_threshold) * 100) / 100;
+        }
+        return suggested;
+    }
+
+    // Atualiza indicadores da linha (% diferença vs Loja Física, lucro e margem) quando preço muda
+    function onManualPriceInput(productId, badgeLabel) {
+        const input = document.getElementById('inputPrice' + productId);
+        if (!input) return;
+
+        const newPrice = parseFloat(String(input.value).replace(',', '.')) || 0.0;
+        const cost = parseFloat(input.getAttribute('data-cost')) || 0.01;
+        const physPrice = parseFloat(input.getAttribute('data-phys-price')) || 0.0;
+
+        // 1. Atualiza % de diferença vs Loja Física
+        const diffPct = physPrice > 0 ? ((newPrice - physPrice) / physPrice * 100.0) : 0.0;
+        const diffBadge = document.getElementById('diffBadge' + productId);
+        if (diffBadge) {
+            const sign = diffPct > 0 ? '+' : '';
+            diffBadge.innerText = sign + diffPct.toFixed(1).replace('.', ',') + '%';
+            if (diffPct > 0) {
+                diffBadge.style.background = '#dcfce7';
+                diffBadge.style.color = '#166534';
+            } else if (diffPct < 0) {
+                diffBadge.style.background = '#fee2e2';
+                diffBadge.style.color = '#991b1b';
+            } else {
+                diffBadge.style.background = '#f1f5f9';
+                diffBadge.style.color = '#475569';
+            }
+        }
+
+        // 2. Atualiza Lucro Líquido e Margem %
+        const commInput = document.getElementById('simCommInput');
+        const commPct = commInput ? parseFloat(commInput.value) : ACTIVE_RULE_PARAMS.commission_percent;
+        const dre = computeDreForPriceJS(cost, newPrice, commPct);
+
+        const profitEl = document.getElementById('profitText' + productId);
+        if (profitEl) {
+            profitEl.innerText = formatBRL(dre.net_profit_rs);
+        }
+
+        const marginEl = document.getElementById('marginBadge' + productId);
+        if (marginEl) {
+            marginEl.innerText = dre.margin_percent.toFixed(1).replace('.', ',') + '%';
+            if (dre.margin_percent >= 15) {
+                marginEl.style.background = '#dcfce7';
+                marginEl.style.color = '#166534';
+            } else if (dre.margin_percent > 0) {
+                marginEl.style.background = '#fef3c7';
+                marginEl.style.color = '#92400e';
+            } else {
+                marginEl.style.background = '#fee2e2';
+                marginEl.style.color = '#991b1b';
+            }
+        }
+
+        // 3. Destaca status de edição e marca o checkbox da linha
+        input.style.borderColor = '#f59e0b';
+        input.style.background = '#fffbeb';
+        const statusBadge = document.getElementById('statusBadge' + productId);
+        if (statusBadge) {
+            const label = badgeLabel || 'Editado Manualmente (pendente ERP)';
+            statusBadge.innerHTML = `<span style="background: #fef3c7; color: #92400e; padding: 1px 5px; border-radius: 4px; font-weight: 700;">✎ ${label}</span>`;
+        }
+
+        const row = document.getElementById('rowProd' + productId);
+        if (row) {
+            const cb = row.querySelector('.prod-checkbox');
+            if (cb && !cb.checked) {
+                cb.checked = true;
+                updateSelectedCount();
+            }
+        }
+    }
+
+    // Copia o preço sugerido da calculadora para o input da linha
+    function useSuggestedPriceForRow(productId) {
+        const input = document.getElementById('inputPrice' + productId);
+        if (!input) return;
+        const suggested = parseFloat(input.getAttribute('data-suggested-price')) || 0.0;
+        if (suggested > 0) {
+            input.value = suggested.toFixed(2);
+            onManualPriceInput(productId, 'Valor da Calculadora (pendente ERP)');
+        }
+    }
+
+    // Preenche produtos selecionados (ou todos da listagem) com os valores da calculadora do marketplace
+    function fillSelectedWithCalculator() {
+        const commInput = document.getElementById('simCommInput');
+        const marginInput = document.getElementById('simMarginInput');
+        const comm = commInput ? parseFloat(commInput.value) : ACTIVE_RULE_PARAMS.commission_percent;
+        const margin = marginInput ? parseFloat(marginInput.value) : ACTIVE_RULE_PARAMS.target_margin_percent;
+
+        let checkboxes = Array.from(document.querySelectorAll('.prod-checkbox:checked'));
+        if (checkboxes.length === 0) {
+            checkboxes = Array.from(document.querySelectorAll('.prod-checkbox'));
+        }
+
+        checkboxes.forEach(cb => {
+            const pid = cb.value;
+            const input = document.getElementById('inputPrice' + pid);
+            if (!input) return;
+            const cost = parseFloat(input.getAttribute('data-cost')) || 0.01;
+            const calcPrice = computeSuggestedPriceJS(cost, comm, margin);
+            input.setAttribute('data-suggested-price', calcPrice.toFixed(2));
+            const cellSug = document.getElementById('cellSuggestedPrice' + pid);
+            if (cellSug) {
+                cellSug.innerText = formatBRL(calcPrice);
+            }
+            input.value = calcPrice.toFixed(2);
+            cb.checked = true;
+            onManualPriceInput(pid, 'Calculadora Lote (pendente ERP)');
+        });
+        updateSelectedCount();
+    }
+
+    // Aplica um percentual manual sobre o Preço da Loja Física nos produtos selecionados (ou todos)
+    function applyManualPercentBatch() {
+        const pctInput = document.getElementById('batchManualDiffPct');
+        if (!pctInput || pctInput.value.trim() === '') {
+            alert('Informe o percentual de diferença em relação à Loja Física (ex: 15 para +15% ou -5 para -5%).');
+            return;
+        }
+        const pct = parseFloat(pctInput.value.replace(',', '.')) || 0.0;
+
+        let checkboxes = Array.from(document.querySelectorAll('.prod-checkbox:checked'));
+        if (checkboxes.length === 0) {
+            checkboxes = Array.from(document.querySelectorAll('.prod-checkbox'));
+        }
+
+        checkboxes.forEach(cb => {
+            const pid = cb.value;
+            const input = document.getElementById('inputPrice' + pid);
+            if (!input) return;
+            const physPrice = parseFloat(input.getAttribute('data-phys-price')) || 0.0;
+            if (physPrice > 0) {
+                const newPrice = Math.max(0.01, Math.round(physPrice * (1.0 + pct / 100.0) * 100) / 100);
+                input.value = newPrice.toFixed(2);
+                cb.checked = true;
+                onManualPriceInput(pid, `Lote Manual (${pct >= 0 ? '+' : ''}${pct}% vs. Física)`);
+            }
+        });
+        updateSelectedCount();
+    }
+
+    // Aplica diretamente os valores da calculadora em lote e faz update no ERP
+    async function applyCalculatorBatchToErp() {
+        fillSelectedWithCalculator();
+        await applyBatchSelected();
+    }
+
+    // Aplica preço individual (usando o valor do campo editável da linha) e faz update para o ERP
+    async function applySinglePrice(productId, channel, btnElement) {
+        const input = document.getElementById('inputPrice' + productId);
+        const price = input ? (parseFloat(String(input.value).replace(',', '.')) || 0.0) : 0.0;
+        if (price <= 0) {
+            alert('Informe um preço válido maior que zero para este produto.');
+            return;
+        }
+
         btnElement.disabled = true;
-        btnElement.innerText = 'Salvando...';
+        const origHtml = btnElement.innerHTML;
+        btnElement.innerText = 'Enviando ERP...';
 
         try {
             const res = await fetch("{{ url_for('products.pricing_apply') }}", {
@@ -536,30 +1013,35 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     product_ids: [productId],
-                    channel: channel
+                    channel: channel,
+                    manual_prices: { [productId]: price }
                 })
             });
             const result = await res.json();
             if (result.success) {
-                btnElement.innerText = '✓ Sincronizado no Bling!';
+                btnElement.innerText = '✓ ERP Atualizado!';
                 btnElement.style.background = '#dcfce7';
                 btnElement.style.color = '#15803d';
                 btnElement.style.borderColor = '#86efac';
 
-                const cell = document.getElementById('cellChannelPrice' + productId);
-                if (cell) {
-                    cell.innerHTML = '<div style="font-weight: 800;">R$ ' + price.toFixed(2).replace('.', ',') + '</div>' +
-                                     '<span style="font-size: 9.5px; background: #dcfce7; color: #166534; padding: 1px 5px; border-radius: 4px; font-weight: 700;">Bling ✓</span>';
+                if (input) {
+                    input.style.borderColor = '#16a34a';
+                    input.style.background = '#f0fdf4';
+                }
+                const statusBadge = document.getElementById('statusBadge' + productId);
+                if (statusBadge) {
+                    statusBadge.innerHTML = '<span style="background: #dcfce7; color: #166534; padding: 1px 5px; border-radius: 4px; font-weight: 700;">Bling ERP ✓ (' + formatBRL(price) + ')</span>';
                 }
             } else {
                 btnElement.disabled = false;
-                btnElement.innerText = 'Erro';
-                alert('Erro ao aplicar: ' + result.message);
+                btnElement.innerHTML = origHtml;
+                alert('Erro ao atualizar preço: ' + result.message);
             }
         } catch (err) {
             btnElement.disabled = false;
-            btnElement.innerText = 'Falha';
+            btnElement.innerHTML = origHtml;
             console.error(err);
+            alert('Falha de comunicação ao enviar update para o ERP.');
         }
     }
 
@@ -594,7 +1076,7 @@
         }
     }
 
-    // Aplica preço em lote para os selecionados
+    // Aplica preço em lote para os selecionados (respeitando valores manuais ou da calculadora nos inputs) e faz update no ERP
     async function applyBatchSelected() {
         const selected = Array.from(document.querySelectorAll('.prod-checkbox:checked')).map(cb => parseInt(cb.value));
         if (selected.length === 0) {
@@ -602,7 +1084,23 @@
             return;
         }
 
-        if (!confirm(`Confirma aplicar a precificação automática calculada para ${selected.length} produto(s) no canal {{ selected_channel }}?`)) {
+        const manualPrices = {};
+        selected.forEach(pid => {
+            const input = document.getElementById('inputPrice' + pid);
+            if (input) {
+                const val = parseFloat(String(input.value).replace(',', '.'));
+                if (val && val > 0) {
+                    manualPrices[pid] = val;
+                }
+            }
+        });
+
+        const commInput = document.getElementById('simCommInput');
+        const marginInput = document.getElementById('simMarginInput');
+        const customComm = commInput ? parseFloat(commInput.value) : null;
+        const customMargin = marginInput ? parseFloat(marginInput.value) : null;
+
+        if (!confirm(`Confirma salvar os preços e fazer o update no ERP para ${selected.length} produto(s) no marketplace {{ selected_channel }}?`)) {
             return;
         }
 
@@ -612,7 +1110,10 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     product_ids: selected,
-                    channel: '{{ selected_channel }}'
+                    channel: '{{ selected_channel }}',
+                    manual_prices: manualPrices,
+                    custom_commission_percent: customComm,
+                    custom_target_margin: customMargin
                 })
             });
             const result = await res.json();
@@ -630,7 +1131,9 @@
 
     // Simulador em tempo real
     async function runSimulation() {
-        const cost = parseFloat(document.getElementById('simCostInput').value) || 0.01;
+        const costEl = document.getElementById('simCostInput');
+        if (!costEl) return;
+        const cost = parseFloat(costEl.value) || 0.01;
         const comm = parseFloat(document.getElementById('simCommInput').value) || 14.0;
         const margin = parseFloat(document.getElementById('simMarginInput').value) || 20.0;
 

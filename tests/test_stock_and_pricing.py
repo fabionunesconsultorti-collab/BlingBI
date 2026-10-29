@@ -302,3 +302,109 @@ def test_marketplace_bling_sync_and_price_reflection(app, client):
             assert json_data['synced_count'] == 1
 
 
+def test_pricing_overview_tab_and_marketplace_batch_and_manual_updates(app, client):
+    """
+    Testa:
+    1. Primeira aba (/products/pricing -> channel=overview) com matriz comparativa:
+       Cod Produto | Nome prod | Preço venda Loja Física | Marketplace A | % Diferença | Marketplace B + % ...
+    2. Bloqueio de atualização de preço pela aba overview.
+    3. Edição manual e alteração em lote pela calculadora nas abas dos respectivos marketplaces com update no ERP.
+    """
+    from unittest.mock import patch
+
+    with app.app_context():
+        p1 = Product(
+            bling_id=990001,
+            sku='SKU-MATRIZ-01',
+            name='Poltrona Decorativa Matriz',
+            cost=100.0,
+            purchase_cost=100.0,
+            price=200.0,  # Preço Venda Loja Física
+            stock=12.0,
+            category='Sala'
+        )
+        p2 = Product(
+            bling_id=990002,
+            sku='SKU-MATRIZ-02',
+            name='Aparador Buffet Matriz',
+            cost=150.0,
+            purchase_cost=150.0,
+            price=300.0,  # Preço Venda Loja Física
+            stock=8.0,
+            category='Sala'
+        )
+        db.session.add_all([p1, p2])
+        db.session.commit()
+
+        # Configura preço salvo de R$ 230,00 (+15% vs R$ 200,00 da Loja Física) no Mercado Livre Clássico
+        PricingEngine.ensure_default_rules()
+        ml_rule = PricingEngine.get_rule_by_channel('Mercado Livre Clássico')
+        ml_rule.bling_loja_id = 205599999
+        ml_rule.is_active = True
+        db.session.commit()
+
+        PricingEngine.apply_channel_price(p1.id, ml_rule.channel, 230.0, 20.0)
+
+        # 1. Verifica matriz de visão geral no PricingEngine
+        rules = PricingEngine.get_all_rules()
+        matrix = PricingEngine.get_overview_matrix([p1, p2], rules)
+        assert len(matrix['rows']) == 2
+        row1 = next(r for r in matrix['rows'] if r['sku'] == 'SKU-MATRIZ-01')
+        assert row1['physical_store_price'] == 200.0
+        ml_cell = row1['marketplaces'][ml_rule.channel]
+        assert ml_cell['display_price'] == 230.0
+        assert ml_cell['is_saved'] is True
+        assert ml_cell['diff_percent'] == 15.0  # (230 - 200) / 200 * 100 = +15.0%
+
+        # 2. Verifica renderização HTML da 1ª Aba (overview)
+        res_overview = client.get('/products/pricing')
+        assert res_overview.status_code == 200
+        html_overview = res_overview.data.decode('utf-8')
+        assert 'Cod Produto' in html_overview
+        assert 'Nome Prod' in html_overview
+        assert 'Preço Venda Loja Física' in html_overview
+        assert '% Diferença' in html_overview
+        assert '+15,0%' in html_overview
+
+        # 3. Garante que atualizações de preço são bloqueadas na aba overview
+        res_block = client.post('/products/pricing/apply', json={
+            'product_ids': [p1.id],
+            'channel': 'overview',
+            'manual_prices': {str(p1.id): 250.0}
+        })
+        assert res_block.status_code == 400
+        assert res_block.get_json()['success'] is False
+
+        # 4. Verifica renderização da aba específica de um marketplace com input manual e calculadora
+        res_mkt = client.get(f'/products/pricing?channel={ml_rule.channel}')
+        assert res_mkt.status_code == 200
+        html_mkt = res_mkt.data.decode('utf-8')
+        assert 'Preço no Marketplace (Manual/Lote)' in html_mkt
+        assert 'Preencher Produtos com Valores da Calculadora' in html_mkt
+        assert f'id="inputPrice{p1.id}"' in html_mkt
+
+        # 5. Testa atualização em lote com Edição Manual refletindo no ERP Bling
+        with patch('app.services.bling_api.BlingApiClient.is_configured', return_value=True), \
+             patch('app.services.bling_api.BlingApiClient.update_product_store_price', return_value=(True, 'OK', {'id': 777111})) as mock_erp:
+            res_manual = client.post('/products/pricing/apply', json={
+                'product_ids': [p1.id, p2.id],
+                'channel': ml_rule.channel,
+                'manual_prices': {
+                    str(p1.id): 240.0,  # +20% sobre 200.0
+                    str(p2.id): 345.0   # +15% sobre 300.0
+                }
+            })
+            assert res_manual.status_code == 200
+            data_manual = res_manual.get_json()
+            assert data_manual['success'] is True
+            assert data_manual['applied_count'] == 2
+            assert mock_erp.call_count == 2
+
+            cp1 = ProductChannelPrice.query.filter_by(product_id=p1.id, channel=ml_rule.channel).first()
+            cp2 = ProductChannelPrice.query.filter_by(product_id=p2.id, channel=ml_rule.channel).first()
+            assert cp1.price == 240.0
+            assert cp2.price == 345.0
+            assert cp1.sync_status == 'synced'
+
+
+

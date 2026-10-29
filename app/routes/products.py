@@ -371,7 +371,7 @@ def stock_analysis_import_excel():
 @bp.route('/pricing')
 @requires_feature('products.pricing', fallback_endpoint='products.index')
 def pricing():
-    """Tela de Precificação Inteligente de Marketplaces com DRE Unitário e aplicação em lote."""
+    """Tela de Precificação Inteligente de Marketplaces com Matriz Comparativa (1ª Aba) e Abas de Marketplaces."""
     # Sincroniza automaticamente canais configurados no Bling e pedidos históricos
     try:
         PricingEngine.sync_channels_from_bling()
@@ -379,8 +379,14 @@ def pricing():
         logger.warning(f"Aviso ao sincronizar canais no carregamento da precificação: {e}")
 
     rules = PricingEngine.get_all_rules()
-    selected_channel = request.args.get('channel', rules[0].channel if rules else 'Mercado Livre Clássico')
-    active_rule = PricingEngine.get_rule_by_channel(selected_channel) or (rules[0] if rules else None)
+    selected_channel = request.args.get('channel', 'overview').strip() or 'overview'
+    is_overview_tab = (selected_channel.lower() == 'overview')
+
+    active_rule = None
+    if not is_overview_tab:
+        active_rule = PricingEngine.get_rule_by_channel(selected_channel) or (rules[0] if rules else None)
+        if active_rule:
+            selected_channel = active_rule.channel
 
     # Verificação de preços existentes no canal local
     has_synced_prices = False
@@ -399,12 +405,30 @@ def pricing():
 
     raw_prods = query.order_by(Product.name.asc()).limit(150).all()
 
-    # Simula para cada produto o preço ideal no canal ativo
     simulated_products = []
-    if active_rule:
+    overview_rows = []
+    marketplace_columns = [r for r in rules if r.logo_key != 'loja_fisica'] or list(rules)
+
+    if is_overview_tab:
+        overview_data = PricingEngine.get_overview_matrix(raw_prods, rules)
+        overview_rows = overview_data['rows']
+        marketplace_columns = overview_data['marketplace_columns']
+    elif active_rule:
+        # Pré-carrega preços do canal ativo para evitar N+1 queries
+        prod_ids = [p.id for p in raw_prods]
+        channel_cps = ProductChannelPrice.query.filter(
+            ProductChannelPrice.channel == active_rule.channel,
+            ProductChannelPrice.product_id.in_(prod_ids)
+        ).all() if prod_ids else []
+        cp_map = {cp.product_id: cp for cp in channel_cps}
+
         for p in raw_prods:
             calc = PricingEngine.calculate_product_channel_pricing(
-                p, active_rule, custom_target_margin=custom_margin
+                p,
+                active_rule,
+                custom_target_margin=custom_margin,
+                preloaded_cp=cp_map.get(p.id),
+                has_preloaded_cp=True
             )
             simulated_products.append(calc)
 
@@ -413,6 +437,9 @@ def pricing():
     return render_template(
         'products/marketplace_pricing.html',
         rules=rules,
+        marketplace_columns=marketplace_columns,
+        is_overview_tab=is_overview_tab,
+        overview_rows=overview_rows,
         active_rule=active_rule,
         selected_channel=selected_channel,
         products=simulated_products,
@@ -548,20 +575,55 @@ def pricing_simulate():
 
 @bp.route('/pricing/apply', methods=['POST'])
 def pricing_apply():
-    """Aplica preços calculados a um único produto ou a uma lista em lote."""
+    """Aplica preços calculados pela calculadora ou editados manualmente a um ou múltiplos produtos em lote."""
     try:
         data = request.get_json(silent=True) or request.form
         product_ids = data.get('product_ids', [])
         channel = data.get('channel', '').strip()
-        custom_target_margin = data.get('custom_target_margin')
-        if custom_target_margin is not None:
-            try: custom_target_margin = float(custom_target_margin)
-            except (ValueError, TypeError): custom_target_margin = None
 
+        if channel.lower() == 'overview':
+            return jsonify({
+                'success': False,
+                'message': 'As atualizações de preço devem ser feitas somente pela tela dos marketplaces respectivos.'
+            }), 400
+
+        custom_target_margin = data.get('custom_target_margin')
+        if custom_target_margin is not None and str(custom_target_margin).strip() != '':
+            try:
+                custom_target_margin = float(str(custom_target_margin).replace(',', '.'))
+            except (ValueError, TypeError):
+                custom_target_margin = None
+        else:
+            custom_target_margin = None
+
+        custom_commission_percent = data.get('custom_commission_percent')
+        if custom_commission_percent is not None and str(custom_commission_percent).strip() != '':
+            try:
+                custom_commission_percent = float(str(custom_commission_percent).replace(',', '.'))
+            except (ValueError, TypeError):
+                custom_commission_percent = None
+        else:
+            custom_commission_percent = None
+
+        manual_prices = data.get('manual_prices') or data.get('custom_prices')
+        if not isinstance(manual_prices, dict):
+            manual_prices = None
+
+        # Se também vier um preço único para 1 produto (ex: {product_ids: [1], price: 99.90})
+        single_price = data.get('price')
         if isinstance(product_ids, str):
             product_ids = [int(p.strip()) for p in product_ids.split(',') if p.strip()]
         elif isinstance(product_ids, int):
             product_ids = [product_ids]
+
+        if not product_ids and manual_prices:
+            product_ids = [int(k) for k in manual_prices.keys() if str(k).strip().isdigit()]
+
+        if single_price is not None and len(product_ids) == 1 and not manual_prices:
+            try:
+                manual_prices = {int(product_ids[0]): float(str(single_price).replace(',', '.'))}
+            except (ValueError, TypeError):
+                pass
 
         if not product_ids or not channel:
             return jsonify({'success': False, 'message': 'Produtos ou canal não informados.'}), 400
@@ -569,9 +631,12 @@ def pricing_apply():
         result = PricingEngine.apply_prices_in_batch(
             product_ids=product_ids,
             channel=channel,
-            custom_target_margin=custom_target_margin
+            custom_target_margin=custom_target_margin,
+            custom_commission_percent=custom_commission_percent,
+            manual_prices=manual_prices
         )
-        return jsonify(result)
+        status_code = 200 if result.get('success') else 400
+        return jsonify(result), status_code
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
